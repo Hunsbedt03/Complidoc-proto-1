@@ -606,37 +606,25 @@ async function generateDocs(){
     if(mi<messages.length){loadingText.textContent=messages[mi].loading;mi++;}
   },4000);
 
-  const prompt=`Du er en ekspert på teknisk dokumentasjon og CE-merking for industrielle produkter.
+  const prompt=`Generer teknisk dokumentasjon for denne maskinen som JSON.
 
-Generer komplett dokumentasjonspakke for følgende maskin:
-- Maskintype: ${maskintype}
-- Prosjekt/lokasjon: ${prosjekt}
-- Serienummer: ${serienr}
-- Kunde: ${kunde}
-- Produsent: ${produsent}
-- Ansvarlig ingeniør: ${ingenior}
-- Drivsystem: ${driv}
-- Spenningsforsyning: ${spenning}
-- Installasjonsmiljø: ${miljo}
-- Transport: ${transport}
-- Styring: ${styring}
-- Beskrivelse: ${beskrivelse}
+Maskin: ${maskintype}
+Produsent: ${produsent}
+Serienr: ${serienr}
+Prosjekt: ${prosjekt}
+Kunde: ${kunde}
+Ingeniør: ${ingenior}
+Driv: ${driv}
+Spenning: ${spenning}
+Miljø: ${miljo}
+Transport: ${transport}
+Styring: ${styring}
+Beskrivelse: ${beskrivelse}
 
-Generer ALLE fire dokumenter på norsk og engelsk. Bruk profesjonell teknisk språkstil.
+Svar med dette JSON-formatet:
+{"risk":"RISIKOVURDERING TEKST HER","tech":"TEKNISK FIL TEKST HER","doc":"SAMSVARSERKLÆRING TEKST HER","qc":"QC SJEKKLISTE TEKST HER"}
 
-Format output som JSON med denne strukturen (kun JSON, ingen annen tekst):
-{
-  "risk": "FULLT INNHOLD RISIKOVURDERING HER",
-  "tech": "FULLT INNHOLD TEKNISK FIL HER",
-  "doc": "FULLT INNHOLD SAMSVARSERKLÆRING HER",
-  "qc": "FULLT INNHOLD QC-SJEKKLISTE HER"
-}
-
-For hvert dokument, inkluder:
-- RISIKOVURDERING: Dokumentnr, produkt info, omfang, risikomatrise (S/P/RPN-skala), minst 10 identifiserte risikoer i tabell med ID/Fare/Situasjon/S/P/RPN/Nivå/Tiltak, konklusjon, revisjonslogg
-- TEKNISK FIL: Produktidentifikasjon, produsent info, teknisk beskrivelse, anvendte direktiver og standarder, risikovurderingsreferanse, tegningsliste, testprotokoll
-- SAMSVARSERKLÆRING: Produsent, produkt, alle relevante EU-direktiver, harmoniserte standarder, sted/dato/signatur felt
-- QC-SJEKKLISTE: Minst 25 kontrollpunkter fordelt på kategorier (Mekanisk/Hydraulikk/Elektrisk/Sikkerhet/Funksjon/Dokumentasjon) med OK/N/A felt`;
+Hvert felt skal inneholde fullstendig profesjonell dokumentasjon på norsk.`;
 
   try{
     const response=await fetch('/api/generate',{
