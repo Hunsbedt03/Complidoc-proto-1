@@ -1,9 +1,5 @@
 {
   "name": "complidoc",
   "version": "1.0.0",
-  "description": "AI-drevet industriell dokumentasjonsplattform",
-  "private": true,
-  "dependencies": {
-    "docx": "^8.5.0"
-  }
+  "private": true
 }
