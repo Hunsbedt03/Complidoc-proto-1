@@ -649,8 +649,9 @@ Hvert felt skal inneholde fullstendig profesjonell dokumentasjon på norsk.`;
 }
 
 function downloadDoc(type){
-  const content=generatedDocs[type];
-  if(!content){alert('Ingen innhold å laste ned.');return;}
+  let raw=generatedDocs[type];
+  if(!raw){alert('Ingen innhold å laste ned.');return;}
+  const content=raw.replace(/\\n/g,'\n').replace(/\\t/g,'\t');
   const names={risk:'Risikovurdering',tech:'Teknisk_Fil',doc:'Samsvarserklaring',qc:'QC_Sjekkliste'};
   const lns=content.split('\n');
   let body='';
