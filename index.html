@@ -554,6 +554,7 @@ footer{padding:32px 40px;border-top:0.5px solid rgba(255,255,255,0.07);display:f
 
 <script>
 let generatedDocs = {};
+let currentPrompt = '';
 
 function showLanding(){
   document.getElementById('landing-page').style.display='block';
@@ -648,6 +649,7 @@ For hvert dokument, inkluder:
     loading.classList.remove('active');
     if(data.error){alert('Feil: '+data.error);return;}
     generatedDocs=data;
+    currentPrompt=prompt;
     document.getElementById('output-title').textContent=`Dokumentpakke generert — ${maskintype} · ${prosjekt}`;
     showPanel('output');
   }catch(err){
@@ -658,21 +660,38 @@ For hvert dokument, inkluder:
   }
 }
 
-function downloadDoc(type){
+async function downloadDoc(type){
   const content=generatedDocs[type];
   if(!content){alert('Ingen innhold å laste ned.');return;}
+  const names={risk:'Risikovurdering',tech:'Teknisk_Fil',doc:'Samsvarserklæring',qc:'QC_Sjekkliste'};
+  try{
+    const response=await fetch('/api/generate',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({prompt:currentPrompt,docType:type})
+    });
+    if(response.headers.get('content-type')&&response.headers.get('content-type').includes('wordprocessingml')){
+      const blob=await response.blob();
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');
+      a.href=url;
+      a.download=`Complidoc_${names[type]}.docx`;
+      a.click();
+      URL.revokeObjectURL(url);
+      return;
+    }
+  }catch(err){}
   const blob=new Blob([content],{type:'text/plain;charset=utf-8'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
   a.href=url;
-  const names={risk:'Risikovurdering',tech:'Teknisk_Fil',doc:'Samsvarserklæring',qc:'QC_Sjekkliste'};
   a.download=`Complidoc_${names[type]}.txt`;
   a.click();
   URL.revokeObjectURL(url);
 }
 
 function downloadAll(){
-  Object.keys(generatedDocs).forEach(type=>downloadDoc(type));
+  ['risk','tech','doc','qc'].forEach(type=>downloadDoc(type));
 }
 </script>
 </body>
