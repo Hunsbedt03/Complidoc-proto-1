@@ -4,15 +4,10 @@ export default async function handler(req, res) {
   }
 
   const { prompt } = req.body;
-
-  if (!prompt) {
-    return res.status(400).json({ error: 'Mangler prompt' });
-  }
+  if (!prompt) return res.status(400).json({ error: 'Mangler prompt' });
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    return res.status(500).json({ error: 'API-nøkkel ikke konfigurert' });
-  }
+  if (!apiKey) return res.status(500).json({ error: 'API-nøkkel ikke konfigurert' });
 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -25,26 +20,29 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
         max_tokens: 8000,
-        system: 'Du er en ekspert på teknisk dokumentasjon og CE-merking. Du svarer KUN med gyldig JSON. Ingen forklaringer, ingen markdown, ingen tekst utenfor JSON-objektet. Bare ren JSON.',
+        system: 'Du er en ekspert på teknisk dokumentasjon og CE-merking. Svar KUN med et JSON-objekt som starter med { og slutter med }. Ingen markdown, ingen forklaring.',
         messages: [{ role: 'user', content: prompt }]
       })
     });
 
     const data = await response.json();
+    if (!response.ok) return res.status(500).json({ error: data.error?.message || 'API-feil' });
 
-    if (!response.ok) {
-      return res.status(500).json({ error: data.error?.message || 'API-feil' });
-    }
-
-    const text = data.content[0].text;
+    const text = data.content[0].text.trim();
 
     let parsed;
     try {
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error('Ingen JSON funnet');
-      parsed = JSON.parse(jsonMatch[0]);
+      const start = text.indexOf('{');
+      const end = text.lastIndexOf('}');
+      if (start === -1 || end === -1) throw new Error('Ingen JSON');
+      parsed = JSON.parse(text.substring(start, end + 1));
     } catch (e) {
-      return res.status(500).json({ error: 'Kunne ikke tolke AI-svar', raw: text.substring(0, 500) });
+      parsed = {
+        risk: text.substring(0, 3000) || 'Feil ved parsing',
+        tech: 'Se risk-feltet for rådata fra AI',
+        doc: '',
+        qc: ''
+      };
     }
 
     return res.status(200).json(parsed);
