@@ -1,59 +1,3 @@
-import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, HeadingLevel, AlignmentType, BorderStyle, WidthType } from 'docx';
-
-function makeDoc(title, content) {
-  const lines = content.split('\n').filter(l => l.trim());
-  const children = [];
-
-  children.push(new Paragraph({
-    text: title,
-    heading: HeadingLevel.TITLE,
-    alignment: AlignmentType.CENTER,
-    spacing: { after: 400 }
-  }));
-
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-
-    if (trimmed.startsWith('# ')) {
-      children.push(new Paragraph({
-        text: trimmed.replace(/^#+\s*/, ''),
-        heading: HeadingLevel.HEADING_1,
-        spacing: { before: 300, after: 100 }
-      }));
-    } else if (trimmed.startsWith('## ')) {
-      children.push(new Paragraph({
-        text: trimmed.replace(/^#+\s*/, ''),
-        heading: HeadingLevel.HEADING_2,
-        spacing: { before: 200, after: 100 }
-      }));
-    } else if (trimmed.startsWith('| ')) {
-      const cells = trimmed.split('|').filter(c => c.trim() && !c.match(/^[-\s]+$/));
-      if (cells.length > 0) {
-        children.push(new TableRow({
-          children: cells.map(cell => new TableCell({
-            children: [new Paragraph({ text: cell.trim(), spacing: { before: 60, after: 60 } })],
-            width: { size: Math.floor(9000 / cells.length), type: WidthType.DXA }
-          }))
-        }));
-      }
-    } else if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
-      children.push(new Paragraph({
-        text: trimmed.replace(/^[-*]\s*/, ''),
-        bullet: { level: 0 },
-        spacing: { after: 60 }
-      }));
-    } else {
-      children.push(new Paragraph({
-        children: [new TextRun({ text: trimmed })],
-        spacing: { after: 100 }
-      }));
-    }
-  }
-
-  return new Document({ sections: [{ children }] });
-}
-
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
@@ -62,13 +6,6 @@ export default async function handler(req, res) {
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return res.status(500).json({ error: 'Mangler API-nøkkel' });
-
-  const docTitles = {
-    risk: 'Risikovurdering',
-    tech: 'Teknisk Fil',
-    doc: 'EF-Samsvarserklæring',
-    qc: 'QC-Sjekkliste'
-  };
 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -81,13 +18,13 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
         max_tokens: 8000,
-        system: 'Du er en ekspert på teknisk dokumentasjon og CE-merking. Svar KUN med et JSON-objekt som starter med { og slutter med }. Ingen markdown-kodeblokker. Bare ren JSON.',
+        system: 'Du er en ekspert på teknisk dokumentasjon og CE-merking. Svar KUN med et JSON-objekt. Ingen markdown, ingen forklaring. Bare ren JSON som starter med { og slutter med }.',
         messages: [{ role: 'user', content: prompt }]
       })
     });
 
     const data = await response.json();
-    if (!response.ok) return res.status(500).json({ error: data.error?.message });
+    if (!response.ok) return res.status(500).json({ error: data.error?.message || 'API-feil' });
 
     const text = data.content[0].text.trim();
     const start = text.indexOf('{');
@@ -97,11 +34,20 @@ export default async function handler(req, res) {
     const parsed = JSON.parse(text.substring(start, end + 1));
 
     if (docType && parsed[docType]) {
-      const doc = makeDoc(docTitles[docType] || docType, parsed[docType]);
-      const buffer = await Packer.toBuffer(doc);
-      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-      res.setHeader('Content-Disposition', `attachment; filename="${docTitles[docType]}.docx"`);
-      return res.send(buffer);
+      const content = parsed[docType];
+      const names = { risk: 'Risikovurdering', tech: 'Teknisk_Fil', doc: 'Samsvarserklaring', qc: 'QC_Sjekkliste' };
+      const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+        body{font-family:Arial,sans-serif;margin:40px;font-size:12pt;line-height:1.5;}
+        h1{font-size:18pt;border-bottom:2px solid #000;padding-bottom:8px;}
+        h2{font-size:14pt;margin-top:20px;}
+        table{width:100%;border-collapse:collapse;margin:10px 0;}
+        td,th{border:1px solid #000;padding:6px 8px;font-size:11pt;}
+        th{background:#f0f0f0;font-weight:bold;}
+        .header{text-align:center;margin-bottom:30px;}
+      </style></head><body>${content.replace(/\n/g,'<br>')}</body></html>`;
+      res.setHeader('Content-Type', 'application/msword');
+      res.setHeader('Content-Disposition', `attachment; filename="Complidoc_${names[docType] || docType}.doc"`);
+      return res.send(html);
     }
 
     return res.status(200).json(parsed);
