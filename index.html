@@ -606,38 +606,31 @@ async function generateDocs(){
     if(mi<messages.length){loadingText.textContent=messages[mi].loading;mi++;}
   },4000);
 
-  const prompt=`Generer teknisk dokumentasjon for denne maskinen som JSON.
-
-Maskin: ${maskintype}
+  const machineData=`Maskin: ${maskintype}
 Produsent: ${produsent}
-Serienr: ${serienr}
-Prosjekt: ${prosjekt}
+Serienummer: ${serienr}
+Prosjekt/lokasjon: ${prosjekt}
 Kunde: ${kunde}
-Ingeniør: ${ingenior}
-Driv: ${driv}
-Spenning: ${spenning}
-Miljø: ${miljo}
+Ansvarlig ingeniør: ${ingenior}
+Drivsystem: ${driv}
+Spenningsforsyning: ${spenning}
+Installasjonsmiljø: ${miljo}
 Transport: ${transport}
 Styring: ${styring}
-Beskrivelse: ${beskrivelse}
-
-Svar med dette JSON-formatet:
-{"risk":"RISIKOVURDERING TEKST HER","tech":"TEKNISK FIL TEKST HER","doc":"SAMSVARSERKLÆRING TEKST HER","qc":"QC SJEKKLISTE TEKST HER"}
-
-Hvert felt skal inneholde fullstendig profesjonell dokumentasjon på norsk.`;
+Beskrivelse: ${beskrivelse}`;
 
   try{
     const response=await fetch('/api/generate',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({prompt,serienr,prosjekt})
+      body:JSON.stringify({machineData})
     });
     const data=await response.json();
     clearInterval(interval);
     loading.classList.remove('active');
     if(data.error){alert('Feil: '+data.error);return;}
     generatedDocs=data;
-    currentPrompt=prompt;
+    currentPrompt=machineData;
     document.getElementById('output-title').textContent=`Dokumentpakke generert — ${maskintype} · ${prosjekt}`;
     showPanel('output');
   }catch(err){
