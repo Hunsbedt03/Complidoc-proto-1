@@ -4,6 +4,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <title>Complidoc — AI-drevet industriell dokumentasjon</title>
 <script>
 (function () {
@@ -241,6 +242,7 @@ html[data-view="app"] #app-page{display:block!important;}
 .spinner{width:40px;height:40px;border:2px solid rgba(26,111,212,0.2);border-top-color:#1A6FD4;border-radius:50%;animation:spin 0.8s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
 .loading-text{font-size:14px;color:#9CA3AF;}
+.loading-step{font-size:12px;color:#6B7280;margin-top:4px;}
 </style>
 </head>
 <body>
@@ -249,6 +251,7 @@ html[data-view="app"] #app-page{display:block!important;}
 <div class="loading-overlay" id="loading">
   <div class="spinner"></div>
   <div class="loading-text" id="loading-text">Genererer dokumentpakke...</div>
+  <div class="loading-step" id="loading-step"></div>
 </div>
 
 <!-- LANDING PAGE -->
@@ -563,7 +566,7 @@ html[data-view="app"] #app-page{display:block!important;}
           </div>
 
           <div class="form-bottom">
-            <div class="form-info">4 dokumenter · Estimert tid: under 1 minutt</div>
+            <div class="form-info">4 dokumenter · Estimert tid: 3–4 minutter</div>
             <div>
               <button class="btn-cancel" onclick="showPanel('dashboard')">Avbryt</button>
               <button class="btn-generate" type="button" id="btn-generate" onclick="generateDocs()">Generer dokumentpakke →</button>
@@ -659,6 +662,16 @@ async function loadJSZip() {
 async function generateDocs() {
   agentLog('index.html:generateDocs', 'clicked', { hypothesisId: 'API-J' });
 
+  const btn = document.getElementById('btn-generate');
+  if (btn && btn.disabled) return;
+
+  if (!String(generateDocs).includes('docType')) {
+    agentLog('index.html:generateDocs', 'stale frontend reload', { hypothesisId: 'CACHE-A' });
+    alert('Gammel versjon lastet. Siden oppdateres nå — prøv igjen om et øyeblikk.');
+    location.reload();
+    return;
+  }
+
   if (window.__apiVersion && window.__apiVersion !== 'v9-split-docs') {
     alert(
       'Serveren kjører gammel versjon (' + window.__apiVersion + '). ' +
@@ -689,7 +702,10 @@ async function generateDocs() {
 
   const loading = document.getElementById('loading');
   const loadingText = document.getElementById('loading-text');
+  const loadingStep = document.getElementById('loading-step');
   loading.classList.add('active');
+  if (btn) btn.disabled = true;
+  loadingStep.textContent = 'Dokument 0 av 4 · ca. 1 min per dokument';
 
   const steps = [
     'Analyserer maskintype og direktiver...',
@@ -697,9 +713,10 @@ async function generateDocs() {
     'Utarbeider teknisk fil og samsvarserklæring...',
     'Bygger .docx-filer og pakker ZIP...'
   ];
+  let interval;
   let si = 0;
   loadingText.textContent = steps[0];
-  const interval = setInterval(() => {
+  interval = setInterval(() => {
     si = Math.min(si + 1, steps.length - 1);
     loadingText.textContent = steps[si];
   }, 6000);
@@ -736,6 +753,7 @@ Beskrivelse: ${beskrivelse}`;
 
     for (let i = 0; i < docSteps.length; i++) {
       loadingText.textContent = docSteps[i].label;
+      loadingStep.textContent = 'Dokument ' + (i + 1) + ' av 4 · ca. 1 min per dokument';
       agentLog('index.html:generateDocs', 'doc start', { hypothesisId: 'GEN-A', docType: docSteps[i].docType, step: i + 1 });
 
       // #region agent log
@@ -754,7 +772,7 @@ Beskrivelse: ${beskrivelse}`;
         fetch('http://127.0.0.1:7899/ingest/bef89494-0ce9-4594-b826-2f6c32aab015',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'8fd491'},body:JSON.stringify({sessionId:'8fd491',location:'index.html:generateDocs',message:'POST error',data:{hypothesisId:'F',docType:docSteps[i].docType,status:res.status,body:txt.slice(0,400)},timestamp:Date.now()})}).catch(()=>{});
         // #endregion
         if (res.status === 404) {
-          alert('API ikke tilgjengelig (404). Du må kjøre appen via Vercel-deploy — ikke som lokal fil.');
+          alert('API ikke tilgjengelig (404). Hard refresh (Ctrl+F5) og prøv igjen.');
         } else if (res.status === 504) {
           alert('Timeout ved ' + docSteps[i].docType + '. Prøv igjen om litt.');
         } else if (res.status === 400 && txt.includes('docType')) {
@@ -788,6 +806,7 @@ Beskrivelse: ${beskrivelse}`;
 
     clearInterval(interval);
     loading.classList.remove('active');
+    loadingStep.textContent = '';
     loadingText.textContent = 'Pakker ZIP...';
 
     const zipB64 = await zip.generateAsync({ type: 'base64', compression: 'DEFLATE' });
@@ -801,13 +820,16 @@ Beskrivelse: ${beskrivelse}`;
       'Dokumentpakke generert — ' + maskintype + ' · ' + prosjekt;
     showPanel('output');
   } catch (err) {
-    clearInterval(interval);
-    loading.classList.remove('active');
     // #region agent log
     fetch('http://127.0.0.1:7899/ingest/bef89494-0ce9-4594-b826-2f6c32aab015',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'8fd491'},body:JSON.stringify({sessionId:'8fd491',location:'index.html:generateDocs',message:'network error',data:{hypothesisId:'H',error:err.message},timestamp:Date.now()})}).catch(()=>{});
     // #endregion
     alert('Nettverksfeil: ' + err.message);
     console.error(err);
+  } finally {
+    if (interval) clearInterval(interval);
+    loading.classList.remove('active');
+    if (loadingStep) loadingStep.textContent = '';
+    if (btn) btn.disabled = false;
   }
 }
 
@@ -863,6 +885,19 @@ document.addEventListener('DOMContentLoaded', function() {
     dataView: document.documentElement.dataset.view,
     origin: location.origin
   });
+
+  if (!sessionStorage.getItem('complidoc-cache-check')) {
+    fetch('/index.html', { cache: 'no-store' })
+      .then(function(r) { return r.text(); })
+      .then(function(html) {
+        if (html.includes('docType: docSteps[i].docType') && !generateDocs.toString().includes('docType')) {
+          sessionStorage.setItem('complidoc-cache-check', '1');
+          agentLog('index.html:init', 'stale cache reload', { hypothesisId: 'CACHE-B' });
+          location.reload();
+        }
+      })
+      .catch(function() {});
+  }
 
   fetch('/api/generate')
     .then(function(r) {
