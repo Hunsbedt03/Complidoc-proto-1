@@ -619,17 +619,59 @@ Transport: ${transport}
 Styring: ${styring}
 Beskrivelse: ${beskrivelse}`;
 
+  const docSteps=[
+    {type:'risk',label:'Genererer risikovurdering...'},
+    {type:'tech',label:'Utarbeider teknisk fil...'},
+    {type:'doc',label:'Utarbeider samsvarserklæring...'},
+    {type:'qc',label:'Ferdigstiller QC-sjekkliste...'}
+  ];
+
   try{
-    const response=await fetch('/api/generate',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({machineData})
-    });
-    const data=await response.json();
+    const healthRes=await fetch('/api/generate');
+    const healthRaw=await healthRes.text();
+    let health;
+    try{health=JSON.parse(healthRaw);}catch(e){
+      alert('API svarer ikke med JSON ('+healthRes.status+'): '+healthRaw.slice(0,120));
+      clearInterval(interval);loading.classList.remove('active');return;
+    }
+    if(!health.ok){alert('API health check feilet');clearInterval(interval);loading.classList.remove('active');return;}
+    console.log('[debug-8fd491] API version:',health.version,'hasApiKey:',health.hasApiKey);
+
+    const modRes=await fetch('/doc-builder.js');
+    const modText=await modRes.text();
+    if(!modRes.ok||!modText.includes('buildDocxBlob')){
+      alert('doc-builder.js mangler på server ('+modRes.status+'). Sjekk at filen er deployet.');
+      clearInterval(interval);loading.classList.remove('active');return;
+    }
+    console.log('[debug-8fd491] doc-builder.js OK, size:',modText.length);
+
+    generatedDocs={};
+    for(const step of docSteps){
+      loadingText.textContent=step.label;
+      const response=await fetch('/api/generate',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({machineData,docType:step.type})
+      });
+      const raw=await response.text();
+      let data;
+      try{data=JSON.parse(raw);}catch(parseErr){
+        clearInterval(interval);
+        loading.classList.remove('active');
+        alert('Feil ved '+step.type+' ('+response.status+'): '+(raw.slice(0,200)||'Tom respons'));
+        console.error('JSON parse failed:',parseErr,raw);
+        return;
+      }
+      if(!response.ok||data.error){
+        clearInterval(interval);
+        loading.classList.remove('active');
+        alert('Feil ved '+step.type+': '+(data.error||('HTTP '+response.status)));
+        return;
+      }
+      generatedDocs[step.type]=data[step.type];
+    }
     clearInterval(interval);
     loading.classList.remove('active');
-    if(data.error){alert('Feil: '+data.error);return;}
-    generatedDocs=data;
     currentPrompt=machineData;
     document.getElementById('output-title').textContent=`Dokumentpakke generert — ${maskintype} · ${prosjekt}`;
     showPanel('output');
@@ -641,42 +683,41 @@ Beskrivelse: ${beskrivelse}`;
   }
 }
 
-function downloadDoc(type){
-  let raw=generatedDocs[type];
-  if(!raw){alert('Ingen innhold å laste ned.');return;}
-  let content=raw.replace(/\\n/g,'\n').replace(/\\t/g,'\t');
-  content=content.replace(/^```json\s*/i,'').replace(/^```\s*/,'').replace(/\s*```$/,'').trim();
-  if(content.startsWith('"')){try{content=JSON.parse(content);}catch(e){}}
-  const names={risk:'Risikovurdering',tech:'Teknisk_Fil',doc:'Samsvarserklaring',qc:'QC_Sjekkliste'};
-  const lns=content.split('\n');
-  let body='';
-  for(const line of lns){
-    const t=line.trim();
-    if(!t)continue;
-    if(t.startsWith('# '))body+=`<h1>${t.slice(2)}</h1>`;
-    else if(t.startsWith('## '))body+=`<h2>${t.slice(3)}</h2>`;
-    else if(t.startsWith('### '))body+=`<h3>${t.slice(4)}</h3>`;
-    else if(t.startsWith('| ')){
-      const cells=t.split('|').filter(c=>c.trim()&&!c.match(/^[-: ]+$/));
-      if(cells.length)body+=`<tr>${cells.map(c=>`<td>${c.trim()}</td>`).join('')}</tr>`;
-    }
-    else if(t.startsWith('- ')||t.startsWith('* '))body+=`<li>${t.slice(2)}</li>`;
-    else body+=`<p>${t}</p>`;
-  }
-  const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${names[type]}</title><style>@page{margin:2.5cm;}body{font-family:Arial,sans-serif;font-size:11pt;line-height:1.6;}h1{font-size:16pt;border-bottom:2px solid #000;padding-bottom:6px;}h2{font-size:13pt;}p{margin:4px 0;}li{margin:2px 0;}table{width:100%;border-collapse:collapse;margin:12px 0;}td{border:1px solid #000;padding:5px 8px;}tr:first-child td{background:#f0f0f0;font-weight:bold;}.hdr{text-align:center;border-bottom:3px solid #000;padding-bottom:16px;margin-bottom:24px;}</style></head><body><div class="hdr"><h1 style="border:none;font-size:20pt;">${names[type]}</h1><p style="color:#444;font-size:10pt;">Complidoc &middot; ${new Date().toLocaleDateString('no-NO')}</p></div>${body}</body></html>`;
-  const blob=new Blob([html],{type:'text/html;charset=utf-8'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url;
-  a.download=`Complidoc_${names[type]}.html`;
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
 
-function downloadAll(){
-  ['risk','tech','doc','qc'].forEach((type,i)=>setTimeout(()=>downloadDoc(type),i*600));
+async function downloadDoc(type){
+  let raw=generatedDocs[type];
+  if(!raw){alert('Ingen innhold å laste ned.');return;}
+  try{
+    const { buildDocxBlob, getDocxFilename } = await import('./doc-builder.js');
+    const blob = await buildDocxBlob(type, currentPrompt, raw);
+    downloadBlob(blob, getDocxFilename(type, currentPrompt));
+  }catch(err){
+    alert('Kunne ikke lage .docx: ' + err.message);
+    console.error(err);
+  }
+}
+
+async function downloadAll(){
+  if(!generatedDocs.risk){alert('Ingen dokumenter å pakke.');return;}
+  try{
+    const { buildZipBlob, parseMachineData } = await import('./doc-builder.js');
+    const blob = await buildZipBlob(generatedDocs, currentPrompt);
+    const d = parseMachineData(currentPrompt);
+    downloadBlob(blob, `Complidoc_${d.maskin.replace(/[^a-zA-Z0-9]/g,'_')}_${d.serienr.replace(/\s/g,'-')}.zip`);
+  }catch(err){
+    alert('Kunne ikke lage ZIP: ' + err.message);
+    console.error(err);
+  }
 }
 </script>
 </body>

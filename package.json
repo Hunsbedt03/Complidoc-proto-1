@@ -2,8 +2,10 @@
   "name": "complidoc",
   "version": "1.0.0",
   "private": true,
-  "dependencies": {
-    "docx": "^9.0.2",
-    "jszip": "^3.10.1"
+  "engines": {
+    "node": "20.x"
+  },
+  "scripts": {
+    "build": "echo Static site — no build step"
   }
 }
