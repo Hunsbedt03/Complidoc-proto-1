@@ -552,9 +552,123 @@ footer{padding:32px 40px;border-top:0.5px solid rgba(255,255,255,0.07);display:f
   </div>
 </div>
 
-<script>
-let generatedDocs = {};
-let currentPrompt = '';
+let zipData = null;
+
+function showLanding() {
+  document.getElementById('landing-page').style.display = 'block';
+  document.getElementById('app-page').style.display = 'none';
+}
+function showApp() {
+  document.getElementById('landing-page').style.display = 'none';
+  document.getElementById('app-page').style.display = 'block';
+}
+function showPanel(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  document.querySelectorAll('.app-nav-item').forEach(n => n.classList.remove('active'));
+  if (name === 'dashboard') document.getElementById('nav-dashboard').classList.add('active');
+  if (name === 'new')       document.getElementById('nav-new').classList.add('active');
+  const titles = {
+    dashboard: ['Oversikt',          'Foss Solutions · 2025'],
+    new:       ['Nytt prosjekt',      'Fyll inn detaljer for å generere dokumentpakke'],
+    output:    ['Dokumentpakke klar', 'Last ned og signer']
+  };
+  if (titles[name]) {
+    document.getElementById('app-title').textContent = titles[name][0];
+    document.getElementById('app-sub').textContent   = titles[name][1];
+  }
+}
+
+async function generateDocs() {
+  const g = id => document.getElementById(id).value;
+  const maskintype  = g('f-maskintype');
+  const prosjekt    = g('f-prosjekt')    || 'Ukjent lokasjon';
+  const serienr     = g('f-serienr')     || 'N/A';
+  const kunde       = g('f-kunde')       || 'Ukjent kunde';
+  const produsent   = g('f-produsent')   || 'Ukjent produsent';
+  const ingenior    = g('f-ingenior')    || 'Ansvarlig ingeniør';
+  const driv        = g('f-driv');
+  const spenning    = g('f-spenning');
+  const miljo       = g('f-miljo');
+  const transport   = g('f-transport');
+  const styring     = g('f-styring');
+  const beskrivelse = g('f-beskrivelse') || 'Ikke spesifisert';
+
+  const loading     = document.getElementById('loading');
+  const loadingText = document.getElementById('loading-text');
+  loading.classList.add('active');
+
+  const steps = [
+    'Analyserer maskintype og direktiver...',
+    'Genererer risikovurdering (EN ISO 12100)...',
+    'Utarbeider teknisk fil og samsvarserklæring...',
+    'Bygger .docx-filer og pakker ZIP...'
+  ];
+  let si = 0;
+  loadingText.textContent = steps[0];
+  const interval = setInterval(() => {
+    si = Math.min(si + 1, steps.length - 1);
+    loadingText.textContent = steps[si];
+  }, 6000);
+
+  const machineData =
+`Maskin: ${maskintype}
+Produsent: ${produsent}
+Serienummer: ${serienr}
+Prosjekt/lokasjon: ${prosjekt}
+Kunde: ${kunde}
+Ansvarlig ingeniør: ${ingenior}
+Drivsystem: ${driv}
+Spenningsforsyning: ${spenning}
+Installasjonsmiljø: ${miljo}
+Transport: ${transport}
+Styring: ${styring}
+Beskrivelse: ${beskrivelse}`;
+
+  try {
+    const res = await fetch('/api/generate', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ machineData })
+    });
+
+    clearInterval(interval);
+    loading.classList.remove('active');
+
+    if (!res.ok) {
+      const txt = await res.text();
+      alert('Server feil (' + res.status + '): ' + txt.slice(0, 300));
+      return;
+    }
+
+    const data = await res.json();
+    if (data.error) { alert('Feil: ' + data.error); return; }
+
+    zipData = { zip: data.zip, filename: data.filename };
+
+    document.getElementById('output-title').textContent =
+      'Dokumentpakke generert — ' + maskintype + ' · ' + prosjekt;
+    showPanel('output');
+
+  } catch (err) {
+    clearInterval(interval);
+    loading.classList.remove('active');
+    alert('Nettverksfeil: ' + err.message);
+    console.error(err);
+  }
+}
+
+async function downloadDoc(prefix) {
+  if (!zipData) { alert('Generer en dokumentpakke først.'); return; }
+  if (!window.JSZip) {
+    await new Promise((ok, fail) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+      s.onload = ok; s.onerror = fail;
+      document.head.appendChild(s);
+    });
+  }
+  const z
 
 function showLanding(){
   document.getElementById('landing-page').style.display='block';
