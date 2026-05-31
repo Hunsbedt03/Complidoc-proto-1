@@ -17,6 +17,17 @@
       }
     }
   ],
+  "headers": [
+    {
+      "source": "/doc-builder.js",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/javascript"
+        }
+      ]
+    }
+  ],
   "routes": [
     {
       "src": "/api/generate",
