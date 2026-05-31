@@ -45,9 +45,10 @@ function serveApi(req, res) {
 }
 
 function serveStatic(req, res, pathname) {
+  const staticRoot = path.join(root, 'public');
   let file = pathname === '/' ? '/index.html' : pathname;
-  file = path.normalize(path.join(root, file.replace(/^\//, '')));
-  if (!file.startsWith(root)) {
+  file = path.normalize(path.join(staticRoot, file.replace(/^\//, '')));
+  if (!file.startsWith(staticRoot)) {
     res.writeHead(403);
     res.end('Forbidden');
     return;

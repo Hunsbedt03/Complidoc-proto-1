@@ -4,7 +4,6 @@
   "private": true,
   "scripts": {
     "build": "node scripts/build-api.js",
-    "postinstall": "npm run build",
     "dev": "node scripts/dev-server.js"
   },
   "dependencies": {
