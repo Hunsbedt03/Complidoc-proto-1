@@ -1,3 +1,5 @@
 api/generate.js
 api/lib/
 node_modules/
+package/
+*.tgz

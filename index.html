@@ -38,6 +38,7 @@
     document.documentElement.dataset.view = 'app';
     applyPanel('new');
     window.scrollTo(0, 0);
+    if (window.__agentLog) window.__agentLog('index.html:showApp', 'nav app+form', { hypothesisId: 'UI-B' });
   };
 
   window.showPanel = function (name) {
@@ -564,7 +565,7 @@ html[data-view="app"] #app-page{display:block!important;}
             <div class="form-info">4 dokumenter · Estimert tid: under 1 minutt</div>
             <div>
               <button class="btn-cancel" onclick="showPanel('dashboard')">Avbryt</button>
-              <button class="btn-generate" onclick="generateDocs()">Generer dokumentpakke →</button>
+              <button class="btn-generate" type="button" id="btn-generate" onclick="generateDocs()">Generer dokumentpakke →</button>
             </div>
           </div>
         </div>
@@ -618,6 +619,7 @@ function agentLog(location, message, data) {
   fetch('http://127.0.0.1:7899/ingest/bef89494-0ce9-4594-b826-2f6c32aab015',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'8fd491'},body:JSON.stringify({sessionId:'8fd491',location,message,data,timestamp:Date.now()})}).catch(()=>{});
   // #endregion
 }
+window.__agentLog = agentLog;
 
 function triggerDownload(blob, filename) {
   const url = URL.createObjectURL(blob);
@@ -642,6 +644,8 @@ async function loadJSZip() {
 }
 
 async function generateDocs() {
+  agentLog('index.html:generateDocs', 'clicked', { hypothesisId: 'API-J' });
+
   const get = id => document.getElementById(id).value;
   const maskintype = get('f-maskintype');
   const prosjekt = get('f-prosjekt') || 'Ukjent lokasjon';
@@ -706,7 +710,11 @@ Beskrivelse: ${beskrivelse}`;
       // #region agent log
       fetch('http://127.0.0.1:7899/ingest/bef89494-0ce9-4594-b826-2f6c32aab015',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'8fd491'},body:JSON.stringify({sessionId:'8fd491',location:'index.html:generateDocs',message:'POST error',data:{hypothesisId:'F',status:res.status,body:txt.slice(0,400)},timestamp:Date.now()})}).catch(()=>{});
       // #endregion
-      alert('Server feil (' + res.status + '): ' + txt.slice(0, 300));
+      if (res.status === 404) {
+        alert('API ikke tilgjengelig (404). Du må kjøre appen via Vercel-deploy — ikke som lokal fil.');
+      } else {
+        alert('Server feil (' + res.status + '): ' + txt.slice(0, 300));
+      }
       return;
     }
 
@@ -789,8 +797,23 @@ document.addEventListener('DOMContentLoaded', function() {
     hypothesisId: 'UI-E',
     hasShowApp: typeof showApp === 'function',
     hasGenerateDocs: typeof generateDocs === 'function',
-    dataView: document.documentElement.dataset.view
+    dataView: document.documentElement.dataset.view,
+    origin: location.origin
   });
+
+  fetch('/api/generate')
+    .then(function(r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .then(function(d) {
+      agentLog('index.html:apiHealth', 'ok', { hypothesisId: 'API-K', version: d.version, bundled: d.bundled, hasApiKey: d.hasApiKey });
+      window.__apiOk = true;
+    })
+    .catch(function(err) {
+      window.__apiOk = false;
+      agentLog('index.html:apiHealth', 'fail', { hypothesisId: 'API-K', error: err.message, origin: location.origin });
+    });
 });
 </script>
 </body>
