@@ -135,7 +135,9 @@ async function downloadDoc(type) {
 
   let targetFile = null;
   zip.forEach((path, file) => {
-    if (!file.dir && path.includes(prefixes[type])) targetFile = file;
+    const prefixMap = { risk: '01_', tech: '02_', doc: '03_', qc: '04_' };
+const p = prefixMap[prefix] || prefix;
+if (!file.dir && path.includes(p)) target = file;
   });
 
   if (!targetFile) { alert('Fant ikke filen i pakken.'); return; }
