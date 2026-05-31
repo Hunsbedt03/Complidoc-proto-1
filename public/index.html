@@ -40,7 +40,6 @@
     document.documentElement.dataset.view = 'app';
     applyPanel('new');
     window.scrollTo(0, 0);
-    if (window.__agentLog) window.__agentLog('index.html:showApp', 'nav app+form', { hypothesisId: 'UI-B' });
   };
 
   window.showPanel = function (name) {
@@ -630,13 +629,6 @@ function showDeployBanner(message) {
   el.textContent = message;
 }
 
-function agentLog(location, message, data) {
-  // #region agent log
-  fetch('http://127.0.0.1:7899/ingest/bef89494-0ce9-4594-b826-2f6c32aab015',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'8fd491'},body:JSON.stringify({sessionId:'8fd491',location,message,data,timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
-}
-window.__agentLog = agentLog;
-
 function triggerDownload(blob, filename) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -660,13 +652,10 @@ async function loadJSZip() {
 }
 
 async function generateDocs() {
-  agentLog('index.html:generateDocs', 'clicked', { hypothesisId: 'API-J' });
-
   const btn = document.getElementById('btn-generate');
   if (btn && btn.disabled) return;
 
   if (!String(generateDocs).includes('docType')) {
-    agentLog('index.html:generateDocs', 'stale frontend reload', { hypothesisId: 'CACHE-A' });
     alert('Gammel versjon lastet. Siden oppdateres nå — prøv igjen om et øyeblikk.');
     location.reload();
     return;
@@ -678,11 +667,6 @@ async function generateDocs() {
       'Deploy siste kode til Vercel og hard refresh (Ctrl+F5). ' +
       'Forventet: v9-split-docs'
     );
-    agentLog('index.html:generateDocs', 'version mismatch', {
-      hypothesisId: 'DEP-N',
-      expected: 'v9-split-docs',
-      actual: window.__apiVersion
-    });
     return;
   }
 
@@ -754,11 +738,6 @@ Beskrivelse: ${beskrivelse}`;
     for (let i = 0; i < docSteps.length; i++) {
       loadingText.textContent = docSteps[i].label;
       loadingStep.textContent = 'Dokument ' + (i + 1) + ' av 4 · ca. 1 min per dokument';
-      agentLog('index.html:generateDocs', 'doc start', { hypothesisId: 'GEN-A', docType: docSteps[i].docType, step: i + 1 });
-
-      // #region agent log
-      fetch('http://127.0.0.1:7899/ingest/bef89494-0ce9-4594-b826-2f6c32aab015',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'8fd491'},body:JSON.stringify({sessionId:'8fd491',location:'index.html:generateDocs',message:'POST start',data:{hypothesisId:'E',docType:docSteps[i].docType},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
 
       const res = await fetch('/api/generate', {
         method: 'POST',
@@ -768,9 +747,6 @@ Beskrivelse: ${beskrivelse}`;
 
       if (!res.ok) {
         const txt = await res.text();
-        // #region agent log
-        fetch('http://127.0.0.1:7899/ingest/bef89494-0ce9-4594-b826-2f6c32aab015',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'8fd491'},body:JSON.stringify({sessionId:'8fd491',location:'index.html:generateDocs',message:'POST error',data:{hypothesisId:'F',docType:docSteps[i].docType,status:res.status,body:txt.slice(0,400)},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
         if (res.status === 404) {
           alert('API ikke tilgjengelig (404). Hard refresh (Ctrl+F5) og prøv igjen.');
         } else if (res.status === 504) {
@@ -800,8 +776,6 @@ Beskrivelse: ${beskrivelse}`;
       const arr = new Uint8Array(bytes.length);
       for (let b = 0; b < bytes.length; b++) arr[b] = bytes.charCodeAt(b);
       folder.file(data.filename, arr);
-
-      agentLog('index.html:generateDocs', 'doc ok', { hypothesisId: 'GEN-B', docType: docSteps[i].docType, filename: data.filename });
     }
 
     clearInterval(interval);
@@ -811,18 +785,11 @@ Beskrivelse: ${beskrivelse}`;
 
     const zipB64 = await zip.generateAsync({ type: 'base64', compression: 'DEFLATE' });
     zipData = { zip: zipB64, filename: zipFilename };
-    console.log('[debug-8fd491] zip OK', zipFilename, 'b64len:', zipB64.length);
-    // #region agent log
-    fetch('http://127.0.0.1:7899/ingest/bef89494-0ce9-4594-b826-2f6c32aab015',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'8fd491'},body:JSON.stringify({sessionId:'8fd491',location:'index.html:generateDocs',message:'POST success',data:{hypothesisId:'G',filename:zipFilename,b64len:zipB64.length},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
 
     document.getElementById('output-title').textContent =
       'Dokumentpakke generert — ' + maskintype + ' · ' + prosjekt;
     showPanel('output');
   } catch (err) {
-    // #region agent log
-    fetch('http://127.0.0.1:7899/ingest/bef89494-0ce9-4594-b826-2f6c32aab015',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'8fd491'},body:JSON.stringify({sessionId:'8fd491',location:'index.html:generateDocs',message:'network error',data:{hypothesisId:'H',error:err.message},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
     alert('Nettverksfeil: ' + err.message);
     console.error(err);
   } finally {
@@ -878,21 +845,12 @@ window.downloadAll = downloadAll;
 window.downloadDoc = downloadDoc;
 
 document.addEventListener('DOMContentLoaded', function() {
-  agentLog('index.html:init', 'page ready', {
-    hypothesisId: 'UI-E',
-    hasShowApp: typeof showApp === 'function',
-    hasGenerateDocs: typeof generateDocs === 'function',
-    dataView: document.documentElement.dataset.view,
-    origin: location.origin
-  });
-
   if (!sessionStorage.getItem('complidoc-cache-check')) {
     fetch('/index.html', { cache: 'no-store' })
       .then(function(r) { return r.text(); })
       .then(function(html) {
         if (html.includes('docType: docSteps[i].docType') && !generateDocs.toString().includes('docType')) {
           sessionStorage.setItem('complidoc-cache-check', '1');
-          agentLog('index.html:init', 'stale cache reload', { hypothesisId: 'CACHE-B' });
           location.reload();
         }
       })
@@ -907,27 +865,15 @@ document.addEventListener('DOMContentLoaded', function() {
     .then(function(d) {
       window.__apiVersion = d.version;
       window.__apiOk = true;
-      agentLog('index.html:apiHealth', 'ok', {
-        hypothesisId: 'API-K',
-        version: d.version,
-        bundled: d.bundled,
-        hasApiKey: d.hasApiKey,
-        frontendBuild: FRONTEND_BUILD,
-        expected: 'v9-split-docs',
-        mismatch: d.version !== 'v9-split-docs'
-      });
       if (d.version !== 'v9-split-docs') {
         console.warn('[complidoc] API version mismatch. Deploy siste kode. Live=', d.version, 'expected=v9-split-docs');
       }
       if (!generateDocs.toString().includes('docType')) {
         showDeployBanner('Frontend er utdatert (mangler docType). Deploy siste index.html og hard refresh.');
-      } else if (d.version === 'v9-split-docs') {
-        agentLog('index.html:apiHealth', 'frontend+api aligned', { hypothesisId: 'DEP-O', build: FRONTEND_BUILD });
       }
     })
     .catch(function(err) {
       window.__apiOk = false;
-      agentLog('index.html:apiHealth', 'fail', { hypothesisId: 'API-K', error: err.message, origin: location.origin });
     });
 });
 </script>

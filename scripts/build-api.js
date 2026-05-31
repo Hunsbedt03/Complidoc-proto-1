@@ -55,25 +55,3 @@ if (!fs.existsSync(publicIndex)) {
   console.error('[build-api] FATAL: failed to create public/index.html');
   process.exit(1);
 }
-
-// #region agent log
-try {
-  fs.appendFileSync(
-    path.join(root, 'debug-8fd491.log'),
-    JSON.stringify({
-      sessionId: '8fd491',
-      location: 'scripts/build-api.js',
-      message: 'build complete',
-      data: {
-        hypothesisId: 'DEP-M',
-        indexHtmlBytes: fs.statSync(indexHtml).size,
-        publicExists: fs.existsSync(publicIndex),
-        publicBytes: fs.statSync(publicIndex).size,
-        apiSizeKb: sizeKb
-      },
-      timestamp: Date.now(),
-      runId: 'post-fix-build-writes-public'
-    }) + '\n'
-  );
-} catch (_) {}
-// #endregion
