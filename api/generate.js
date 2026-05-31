@@ -8,7 +8,7 @@ function parseBody(req) {
 }
 
 async function generateSingleDoc(apiKey, docType, machineData) {
-  const model = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514';
+  const model = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5';
   const prompts = {
     risk: `Du er en teknisk compliance-ekspert spesialisert på risikovurdering.
 Skriv en komplett profesjonell risikovurdering på norsk for følgende maskin.
