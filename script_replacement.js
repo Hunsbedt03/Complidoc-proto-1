@@ -1,38 +1,64 @@
-// ─── ERSTATNING FOR SCRIPT-BLOKKEN I index.html ──────────────────────────
-// Kopier dette inn i <script>-taggen, erstatter alt fra
-// "let generatedDocs = {};" til og med "function downloadAll(){...}"
-// Behold showLanding(), showApp(), showPanel() uendret over denne blokken.
+// ─── ERSTATTER HELE <script>...</script> BLOKKEN I index.html ───────────────
+// Behold alt HTML/CSS uendret. Bare bytt ut script-innholdet med dette.
 
-let zipData = null;      // { zip: base64string, filename: string }
+let zipData = null; // { zip: base64, filename: string }
+
+function showLanding() {
+  document.getElementById('landing-page').style.display = 'block';
+  document.getElementById('app-page').style.display = 'none';
+}
+function showApp() {
+  document.getElementById('landing-page').style.display = 'none';
+  document.getElementById('app-page').style.display = 'block';
+}
+function showPanel(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  document.querySelectorAll('.app-nav-item').forEach(n => n.classList.remove('active'));
+  if (name === 'dashboard') document.getElementById('nav-dashboard').classList.add('active');
+  if (name === 'new')       document.getElementById('nav-new').classList.add('active');
+  const titles = {
+    dashboard: ['Oversikt',          'Foss Solutions · 2025'],
+    new:       ['Nytt prosjekt',      'Fyll inn detaljer for å generere dokumentpakke'],
+    output:    ['Dokumentpakke klar', 'Last ned og signer'],
+  };
+  if (titles[name]) {
+    document.getElementById('app-title').textContent = titles[name][0];
+    document.getElementById('app-sub').textContent   = titles[name][1];
+  }
+}
 
 async function generateDocs() {
-  const maskintype = document.getElementById('f-maskintype').value;
-  const prosjekt   = document.getElementById('f-prosjekt').value   || 'Ukjent lokasjon';
-  const serienr    = document.getElementById('f-serienr').value    || 'N/A';
-  const kunde      = document.getElementById('f-kunde').value      || 'Ukjent kunde';
-  const produsent  = document.getElementById('f-produsent').value  || 'Ukjent produsent';
-  const ingenior   = document.getElementById('f-ingenior').value   || 'Ansvarlig ingeniør';
-  const driv       = document.getElementById('f-driv').value;
-  const spenning   = document.getElementById('f-spenning').value;
-  const miljo      = document.getElementById('f-miljo').value;
-  const transport  = document.getElementById('f-transport').value;
-  const styring    = document.getElementById('f-styring').value;
-  const beskrivelse= document.getElementById('f-beskrivelse').value || 'Ikke spesifisert';
+  const get = id => document.getElementById(id).value;
+  const maskintype = get('f-maskintype');
+  const prosjekt   = get('f-prosjekt')   || 'Ukjent lokasjon';
+  const serienr    = get('f-serienr')    || 'N/A';
+  const kunde      = get('f-kunde')      || 'Ukjent kunde';
+  const produsent  = get('f-produsent')  || 'Ukjent produsent';
+  const ingenior   = get('f-ingenior')   || 'Ansvarlig ingeniør';
+  const driv       = get('f-driv');
+  const spenning   = get('f-spenning');
+  const miljo      = get('f-miljo');
+  const transport  = get('f-transport');
+  const styring    = get('f-styring');
+  const beskrivelse= get('f-beskrivelse')|| 'Ikke spesifisert';
 
   const loading     = document.getElementById('loading');
   const loadingText = document.getElementById('loading-text');
   loading.classList.add('active');
 
-  const messages = [
+  const steps = [
     'Analyserer maskintype og direktiver...',
-    'Genererer risikovurdering...',
+    'Genererer risikovurdering (EN ISO 12100)...',
     'Utarbeider teknisk fil og samsvarserklæring...',
-    'Bygger .docx-filer og pakker ZIP...'
+    'Bygger .docx-filer og pakker ZIP...',
   ];
-  let mi = 0;
+  let si = 0;
+  loadingText.textContent = steps[0];
   const interval = setInterval(() => {
-    if (mi < messages.length) { loadingText.textContent = messages[mi]; mi++; }
-  }, 5000);
+    si = Math.min(si + 1, steps.length - 1);
+    loadingText.textContent = steps[si];
+  }, 6000);
 
   const machineData =
 `Maskin: ${maskintype}
@@ -49,18 +75,24 @@ Styring: ${styring}
 Beskrivelse: ${beskrivelse}`;
 
   try {
-    const response = await fetch('/api/generate', {
-      method: 'POST',
+    const res  = await fetch('/api/generate', {
+      method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ machineData })
+      body:    JSON.stringify({ machineData }),
     });
-    const data = await response.json();
+
     clearInterval(interval);
     loading.classList.remove('active');
 
+    if (!res.ok) {
+      const txt = await res.text();
+      alert(`Server feil (${res.status}): ${txt.slice(0, 200)}`);
+      return;
+    }
+
+    const data = await res.json();
     if (data.error) { alert('Feil: ' + data.error); return; }
 
-    // Lagre ZIP-data for nedlasting
     zipData = { zip: data.zip, filename: data.filename };
 
     document.getElementById('output-title').textContent =
@@ -70,79 +102,55 @@ Beskrivelse: ${beskrivelse}`;
   } catch (err) {
     clearInterval(interval);
     loading.classList.remove('active');
-    alert('Noe gikk galt. Sjekk konsollen for detaljer.');
+    alert('Nettverksfeil: ' + err.message);
     console.error(err);
   }
 }
 
-// Last ned én enkelt .docx fra ZIP (ikke nødvendig med server-round-trip —
-// vi bruker JSZip i nettleseren til å pakke ut én fil fra base64 ZIP-en)
-async function downloadDoc(type) {
-  if (!zipData) { alert('Ingen dokumentpakke tilgjengelig. Generer først.'); return; }
+// Last ned hele ZIP
+function downloadAll() {
+  if (!zipData) { alert('Generer en dokumentpakke først.'); return; }
+  const bytes   = atob(zipData.zip);
+  const arr     = new Uint8Array(bytes.length);
+  for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+  triggerDownload(new Blob([arr], { type: 'application/zip' }), zipData.filename);
+}
 
-  // Last JSZip dynamisk fra CDN hvis ikke tilgjengelig
-  if (typeof JSZip === 'undefined') {
-    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');
+// Last ned én enkelt .docx — pakk ut fra ZIP i nettleseren
+async function downloadDoc(type) {
+  if (!zipData) { alert('Generer en dokumentpakke først.'); return; }
+
+  // Last JSZip fra CDN én gang
+  if (!window.JSZip) {
+    await new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+      s.onload = resolve; s.onerror = reject;
+      document.head.appendChild(s);
+    });
   }
 
-  const zip = await JSZip.loadAsync(zipData.zip, { base64: true });
-  const names = {
-    risk: '01_Risikovurdering',
-    tech: '02_Teknisk_Fil',
-    doc:  '03_Samsvarserklaring',
-    qc:   '04_QC_Sjekkliste'
-  };
+  const prefixes = { risk: '01_', tech: '02_', doc: '03_', qc: '04_' };
+  const zip      = await JSZip.loadAsync(zipData.zip, { base64: true });
 
-  // Finn filen i ZIP (den ligger i en undermappe)
-  const targetPrefix = names[type];
   let targetFile = null;
-  zip.forEach((relativePath, file) => {
-    if (relativePath.includes(targetPrefix) && !file.dir) {
-      targetFile = file;
-    }
+  zip.forEach((path, file) => {
+    if (!file.dir && path.includes(prefixes[type])) targetFile = file;
   });
 
-  if (!targetFile) { alert('Fant ikke ' + names[type] + ' i pakken.'); return; }
+  if (!targetFile) { alert('Fant ikke filen i pakken.'); return; }
 
   const blob = await targetFile.async('blob');
-  const url  = URL.createObjectURL(new Blob([blob], {
-    type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-  }));
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = targetFile.name.split('/').pop(); // bare filnavnet, ikke mappe
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  triggerDownload(
+    new Blob([blob], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }),
+    targetFile.name.split('/').pop()
+  );
 }
 
-// Last ned hele pakken som én .zip
-function downloadAll() {
-  if (!zipData) { alert('Ingen dokumentpakke tilgjengelig. Generer først.'); return; }
-
-  const bytes    = atob(zipData.zip);
-  const byteArr  = new Uint8Array(bytes.length);
-  for (let i = 0; i < bytes.length; i++) byteArr[i] = bytes.charCodeAt(i);
-
-  const blob = new Blob([byteArr], { type: 'application/zip' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href     = url;
-  a.download = zipData.filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-
-// Hjelpefunksjon: last inn ekstern script dynamisk
-function loadScript(src) {
-  return new Promise((resolve, reject) => {
-    const s  = document.createElement('script');
-    s.src    = src;
-    s.onload = resolve;
-    s.onerror = reject;
-    document.head.appendChild(s);
-  });
+function triggerDownload(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a   = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
 }
