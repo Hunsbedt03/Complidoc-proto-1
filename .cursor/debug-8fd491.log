@@ -1,3 +1,4 @@
 {"sessionId":"8fd491","location":"index.html:init","message":"page ready","data":{"hypothesisId":"UI-E","hasShowApp":true,"hasGenerateDocs":true},"timestamp":1780252531438}
 {"sessionId":"8fd491","location":"index.html:showPanel","message":"panel shown","data":{"hypothesisId":"UI-D","name":"new"},"timestamp":1780252534937}
 {"sessionId":"8fd491","location":"index.html:showApp","message":"nav app+form","data":{"hypothesisId":"UI-B"},"timestamp":1780252534939}
+{"sessionId":"8fd491","location":"index.html:init","message":"page ready","data":{"hypothesisId":"UI-E","hasShowApp":true,"hasGenerateDocs":true,"dataView":"landing"},"timestamp":1780252611129}

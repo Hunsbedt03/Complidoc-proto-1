@@ -1,9 +1,64 @@
 <!DOCTYPE html>
-<html lang="no">
+<html lang="no" data-view="landing">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Complidoc — AI-drevet industriell dokumentasjon</title>
+<script>
+(function () {
+  function applyPanel(name) {
+    document.querySelectorAll('.panel').forEach(function (p) {
+      p.classList.toggle('active', p.id === 'panel-' + name);
+    });
+    document.querySelectorAll('.app-nav-item').forEach(function (n) {
+      var id = n.id || '';
+      n.classList.toggle('active', id === 'nav-' + name);
+    });
+    var titles = {
+      dashboard: ['Oversikt', 'Foss Solutions · 2025'],
+      new: ['Nytt prosjekt', 'Fyll inn detaljer for å generere dokumentpakke'],
+      output: ['Dokumentpakke klar', 'Last ned og signer']
+    };
+    if (titles[name]) {
+      var t = document.getElementById('app-title');
+      var s = document.getElementById('app-sub');
+      if (t) t.textContent = titles[name][0];
+      if (s) s.textContent = titles[name][1];
+    }
+    var content = document.querySelector('.app-content');
+    if (content) content.scrollTop = 0;
+  }
+
+  window.showLanding = function () {
+    document.documentElement.dataset.view = 'landing';
+    window.scrollTo(0, 0);
+  };
+
+  window.showApp = function () {
+    document.documentElement.dataset.view = 'app';
+    applyPanel('new');
+    window.scrollTo(0, 0);
+  };
+
+  window.showPanel = function (name) {
+    document.documentElement.dataset.view = 'app';
+    applyPanel(name);
+  };
+
+  document.addEventListener('click', function (e) {
+    var el = e.target.closest('[data-action]');
+    if (!el) return;
+    var action = el.getAttribute('data-action');
+    if (action === 'landing') showLanding();
+    else if (action === 'app') showApp();
+    else if (action === 'panel') showPanel(el.getAttribute('data-panel') || 'dashboard');
+  });
+
+  document.addEventListener('DOMContentLoaded', function () {
+    if (location.hash === '#app' || location.hash === '#new') showApp();
+  });
+})();
+</script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0D0F12;color:#E8EAF0;min-height:100vh;}
@@ -96,9 +151,9 @@ footer{padding:32px 40px;border-top:0.5px solid rgba(255,255,255,0.07);display:f
 .footer-link{font-size:12px;color:#6B7280;cursor:pointer;}
 
 /* APP */
-#landing-page.page-hidden,#app-page.page-hidden{display:none!important;}
-#landing-page.page-visible{display:block;}
-#app-page.page-visible{display:block;}
+html[data-view="landing"] #app-page{display:none!important;}
+html[data-view="app"] #landing-page{display:none!important;}
+html[data-view="app"] #app-page{display:block!important;}
 #app-page{display:none;}
 .app-wrap{display:flex;height:calc(100vh - 69px);}
 .app-sidebar{width:220px;background:#0F1217;border-right:0.5px solid rgba(255,255,255,0.07);display:flex;flex-direction:column;flex-shrink:0;padding:16px 12px;}
@@ -195,7 +250,7 @@ footer{padding:32px 40px;border-top:0.5px solid rgba(255,255,255,0.07);display:f
 </div>
 
 <!-- LANDING PAGE -->
-<div id="landing-page" class="page-visible">
+<div id="landing-page">
   <nav>
     <div class="logo" onclick="showLanding()">
       <div class="logo-mark">
@@ -208,7 +263,7 @@ footer{padding:32px 40px;border-top:0.5px solid rgba(255,255,255,0.07);display:f
       <span class="nav-link" onclick="document.getElementById('pricing').scrollIntoView({behavior:'smooth'})">Priser</span>
       <span class="nav-link">Om oss</span>
     </div>
-    <button class="nav-cta" onclick="showApp()">Åpne app</button>
+    <button class="nav-cta" type="button" data-action="app" onclick="showApp()">Åpne app</button>
   </nav>
 
   <div class="hero">
@@ -216,7 +271,7 @@ footer{padding:32px 40px;border-top:0.5px solid rgba(255,255,255,0.07);display:f
     <h1>Fra tekniske data til<br><span>ferdig dokumentpakke</span><br>på under ett minutt</h1>
     <p class="hero-sub">Complidoc genererer risikovurderinger, samsvarserklæringer, tekniske filer og QC-sjekklister automatisk — skreddersydd for din maskin og ditt marked.</p>
     <div class="hero-actions">
-      <button class="btn-hero" onclick="showApp()">Prøv gratis nå</button>
+      <button class="btn-hero" type="button" data-action="app" onclick="showApp()">Prøv gratis nå</button>
       <button class="btn-ghost" onclick="document.getElementById('how').scrollIntoView({behavior:'smooth'})">Se hvordan det fungerer</button>
     </div>
     <div class="proof">
@@ -270,7 +325,7 @@ footer{padding:32px 40px;border-top:0.5px solid rgba(255,255,255,0.07);display:f
         <div class="price-feature"><div class="pf-check"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#1A6FD4" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>5 dokumentpakker/mnd</div>
         <div class="price-feature"><div class="pf-check"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#1A6FD4" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>2 brukere</div>
         <div class="price-feature"><div class="pf-check"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#1A6FD4" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>Word og PDF eksport</div>
-        <button class="price-btn btn-outline" onclick="showApp()">Kom i gang</button>
+        <button class="price-btn btn-outline" type="button" data-action="app" onclick="showApp()">Kom i gang</button>
       </div>
       <div class="price-card featured">
         <div class="price-badge">Mest populær</div>
@@ -282,7 +337,7 @@ footer{padding:32px 40px;border-top:0.5px solid rgba(255,255,255,0.07);display:f
         <div class="price-feature"><div class="pf-check"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#1A6FD4" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>10 brukere</div>
         <div class="price-feature"><div class="pf-check"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#1A6FD4" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>Bedriftslæring og maskinarkiv</div>
         <div class="price-feature"><div class="pf-check"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#1A6FD4" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>Prioritert support</div>
-        <button class="price-btn btn-filled" onclick="showApp()">Start gratis prøveperiode</button>
+        <button class="price-btn btn-filled" type="button" data-action="app" onclick="showApp()">Start gratis prøveperiode</button>
       </div>
       <div class="price-card">
         <div class="price-name">Enterprise</div>
@@ -300,7 +355,7 @@ footer{padding:32px 40px;border-top:0.5px solid rgba(255,255,255,0.07);display:f
   <div class="cta-section">
     <div class="cta-title">Klar til å spare tid på dokumentasjon?</div>
     <div class="cta-sub">Prøv Complidoc gratis. Ingen binding, ingen kredittkort.</div>
-    <button class="btn-hero" onclick="showApp()">Start nå</button>
+    <button class="btn-hero" type="button" data-action="app" onclick="showApp()">Start nå</button>
   </div>
 
   <footer>
@@ -323,16 +378,16 @@ footer{padding:32px 40px;border-top:0.5px solid rgba(255,255,255,0.07);display:f
       <span class="logo-name">Complidoc</span>
     </div>
     <div style="font-size:12px;color:#4B5563;">Demo — ikke tilkoblet konto</div>
-    <button class="nav-cta" onclick="showPanel('new')">+ Nytt prosjekt</button>
+    <button class="nav-cta" type="button" data-action="panel" data-panel="new" onclick="showPanel('new')">+ Nytt prosjekt</button>
   </nav>
 
   <div class="app-wrap">
     <div class="app-sidebar">
-      <div class="app-nav-item active" id="nav-dashboard" onclick="showPanel('dashboard')">
+      <div class="app-nav-item" id="nav-dashboard" data-action="panel" data-panel="dashboard" onclick="showPanel('dashboard')">
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="6" height="6" rx="1.5" fill="currentColor"/><rect x="9" y="1" width="6" height="6" rx="1.5" fill="currentColor" opacity="0.5"/><rect x="1" y="9" width="6" height="6" rx="1.5" fill="currentColor" opacity="0.5"/><rect x="9" y="9" width="6" height="6" rx="1.5" fill="currentColor" opacity="0.3"/></svg>
         Oversikt
       </div>
-      <div class="app-nav-item" id="nav-new" onclick="showPanel('new')">
+      <div class="app-nav-item active" id="nav-new" data-action="panel" data-panel="new" onclick="showPanel('new')">
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor"/><line x1="8" y1="5" x2="8" y2="11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="5" y1="8" x2="11" y2="8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
         Nytt prosjekt
       </div>
@@ -355,14 +410,14 @@ footer{padding:32px 40px;border-top:0.5px solid rgba(255,255,255,0.07);display:f
     <div class="app-main">
       <div class="app-topbar">
         <div>
-          <div class="app-title" id="app-title">Oversikt</div>
-          <div class="app-sub" id="app-sub">Foss Solutions · 2025</div>
+          <div class="app-title" id="app-title">Nytt prosjekt</div>
+          <div class="app-sub" id="app-sub">Fyll inn detaljer for å generere dokumentpakke</div>
         </div>
       </div>
       <div class="app-content">
 
         <!-- DASHBOARD -->
-        <div class="panel active" id="panel-dashboard">
+        <div class="panel" id="panel-dashboard">
           <div class="section-label" style="margin-bottom:10px;">Denne måneden</div>
           <div class="stats-grid">
             <div class="stat-card"><div class="stat-label">Pakker generert</div><div class="stat-val">12</div><div class="stat-sub">+4 fra forrige måned</div></div>
@@ -390,7 +445,7 @@ footer{padding:32px 40px;border-top:0.5px solid rgba(255,255,255,0.07);display:f
         </div>
 
         <!-- NEW PROJECT FORM -->
-        <div class="panel" id="panel-new">
+        <div class="panel active" id="panel-new">
           <div class="step-bar">
             <div class="step curr"><div class="step-num">1</div><span class="step-label">Prosjektdetaljer</span></div>
             <div class="step-line"></div>
@@ -564,49 +619,6 @@ function agentLog(location, message, data) {
   // #endregion
 }
 
-function showLanding() {
-  document.getElementById('landing-page').classList.add('page-visible');
-  document.getElementById('landing-page').classList.remove('page-hidden');
-  document.getElementById('app-page').classList.remove('page-visible');
-  document.getElementById('app-page').classList.add('page-hidden');
-  window.scrollTo(0, 0);
-  agentLog('index.html:showLanding', 'nav landing', { hypothesisId: 'UI-A' });
-}
-
-function showApp() {
-  document.getElementById('landing-page').classList.remove('page-visible');
-  document.getElementById('landing-page').classList.add('page-hidden');
-  document.getElementById('app-page').classList.remove('page-hidden');
-  document.getElementById('app-page').classList.add('page-visible');
-  showPanel('new');
-  window.scrollTo(0, 0);
-  agentLog('index.html:showApp', 'nav app+form', { hypothesisId: 'UI-B' });
-}
-
-function showPanel(name) {
-  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-  const panel = document.getElementById('panel-' + name);
-  if (!panel) {
-    agentLog('index.html:showPanel', 'missing panel', { hypothesisId: 'UI-C', name });
-    return;
-  }
-  panel.classList.add('active');
-  document.querySelectorAll('.app-nav-item').forEach(n => n.classList.remove('active'));
-  if (name === 'dashboard') document.getElementById('nav-dashboard').classList.add('active');
-  if (name === 'new') document.getElementById('nav-new').classList.add('active');
-  const titles = {
-    dashboard: ['Oversikt', 'Foss Solutions · 2025'],
-    new: ['Nytt prosjekt', 'Fyll inn detaljer for å generere dokumentpakke'],
-    output: ['Dokumentpakke klar', 'Last ned og signer']
-  };
-  if (titles[name]) {
-    document.getElementById('app-title').textContent = titles[name][0];
-    document.getElementById('app-sub').textContent = titles[name][1];
-  }
-  document.querySelector('.app-content')?.scrollTo(0, 0);
-  agentLog('index.html:showPanel', 'panel shown', { hypothesisId: 'UI-D', name });
-}
-
 function triggerDownload(blob, filename) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -768,9 +780,6 @@ async function downloadDoc(prefix) {
   );
 }
 
-window.showLanding = showLanding;
-window.showApp = showApp;
-window.showPanel = showPanel;
 window.generateDocs = generateDocs;
 window.downloadAll = downloadAll;
 window.downloadDoc = downloadDoc;
@@ -779,7 +788,8 @@ document.addEventListener('DOMContentLoaded', function() {
   agentLog('index.html:init', 'page ready', {
     hypothesisId: 'UI-E',
     hasShowApp: typeof showApp === 'function',
-    hasGenerateDocs: typeof generateDocs === 'function'
+    hasGenerateDocs: typeof generateDocs === 'function',
+    dataView: document.documentElement.dataset.view
   });
 });
 </script>
