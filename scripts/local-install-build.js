@@ -47,6 +47,18 @@ async function npmPack(name, version) {
   await npmPack('docx', '9.0.2');
   console.log('[local-install] jszip...');
   await npmPack('jszip', '3.10.1');
+  console.log('[local-install] setimmediate...');
+  await npmPack('setimmediate', '1.0.5');
+  console.log('[local-install] lie...');
+  await npmPack('lie', '3.3.0');
+  console.log('[local-install] immediate...');
+  await npmPack('immediate', '3.3.0');
+  console.log('[local-install] pako...');
+  await npmPack('pako', '2.1.0');
+  console.log('[local-install] readable-stream...');
+  await npmPack('readable-stream', '4.7.0');
+  console.log('[local-install] abort-controller...');
+  await npmPack('abort-controller', '3.0.0');
   console.log('[local-install] esbuild...');
   await npmPack('esbuild', '0.25.0');
   console.log('[local-install] @esbuild/win32-x64...');

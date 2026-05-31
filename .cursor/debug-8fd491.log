@@ -1,0 +1,54 @@
+{"sessionId":"8fd491","location":"index.html:init","message":"page ready","data":{"hypothesisId":"UI-E","hasShowApp":true,"hasGenerateDocs":true,"dataView":"landing","origin":"http://127.0.0.1:8765"},"timestamp":1780253388583}
+{"sessionId":"8fd491","location":"index.html:apiHealth","message":"fail","data":{"hypothesisId":"API-K","error":"HTTP 404","origin":"http://127.0.0.1:8765"},"timestamp":1780253388649}
+{"sessionId":"8fd491","location":"index.html:showApp","message":"nav app+form","data":{"hypothesisId":"UI-B"},"timestamp":1780253391148}
+{"sessionId":"8fd491","location":"index.html:showApp","message":"nav app+form","data":{"hypothesisId":"UI-B"},"timestamp":1780253391149}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"clicked","data":{"hypothesisId":"API-J"},"timestamp":1780253416421}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"POST start","data":{"hypothesisId":"E"},"timestamp":1780253416422}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"POST error","data":{"hypothesisId":"F","status":404,"body":"404"},"timestamp":1780253416438}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"clicked","data":{"hypothesisId":"API-J"},"timestamp":1780253418426}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"POST start","data":{"hypothesisId":"E"},"timestamp":1780253418427}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"POST error","data":{"hypothesisId":"F","status":404,"body":"404"},"timestamp":1780253418443}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"clicked","data":{"hypothesisId":"API-J"},"timestamp":1780253419109}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"POST start","data":{"hypothesisId":"E"},"timestamp":1780253419110}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"POST error","data":{"hypothesisId":"F","status":404,"body":"404"},"timestamp":1780253419120}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"clicked","data":{"hypothesisId":"API-J"},"timestamp":1780253419612}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"POST start","data":{"hypothesisId":"E"},"timestamp":1780253419613}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"POST error","data":{"hypothesisId":"F","status":404,"body":"404"},"timestamp":1780253419630}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"clicked","data":{"hypothesisId":"API-J"},"timestamp":1780253420013}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"POST start","data":{"hypothesisId":"E"},"timestamp":1780253420014}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"POST error","data":{"hypothesisId":"F","status":404,"body":"404"},"timestamp":1780253420031}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"clicked","data":{"hypothesisId":"API-J"},"timestamp":1780253420736}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"POST start","data":{"hypothesisId":"E"},"timestamp":1780253420737}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"POST error","data":{"hypothesisId":"F","status":404,"body":"404"},"timestamp":1780253420756}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"clicked","data":{"hypothesisId":"API-J"},"timestamp":1780253421185}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"POST start","data":{"hypothesisId":"E"},"timestamp":1780253421186}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"POST error","data":{"hypothesisId":"F","status":404,"body":"404"},"timestamp":1780253421205}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"clicked","data":{"hypothesisId":"API-J"},"timestamp":1780253421390}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"POST start","data":{"hypothesisId":"E"},"timestamp":1780253421391}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"POST error","data":{"hypothesisId":"F","status":404,"body":"404"},"timestamp":1780253421405}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"clicked","data":{"hypothesisId":"API-J"},"timestamp":1780253421560}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"POST start","data":{"hypothesisId":"E"},"timestamp":1780253421561}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"POST error","data":{"hypothesisId":"F","status":404,"body":"404"},"timestamp":1780253421577}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"clicked","data":{"hypothesisId":"API-J"},"timestamp":1780253421711}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"POST start","data":{"hypothesisId":"E"},"timestamp":1780253421711}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"POST error","data":{"hypothesisId":"F","status":404,"body":"404"},"timestamp":1780253421722}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"clicked","data":{"hypothesisId":"API-J"},"timestamp":1780253421876}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"POST start","data":{"hypothesisId":"E"},"timestamp":1780253421877}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"POST error","data":{"hypothesisId":"F","status":404,"body":"404"},"timestamp":1780253421890}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"clicked","data":{"hypothesisId":"API-J"},"timestamp":1780253422193}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"POST start","data":{"hypothesisId":"E"},"timestamp":1780253422193}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"POST error","data":{"hypothesisId":"F","status":404,"body":"404"},"timestamp":1780253422208}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"clicked","data":{"hypothesisId":"API-J"},"timestamp":1780253422586}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"POST start","data":{"hypothesisId":"E"},"timestamp":1780253422587}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"POST error","data":{"hypothesisId":"F","status":404,"body":"404"},"timestamp":1780253422604}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"clicked","data":{"hypothesisId":"API-J"},"timestamp":1780253433696}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"POST start","data":{"hypothesisId":"E"},"timestamp":1780253433697}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"POST error","data":{"hypothesisId":"F","status":404,"body":"404"},"timestamp":1780253433721}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"clicked","data":{"hypothesisId":"API-J"},"timestamp":1780253475109}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"POST start","data":{"hypothesisId":"E"},"timestamp":1780253475110}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"POST error","data":{"hypothesisId":"F","status":404,"body":"404"},"timestamp":1780253475153}
+{"sessionId":"8fd491","location":"index.html:showApp","message":"nav app+form","data":{"hypothesisId":"UI-B"},"timestamp":1780253489583}
+{"sessionId":"8fd491","location":"index.html:showApp","message":"nav app+form","data":{"hypothesisId":"UI-B"},"timestamp":1780253489584}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"clicked","data":{"hypothesisId":"API-J"},"timestamp":1780253494218}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"POST start","data":{"hypothesisId":"E"},"timestamp":1780253494219}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"POST error","data":{"hypothesisId":"F","status":404,"body":"404"},"timestamp":1780253494237}

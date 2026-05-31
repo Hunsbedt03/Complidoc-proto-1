@@ -21465,7 +21465,7 @@ module.exports = async function handler(req, res) {
   if (req.method === "GET") {
     return res.status(200).json({
       ok: true,
-      version: "v7-esbuild-dir",
+      version: "v8-full-bundle",
       bundled: typeof Document !== "undefined",
       hasApiKey: !!process.env.ANTHROPIC_API_KEY
     });
