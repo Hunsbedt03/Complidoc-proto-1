@@ -12,3 +12,6 @@
 {"sessionId":"8fd491","location":"index.html:generateDocs","message":"doc ok","data":{"hypothesisId":"GEN-B","docType":"tech","filename":"02_Teknisk_Fil_N_A.docx"},"timestamp":1780256265701}
 {"sessionId":"8fd491","location":"index.html:generateDocs","message":"doc start","data":{"hypothesisId":"GEN-A","docType":"doc","step":3},"timestamp":1780256265702}
 {"sessionId":"8fd491","location":"index.html:generateDocs","message":"POST start","data":{"hypothesisId":"E","docType":"doc"},"timestamp":1780256265702}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"doc ok","data":{"hypothesisId":"GEN-B","docType":"doc","filename":"03_Samsvarserklaring_N_A.docx"},"timestamp":1780256320324}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"doc start","data":{"hypothesisId":"GEN-A","docType":"qc","step":4},"timestamp":1780256320326}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"POST start","data":{"hypothesisId":"E","docType":"qc"},"timestamp":1780256320327}
