@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- complidoc-build: v9-split-docs -->
 <html lang="no" data-view="landing">
 <head>
 <meta charset="UTF-8">
@@ -646,6 +647,20 @@ async function loadJSZip() {
 async function generateDocs() {
   agentLog('index.html:generateDocs', 'clicked', { hypothesisId: 'API-J' });
 
+  if (window.__apiVersion && window.__apiVersion !== 'v9-split-docs') {
+    alert(
+      'Serveren kjører gammel versjon (' + window.__apiVersion + '). ' +
+      'Deploy siste kode til Vercel og hard refresh (Ctrl+F5). ' +
+      'Forventet: v9-split-docs'
+    );
+    agentLog('index.html:generateDocs', 'version mismatch', {
+      hypothesisId: 'DEP-N',
+      expected: 'v9-split-docs',
+      actual: window.__apiVersion
+    });
+    return;
+  }
+
   const get = id => document.getElementById(id).value;
   const maskintype = get('f-maskintype');
   const prosjekt = get('f-prosjekt') || 'Ukjent lokasjon';
@@ -838,8 +853,19 @@ document.addEventListener('DOMContentLoaded', function() {
       return r.json();
     })
     .then(function(d) {
-      agentLog('index.html:apiHealth', 'ok', { hypothesisId: 'API-K', version: d.version, bundled: d.bundled, hasApiKey: d.hasApiKey });
+      window.__apiVersion = d.version;
       window.__apiOk = true;
+      agentLog('index.html:apiHealth', 'ok', {
+        hypothesisId: 'API-K',
+        version: d.version,
+        bundled: d.bundled,
+        hasApiKey: d.hasApiKey,
+        expected: 'v9-split-docs',
+        mismatch: d.version !== 'v9-split-docs'
+      });
+      if (d.version !== 'v9-split-docs') {
+        console.warn('[complidoc] API version mismatch. Deploy siste kode. Live=', d.version, 'expected=v9-split-docs');
+      }
     })
     .catch(function(err) {
       window.__apiOk = false;
