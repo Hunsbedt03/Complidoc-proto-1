@@ -614,6 +614,18 @@ html[data-view="app"] #app-page{display:block!important;}
 
 <script>
 let zipData = null;
+const FRONTEND_BUILD = 'v9-split-docs';
+
+function showDeployBanner(message) {
+  let el = document.getElementById('deploy-banner');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'deploy-banner';
+    el.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#b45309;color:#fff;padding:12px 16px;font:14px/1.4 sans-serif;text-align:center;';
+    document.body.appendChild(el);
+  }
+  el.textContent = message;
+}
 
 function agentLog(location, message, data) {
   // #region agent log
@@ -745,6 +757,11 @@ Beskrivelse: ${beskrivelse}`;
           alert('API ikke tilgjengelig (404). Du må kjøre appen via Vercel-deploy — ikke som lokal fil.');
         } else if (res.status === 504) {
           alert('Timeout ved ' + docSteps[i].docType + '. Prøv igjen om litt.');
+        } else if (res.status === 400 && txt.includes('docType')) {
+          alert(
+            'Gammel frontend er lastet (mangler docType). ' +
+            'Deploy siste index.html til Vercel og hard refresh (Ctrl+F5).'
+          );
         } else {
           alert('Server feil (' + res.status + ') for ' + docSteps[i].docType + ': ' + txt.slice(0, 300));
         }
@@ -860,11 +877,17 @@ document.addEventListener('DOMContentLoaded', function() {
         version: d.version,
         bundled: d.bundled,
         hasApiKey: d.hasApiKey,
+        frontendBuild: FRONTEND_BUILD,
         expected: 'v9-split-docs',
         mismatch: d.version !== 'v9-split-docs'
       });
       if (d.version !== 'v9-split-docs') {
         console.warn('[complidoc] API version mismatch. Deploy siste kode. Live=', d.version, 'expected=v9-split-docs');
+      }
+      if (!generateDocs.toString().includes('docType')) {
+        showDeployBanner('Frontend er utdatert (mangler docType). Deploy siste index.html og hard refresh.');
+      } else if (d.version === 'v9-split-docs') {
+        agentLog('index.html:apiHealth', 'frontend+api aligned', { hypothesisId: 'DEP-O', build: FRONTEND_BUILD });
       }
     })
     .catch(function(err) {

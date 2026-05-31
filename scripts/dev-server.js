@@ -45,8 +45,7 @@ function serveApi(req, res) {
 }
 
 function serveStatic(req, res, pathname) {
-  const publicRoot = path.join(root, 'public');
-  const staticRoot = fs.existsSync(path.join(publicRoot, 'index.html')) ? publicRoot : root;
+  const staticRoot = root;
   let file = pathname === '/' ? '/index.html' : pathname;
   file = path.normalize(path.join(staticRoot, file.replace(/^\//, '')));
   if (!file.startsWith(staticRoot)) {

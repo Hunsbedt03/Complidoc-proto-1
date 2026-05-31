@@ -2,11 +2,21 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "installCommand": "npm install && npm run build",
   "buildCommand": "npm run build",
-  "outputDirectory": "public",
   "rewrites": [
     {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/index.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
+      ]
     }
   ],
   "functions": {
