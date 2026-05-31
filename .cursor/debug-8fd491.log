@@ -1,0 +1,9 @@
+{"sessionId":"8fd491","location":"index.html:showApp","message":"nav app+form","data":{"hypothesisId":"UI-B"},"timestamp":1780254503784}
+{"sessionId":"8fd491","location":"index.html:init","message":"page ready","data":{"hypothesisId":"UI-E","hasShowApp":true,"hasGenerateDocs":true,"dataView":"app","origin":"https://complidoc-proto-1.vercel.app"},"timestamp":1780254503785}
+{"sessionId":"8fd491","location":"index.html:apiHealth","message":"ok","data":{"hypothesisId":"API-K","version":"v8-full-bundle","bundled":true,"hasApiKey":true},"timestamp":1780254504113}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"clicked","data":{"hypothesisId":"API-J"},"timestamp":1780254519433}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"POST start","data":{"hypothesisId":"E"},"timestamp":1780254519435}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"POST error","data":{"hypothesisId":"F","status":504,"body":"An error occurred with your deployment\n\nFUNCTION_INVOCATION_TIMEOUT\n\narn1::z5xng-1780254518167-e442ac42fa8e\n"},"timestamp":1780254579747}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"clicked","data":{"hypothesisId":"API-J"},"timestamp":1780254670297}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"POST start","data":{"hypothesisId":"E"},"timestamp":1780254670298}
+{"sessionId":"8fd491","location":"index.html:generateDocs","message":"POST error","data":{"hypothesisId":"F","status":504,"body":"An error occurred with your deployment\n\nFUNCTION_INVOCATION_TIMEOUT\n\narn1::cj9k7-1780254669026-08a21bbd4549\n"},"timestamp":1780254730626}

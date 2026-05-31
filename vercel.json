@@ -10,7 +10,7 @@
   ],
   "functions": {
     "api/generate/index.js": {
-      "maxDuration": 60,
+      "maxDuration": 120,
       "includeFiles": "node_modules/{jszip,setimmediate,lie,immediate,pako,readable-stream,abort-controller}/**"
     }
   }

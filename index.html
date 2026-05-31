@@ -691,47 +691,78 @@ Transport: ${transport}
 Styring: ${styring}
 Beskrivelse: ${beskrivelse}`;
 
-  try {
-    // #region agent log
-    fetch('http://127.0.0.1:7899/ingest/bef89494-0ce9-4594-b826-2f6c32aab015',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'8fd491'},body:JSON.stringify({sessionId:'8fd491',location:'index.html:generateDocs',message:'POST start',data:{hypothesisId:'E'},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
+  const docSteps = [
+    { docType: 'risk', label: 'Genererer risikovurdering (EN ISO 12100)...' },
+    { docType: 'tech', label: 'Utarbeider teknisk fil...' },
+    { docType: 'doc', label: 'Genererer samsvarserklæring...' },
+    { docType: 'qc', label: 'Bygger QC-sjekkliste...' }
+  ];
 
-    const res = await fetch('/api/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ machineData })
-    });
+  try {
+    await loadJSZip();
+
+    const safeSerial = serienr.replace(/[^a-zA-Z0-9]/g, '_');
+    const zipFolderName = 'Complidoc_' + safeSerial;
+    const zip = new JSZip();
+    const folder = zip.folder(zipFolderName);
+    const zipFilename = 'Complidoc_' + maskintype.replace(/[^a-zA-Z0-9]/g, '_') + '_' + safeSerial + '.zip';
+
+    for (let i = 0; i < docSteps.length; i++) {
+      loadingText.textContent = docSteps[i].label;
+      agentLog('index.html:generateDocs', 'doc start', { hypothesisId: 'GEN-A', docType: docSteps[i].docType, step: i + 1 });
+
+      // #region agent log
+      fetch('http://127.0.0.1:7899/ingest/bef89494-0ce9-4594-b826-2f6c32aab015',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'8fd491'},body:JSON.stringify({sessionId:'8fd491',location:'index.html:generateDocs',message:'POST start',data:{hypothesisId:'E',docType:docSteps[i].docType},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
+
+      const res = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ machineData, docType: docSteps[i].docType })
+      });
+
+      if (!res.ok) {
+        const txt = await res.text();
+        // #region agent log
+        fetch('http://127.0.0.1:7899/ingest/bef89494-0ce9-4594-b826-2f6c32aab015',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'8fd491'},body:JSON.stringify({sessionId:'8fd491',location:'index.html:generateDocs',message:'POST error',data:{hypothesisId:'F',docType:docSteps[i].docType,status:res.status,body:txt.slice(0,400)},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
+        if (res.status === 404) {
+          alert('API ikke tilgjengelig (404). Du må kjøre appen via Vercel-deploy — ikke som lokal fil.');
+        } else if (res.status === 504) {
+          alert('Timeout ved ' + docSteps[i].docType + '. Prøv igjen om litt.');
+        } else {
+          alert('Server feil (' + res.status + ') for ' + docSteps[i].docType + ': ' + txt.slice(0, 300));
+        }
+        return;
+      }
+
+      const data = await res.json();
+      if (data.error) {
+        alert('Feil ved ' + docSteps[i].docType + ': ' + data.error);
+        return;
+      }
+      if (!data.docx || !data.filename) {
+        alert('Uventet svar for ' + docSteps[i].docType + ' — mangler docx/filename.');
+        return;
+      }
+
+      const bytes = atob(data.docx);
+      const arr = new Uint8Array(bytes.length);
+      for (let b = 0; b < bytes.length; b++) arr[b] = bytes.charCodeAt(b);
+      folder.file(data.filename, arr);
+
+      agentLog('index.html:generateDocs', 'doc ok', { hypothesisId: 'GEN-B', docType: docSteps[i].docType, filename: data.filename });
+    }
 
     clearInterval(interval);
     loading.classList.remove('active');
+    loadingText.textContent = 'Pakker ZIP...';
 
-    if (!res.ok) {
-      const txt = await res.text();
-      // #region agent log
-      fetch('http://127.0.0.1:7899/ingest/bef89494-0ce9-4594-b826-2f6c32aab015',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'8fd491'},body:JSON.stringify({sessionId:'8fd491',location:'index.html:generateDocs',message:'POST error',data:{hypothesisId:'F',status:res.status,body:txt.slice(0,400)},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
-      if (res.status === 404) {
-        alert('API ikke tilgjengelig (404). Du må kjøre appen via Vercel-deploy — ikke som lokal fil.');
-      } else {
-        alert('Server feil (' + res.status + '): ' + txt.slice(0, 300));
-      }
-      return;
-    }
-
-    const data = await res.json();
-    if (data.error) {
-      alert('Feil: ' + data.error);
-      return;
-    }
-    if (!data.zip || !data.filename) {
-      alert('Uventet svar fra server — mangler zip/filename.');
-      return;
-    }
-
-    zipData = { zip: data.zip, filename: data.filename };
-    console.log('[debug-8fd491] zip OK', data.filename, 'b64len:', data.zip.length);
+    const zipB64 = await zip.generateAsync({ type: 'base64', compression: 'DEFLATE' });
+    zipData = { zip: zipB64, filename: zipFilename };
+    console.log('[debug-8fd491] zip OK', zipFilename, 'b64len:', zipB64.length);
     // #region agent log
-    fetch('http://127.0.0.1:7899/ingest/bef89494-0ce9-4594-b826-2f6c32aab015',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'8fd491'},body:JSON.stringify({sessionId:'8fd491',location:'index.html:generateDocs',message:'POST success',data:{hypothesisId:'G',filename:data.filename,b64len:data.zip.length},timestamp:Date.now()})}).catch(()=>{});
+    fetch('http://127.0.0.1:7899/ingest/bef89494-0ce9-4594-b826-2f6c32aab015',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'8fd491'},body:JSON.stringify({sessionId:'8fd491',location:'index.html:generateDocs',message:'POST success',data:{hypothesisId:'G',filename:zipFilename,b64len:zipB64.length},timestamp:Date.now()})}).catch(()=>{});
     // #endregion
 
     document.getElementById('output-title').textContent =

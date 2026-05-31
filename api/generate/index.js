@@ -21465,41 +21465,45 @@ module.exports = async function handler(req, res) {
   if (req.method === "GET") {
     return res.status(200).json({
       ok: true,
-      version: "v8-full-bundle",
+      version: "v9-split-docs",
+      maxDuration: 120,
       bundled: typeof Document !== "undefined",
       hasApiKey: !!process.env.ANTHROPIC_API_KEY
     });
   }
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
-  const { machineData } = parseBody(req);
+  const { machineData, docType } = parseBody(req);
   if (!machineData) return res.status(400).json({ error: "Mangler maskindata" });
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return res.status(500).json({ error: "Mangler ANTHROPIC_API_KEY p\xE5 server" });
   const d = parseMachineData(machineData);
   const safeSerial = d.serienr.replace(/[^a-zA-Z0-9]/g, "_");
+  const validTypes = ["risk", "tech", "doc", "qc"];
   try {
-    const [riskTxt, techTxt, docTxt, qcTxt] = await Promise.all([
-      generateText(apiKey, "risk", machineData),
-      generateText(apiKey, "tech", machineData),
-      generateText(apiKey, "doc", machineData),
-      generateText(apiKey, "qc", machineData)
-    ]);
-    const [riskBuf, techBuf, docBuf, qcBuf] = await Promise.all([
-      Packer.toBuffer(buildRisikovurdering(d, riskTxt)),
-      Packer.toBuffer(buildTekniskFil(d, techTxt)),
-      Packer.toBuffer(buildSamsvarserklaring(d, docTxt)),
-      Packer.toBuffer(buildQCsjekkliste(d, qcTxt))
-    ]);
-    const zip = new JSZip();
-    const folder = zip.folder(`Complidoc_${safeSerial}`);
-    folder.file(`01_Risikovurdering_${safeSerial}.docx`, riskBuf);
-    folder.file(`02_Teknisk_Fil_${safeSerial}.docx`, techBuf);
-    folder.file(`03_Samsvarserklaring_${safeSerial}.docx`, docBuf);
-    folder.file(`04_QC_Sjekkliste_${safeSerial}.docx`, qcBuf);
-    const zipB64 = await zip.generateAsync({ type: "base64", compression: "DEFLATE" });
-    return res.status(200).json({
-      zip: zipB64,
-      filename: `Complidoc_${d.maskin.replace(/[^a-zA-Z0-9]/g, "_")}_${safeSerial}.zip`
+    if (docType) {
+      if (!validTypes.includes(docType)) {
+        return res.status(400).json({ error: "Ugyldig docType: " + docType });
+      }
+      const txt = await generateText(apiKey, docType, machineData);
+      let buf;
+      if (docType === "risk") buf = await Packer.toBuffer(buildRisikovurdering(d, txt));
+      else if (docType === "tech") buf = await Packer.toBuffer(buildTekniskFil(d, txt));
+      else if (docType === "doc") buf = await Packer.toBuffer(buildSamsvarserklaring(d, txt));
+      else buf = await Packer.toBuffer(buildQCsjekkliste(d, txt));
+      const names = {
+        risk: `01_Risikovurdering_${safeSerial}.docx`,
+        tech: `02_Teknisk_Fil_${safeSerial}.docx`,
+        doc: `03_Samsvarserklaring_${safeSerial}.docx`,
+        qc: `04_QC_Sjekkliste_${safeSerial}.docx`
+      };
+      return res.status(200).json({
+        docType,
+        docx: buf.toString("base64"),
+        filename: names[docType]
+      });
+    }
+    return res.status(400).json({
+      error: "Bruk docType (risk|tech|doc|qc). Full pakke genereres sekvensielt i frontend."
     });
   } catch (err) {
     console.error("[debug-8fd491] generate error:", err.message);
@@ -21507,7 +21511,7 @@ module.exports = async function handler(req, res) {
   }
 };
 module.exports.config = {
-  maxDuration: 60
+  maxDuration: 120
 };
 /*! Bundled license information:
 
