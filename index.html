@@ -96,6 +96,9 @@ footer{padding:32px 40px;border-top:0.5px solid rgba(255,255,255,0.07);display:f
 .footer-link{font-size:12px;color:#6B7280;cursor:pointer;}
 
 /* APP */
+#landing-page.page-hidden,#app-page.page-hidden{display:none!important;}
+#landing-page.page-visible{display:block;}
+#app-page.page-visible{display:block;}
 #app-page{display:none;}
 .app-wrap{display:flex;height:calc(100vh - 69px);}
 .app-sidebar{width:220px;background:#0F1217;border-right:0.5px solid rgba(255,255,255,0.07);display:flex;flex-direction:column;flex-shrink:0;padding:16px 12px;}
@@ -192,7 +195,7 @@ footer{padding:32px 40px;border-top:0.5px solid rgba(255,255,255,0.07);display:f
 </div>
 
 <!-- LANDING PAGE -->
-<div id="landing-page">
+<div id="landing-page" class="page-visible">
   <nav>
     <div class="logo" onclick="showLanding()">
       <div class="logo-mark">
@@ -555,19 +558,39 @@ footer{padding:32px 40px;border-top:0.5px solid rgba(255,255,255,0.07);display:f
 <script>
 let zipData = null;
 
+function agentLog(location, message, data) {
+  // #region agent log
+  fetch('http://127.0.0.1:7899/ingest/bef89494-0ce9-4594-b826-2f6c32aab015',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'8fd491'},body:JSON.stringify({sessionId:'8fd491',location,message,data,timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
+}
+
 function showLanding() {
-  document.getElementById('landing-page').style.display = 'block';
-  document.getElementById('app-page').style.display = 'none';
+  document.getElementById('landing-page').classList.add('page-visible');
+  document.getElementById('landing-page').classList.remove('page-hidden');
+  document.getElementById('app-page').classList.remove('page-visible');
+  document.getElementById('app-page').classList.add('page-hidden');
+  window.scrollTo(0, 0);
+  agentLog('index.html:showLanding', 'nav landing', { hypothesisId: 'UI-A' });
 }
 
 function showApp() {
-  document.getElementById('landing-page').style.display = 'none';
-  document.getElementById('app-page').style.display = 'block';
+  document.getElementById('landing-page').classList.remove('page-visible');
+  document.getElementById('landing-page').classList.add('page-hidden');
+  document.getElementById('app-page').classList.remove('page-hidden');
+  document.getElementById('app-page').classList.add('page-visible');
+  showPanel('new');
+  window.scrollTo(0, 0);
+  agentLog('index.html:showApp', 'nav app+form', { hypothesisId: 'UI-B' });
 }
 
 function showPanel(name) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-  document.getElementById('panel-' + name).classList.add('active');
+  const panel = document.getElementById('panel-' + name);
+  if (!panel) {
+    agentLog('index.html:showPanel', 'missing panel', { hypothesisId: 'UI-C', name });
+    return;
+  }
+  panel.classList.add('active');
   document.querySelectorAll('.app-nav-item').forEach(n => n.classList.remove('active'));
   if (name === 'dashboard') document.getElementById('nav-dashboard').classList.add('active');
   if (name === 'new') document.getElementById('nav-new').classList.add('active');
@@ -580,6 +603,8 @@ function showPanel(name) {
     document.getElementById('app-title').textContent = titles[name][0];
     document.getElementById('app-sub').textContent = titles[name][1];
   }
+  document.querySelector('.app-content')?.scrollTo(0, 0);
+  agentLog('index.html:showPanel', 'panel shown', { hypothesisId: 'UI-D', name });
 }
 
 function triggerDownload(blob, filename) {
@@ -742,6 +767,21 @@ async function downloadDoc(prefix) {
     targetFile.name.split('/').pop()
   );
 }
+
+window.showLanding = showLanding;
+window.showApp = showApp;
+window.showPanel = showPanel;
+window.generateDocs = generateDocs;
+window.downloadAll = downloadAll;
+window.downloadDoc = downloadDoc;
+
+document.addEventListener('DOMContentLoaded', function() {
+  agentLog('index.html:init', 'page ready', {
+    hypothesisId: 'UI-E',
+    hasShowApp: typeof showApp === 'function',
+    hasGenerateDocs: typeof generateDocs === 'function'
+  });
+});
 </script>
 </body>
 </html>
