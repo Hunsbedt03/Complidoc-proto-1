@@ -6,6 +6,10 @@
       "use": "@vercel/static"
     },
     {
+      "src": "doc-builder.js",
+      "use": "@vercel/static"
+    },
+    {
       "src": "api/generate.js",
       "use": "@vercel/node",
       "config": {
@@ -17,6 +21,10 @@
     {
       "src": "/api/generate",
       "dest": "/api/generate.js"
+    },
+    {
+      "src": "/doc-builder.js",
+      "dest": "/doc-builder.js"
     },
     {
       "src": "/(.*)",
