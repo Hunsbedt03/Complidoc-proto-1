@@ -299,19 +299,29 @@ Kun markdown. Ingen JSON, ingen kodebokser.`
 }
 
 // ─── Handler ─────────────────────────────────────────────────────────────────
+function parseBody(req) {
+  let body = req.body;
+  if (typeof body === 'string') {
+    try { body = JSON.parse(body); } catch (e) { body = {}; }
+  }
+  if (!body || typeof body !== 'object') body = {};
+  return body;
+}
+
 module.exports = async function handler(req, res) {
   // Health check
   if (req.method === 'GET') {
     return res.status(200).json({
       ok: true,
-      version: 'v2-docx',
+      version: 'v7-esbuild-dir',
+      bundled: typeof Document !== 'undefined',
       hasApiKey: !!process.env.ANTHROPIC_API_KEY
     });
   }
 
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { machineData } = req.body;
+  const { machineData } = parseBody(req);
   if (!machineData) return res.status(400).json({ error: 'Mangler maskindata' });
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -353,7 +363,11 @@ module.exports = async function handler(req, res) {
     });
 
   } catch (err) {
-    console.error('generate error:', err);
+    console.error('[debug-8fd491] generate error:', err.message);
     return res.status(500).json({ error: err.message });
   }
+};
+
+module.exports.config = {
+  maxDuration: 60
 };

@@ -2,8 +2,13 @@
   "name": "complidoc",
   "version": "1.0.0",
   "private": true,
+  "scripts": {
+    "build": "node scripts/build-api.js",
+    "postinstall": "npm run build"
+  },
   "dependencies": {
-    "docx": "^9.0.2",
+    "docx": "9.0.2",
+    "esbuild": "^0.25.0",
     "jszip": "^3.10.1"
   }
 }

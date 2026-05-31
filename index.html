@@ -552,49 +552,74 @@ footer{padding:32px 40px;border-top:0.5px solid rgba(255,255,255,0.07);display:f
   </div>
 </div>
 
+<script>
 let zipData = null;
 
 function showLanding() {
   document.getElementById('landing-page').style.display = 'block';
   document.getElementById('app-page').style.display = 'none';
 }
+
 function showApp() {
   document.getElementById('landing-page').style.display = 'none';
   document.getElementById('app-page').style.display = 'block';
 }
+
 function showPanel(name) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.getElementById('panel-' + name).classList.add('active');
   document.querySelectorAll('.app-nav-item').forEach(n => n.classList.remove('active'));
   if (name === 'dashboard') document.getElementById('nav-dashboard').classList.add('active');
-  if (name === 'new')       document.getElementById('nav-new').classList.add('active');
+  if (name === 'new') document.getElementById('nav-new').classList.add('active');
   const titles = {
-    dashboard: ['Oversikt',          'Foss Solutions · 2025'],
-    new:       ['Nytt prosjekt',      'Fyll inn detaljer for å generere dokumentpakke'],
-    output:    ['Dokumentpakke klar', 'Last ned og signer']
+    dashboard: ['Oversikt', 'Foss Solutions · 2025'],
+    new: ['Nytt prosjekt', 'Fyll inn detaljer for å generere dokumentpakke'],
+    output: ['Dokumentpakke klar', 'Last ned og signer']
   };
   if (titles[name]) {
     document.getElementById('app-title').textContent = titles[name][0];
-    document.getElementById('app-sub').textContent   = titles[name][1];
+    document.getElementById('app-sub').textContent = titles[name][1];
   }
 }
 
-async function generateDocs() {
-  const g = id => document.getElementById(id).value;
-  const maskintype  = g('f-maskintype');
-  const prosjekt    = g('f-prosjekt')    || 'Ukjent lokasjon';
-  const serienr     = g('f-serienr')     || 'N/A';
-  const kunde       = g('f-kunde')       || 'Ukjent kunde';
-  const produsent   = g('f-produsent')   || 'Ukjent produsent';
-  const ingenior    = g('f-ingenior')    || 'Ansvarlig ingeniør';
-  const driv        = g('f-driv');
-  const spenning    = g('f-spenning');
-  const miljo       = g('f-miljo');
-  const transport   = g('f-transport');
-  const styring     = g('f-styring');
-  const beskrivelse = g('f-beskrivelse') || 'Ikke spesifisert';
+function triggerDownload(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
 
-  const loading     = document.getElementById('loading');
+async function loadJSZip() {
+  if (window.JSZip) return;
+  await new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+    s.onload = resolve;
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
+
+async function generateDocs() {
+  const get = id => document.getElementById(id).value;
+  const maskintype = get('f-maskintype');
+  const prosjekt = get('f-prosjekt') || 'Ukjent lokasjon';
+  const serienr = get('f-serienr') || 'N/A';
+  const kunde = get('f-kunde') || 'Ukjent kunde';
+  const produsent = get('f-produsent') || 'Ukjent produsent';
+  const ingenior = get('f-ingenior') || 'Ansvarlig ingeniør';
+  const driv = get('f-driv');
+  const spenning = get('f-spenning');
+  const miljo = get('f-miljo');
+  const transport = get('f-transport');
+  const styring = get('f-styring');
+  const beskrivelse = get('f-beskrivelse') || 'Ikke spesifisert';
+
+  const loading = document.getElementById('loading');
   const loadingText = document.getElementById('loading-text');
   loading.classList.add('active');
 
@@ -626,10 +651,14 @@ Styring: ${styring}
 Beskrivelse: ${beskrivelse}`;
 
   try {
+    // #region agent log
+    fetch('http://127.0.0.1:7899/ingest/bef89494-0ce9-4594-b826-2f6c32aab015',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'8fd491'},body:JSON.stringify({sessionId:'8fd491',location:'index.html:generateDocs',message:'POST start',data:{hypothesisId:'E'},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+
     const res = await fetch('/api/generate', {
-      method:  'POST',
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ machineData })
+      body: JSON.stringify({ machineData })
     });
 
     clearInterval(interval);
@@ -637,201 +666,81 @@ Beskrivelse: ${beskrivelse}`;
 
     if (!res.ok) {
       const txt = await res.text();
+      // #region agent log
+      fetch('http://127.0.0.1:7899/ingest/bef89494-0ce9-4594-b826-2f6c32aab015',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'8fd491'},body:JSON.stringify({sessionId:'8fd491',location:'index.html:generateDocs',message:'POST error',data:{hypothesisId:'F',status:res.status,body:txt.slice(0,400)},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
       alert('Server feil (' + res.status + '): ' + txt.slice(0, 300));
       return;
     }
 
     const data = await res.json();
-    if (data.error) { alert('Feil: ' + data.error); return; }
+    if (data.error) {
+      alert('Feil: ' + data.error);
+      return;
+    }
+    if (!data.zip || !data.filename) {
+      alert('Uventet svar fra server — mangler zip/filename.');
+      return;
+    }
 
     zipData = { zip: data.zip, filename: data.filename };
+    console.log('[debug-8fd491] zip OK', data.filename, 'b64len:', data.zip.length);
+    // #region agent log
+    fetch('http://127.0.0.1:7899/ingest/bef89494-0ce9-4594-b826-2f6c32aab015',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'8fd491'},body:JSON.stringify({sessionId:'8fd491',location:'index.html:generateDocs',message:'POST success',data:{hypothesisId:'G',filename:data.filename,b64len:data.zip.length},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
 
     document.getElementById('output-title').textContent =
       'Dokumentpakke generert — ' + maskintype + ' · ' + prosjekt;
     showPanel('output');
-
   } catch (err) {
     clearInterval(interval);
     loading.classList.remove('active');
+    // #region agent log
+    fetch('http://127.0.0.1:7899/ingest/bef89494-0ce9-4594-b826-2f6c32aab015',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'8fd491'},body:JSON.stringify({sessionId:'8fd491',location:'index.html:generateDocs',message:'network error',data:{hypothesisId:'H',error:err.message},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     alert('Nettverksfeil: ' + err.message);
     console.error(err);
   }
 }
 
+function downloadAll() {
+  if (!zipData) {
+    alert('Generer en dokumentpakke først.');
+    return;
+  }
+  const bytes = atob(zipData.zip);
+  const arr = new Uint8Array(bytes.length);
+  for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+  triggerDownload(new Blob([arr], { type: 'application/zip' }), zipData.filename);
+}
+
 async function downloadDoc(prefix) {
-  if (!zipData) { alert('Generer en dokumentpakke først.'); return; }
-  if (!window.JSZip) {
-    await new Promise((ok, fail) => {
-      const s = document.createElement('script');
-      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
-      s.onload = ok; s.onerror = fail;
-      document.head.appendChild(s);
-    });
+  if (!zipData) {
+    alert('Generer en dokumentpakke først.');
+    return;
   }
-  const z
 
-function showLanding(){
-  document.getElementById('landing-page').style.display='block';
-  document.getElementById('app-page').style.display='none';
-}
-function showApp(){
-  document.getElementById('landing-page').style.display='none';
-  document.getElementById('app-page').style.display='block';
-}
-function showPanel(name){
-  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
-  document.getElementById('panel-'+name).classList.add('active');
-  document.querySelectorAll('.app-nav-item').forEach(n=>n.classList.remove('active'));
-  if(name==='dashboard') document.getElementById('nav-dashboard').classList.add('active');
-  if(name==='new') document.getElementById('nav-new').classList.add('active');
-  const titles={dashboard:['Oversikt','Foss Solutions · 2025'],new:['Nytt prosjekt','Fyll inn detaljer for å generere dokumentpakke'],output:['Dokumentpakke klar','Last ned og signer']};
-  if(titles[name]){
-    document.getElementById('app-title').textContent=titles[name][0];
-    document.getElementById('app-sub').textContent=titles[name][1];
+  await loadJSZip();
+
+  const prefixMap = { risk: '01_', tech: '02_', doc: '03_', qc: '04_' };
+  const p = prefixMap[prefix] || prefix;
+  const zip = await JSZip.loadAsync(zipData.zip, { base64: true });
+
+  let targetFile = null;
+  zip.forEach((path, file) => {
+    if (!file.dir && path.includes(p)) targetFile = file;
+  });
+
+  if (!targetFile) {
+    alert('Fant ikke filen i pakken.');
+    return;
   }
-}
 
-async function generateDocs(){
-  const maskintype=document.getElementById('f-maskintype').value;
-  const prosjekt=document.getElementById('f-prosjekt').value||'Ukjent lokasjon';
-  const serienr=document.getElementById('f-serienr').value||'N/A';
-  const kunde=document.getElementById('f-kunde').value||'Ukjent kunde';
-  const produsent=document.getElementById('f-produsent').value||'Ukjent produsent';
-  const ingenior=document.getElementById('f-ingenior').value||'Ansvarlig ingeniør';
-  const driv=document.getElementById('f-driv').value;
-  const spenning=document.getElementById('f-spenning').value;
-  const miljo=document.getElementById('f-miljo').value;
-  const transport=document.getElementById('f-transport').value;
-  const styring=document.getElementById('f-styring').value;
-  const beskrivelse=document.getElementById('f-beskrivelse').value||'Ikke spesifisert';
-
-  const loading=document.getElementById('loading');
-  const loadingText=document.getElementById('loading-text');
-  loading.classList.add('active');
-
-  const messages=[
-    {loading:'Analyserer maskintype og direktiver...'},
-    {loading:'Genererer risikovurdering...'},
-    {loading:'Utarbeider samsvarserklæring...'},
-    {loading:'Ferdigstiller dokumentpakke...'}
-  ];
-  let mi=0;
-  const interval=setInterval(()=>{
-    if(mi<messages.length){loadingText.textContent=messages[mi].loading;mi++;}
-  },4000);
-
-  const machineData=`Maskin: ${maskintype}
-Produsent: ${produsent}
-Serienummer: ${serienr}
-Prosjekt/lokasjon: ${prosjekt}
-Kunde: ${kunde}
-Ansvarlig ingeniør: ${ingenior}
-Drivsystem: ${driv}
-Spenningsforsyning: ${spenning}
-Installasjonsmiljø: ${miljo}
-Transport: ${transport}
-Styring: ${styring}
-Beskrivelse: ${beskrivelse}`;
-
-  const docSteps=[
-    {type:'risk',label:'Genererer risikovurdering...'},
-    {type:'tech',label:'Utarbeider teknisk fil...'},
-    {type:'doc',label:'Utarbeider samsvarserklæring...'},
-    {type:'qc',label:'Ferdigstiller QC-sjekkliste...'}
-  ];
-
-  try{
-    const healthRes=await fetch('/api/generate');
-    const healthRaw=await healthRes.text();
-    let health;
-    try{health=JSON.parse(healthRaw);}catch(e){
-      alert('API svarer ikke med JSON ('+healthRes.status+'): '+healthRaw.slice(0,120));
-      clearInterval(interval);loading.classList.remove('active');return;
-    }
-    if(!health.ok){alert('API health check feilet');clearInterval(interval);loading.classList.remove('active');return;}
-    console.log('[debug-8fd491] API version:',health.version,'hasApiKey:',health.hasApiKey);
-
-    const modRes=await fetch('/doc-builder.js');
-    const modText=await modRes.text();
-    if(!modRes.ok||!modText.includes('buildDocxBlob')){
-      alert('doc-builder.js mangler på server ('+modRes.status+'). Sjekk at filen er deployet.');
-      clearInterval(interval);loading.classList.remove('active');return;
-    }
-    console.log('[debug-8fd491] doc-builder.js OK, size:',modText.length);
-
-    generatedDocs={};
-    for(const step of docSteps){
-      loadingText.textContent=step.label;
-      const response=await fetch('/api/generate',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({machineData,docType:step.type})
-      });
-      const raw=await response.text();
-      let data;
-      try{data=JSON.parse(raw);}catch(parseErr){
-        clearInterval(interval);
-        loading.classList.remove('active');
-        alert('Feil ved '+step.type+' ('+response.status+'): '+(raw.slice(0,200)||'Tom respons'));
-        console.error('JSON parse failed:',parseErr,raw);
-        return;
-      }
-      if(!response.ok||data.error){
-        clearInterval(interval);
-        loading.classList.remove('active');
-        alert('Feil ved '+step.type+': '+(data.error||('HTTP '+response.status)));
-        return;
-      }
-      generatedDocs[step.type]=data[step.type];
-    }
-    clearInterval(interval);
-    loading.classList.remove('active');
-    currentPrompt=machineData;
-    document.getElementById('output-title').textContent=`Dokumentpakke generert — ${maskintype} · ${prosjekt}`;
-    showPanel('output');
-  }catch(err){
-    clearInterval(interval);
-    loading.classList.remove('active');
-    alert('Noe gikk galt. Sjekk konsollen for detaljer.');
-    console.error(err);
-  }
-}
-
-function downloadBlob(blob, filename) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-
-async function downloadDoc(type){
-  let raw=generatedDocs[type];
-  if(!raw){alert('Ingen innhold å laste ned.');return;}
-  try{
-    const { buildDocxBlob, getDocxFilename } = await import('./doc-builder.js');
-    const blob = await buildDocxBlob(type, currentPrompt, raw);
-    downloadBlob(blob, getDocxFilename(type, currentPrompt));
-  }catch(err){
-    alert('Kunne ikke lage .docx: ' + err.message);
-    console.error(err);
-  }
-}
-
-async function downloadAll(){
-  if(!generatedDocs.risk){alert('Ingen dokumenter å pakke.');return;}
-  try{
-    const { buildZipBlob, parseMachineData } = await import('./doc-builder.js');
-    const blob = await buildZipBlob(generatedDocs, currentPrompt);
-    const d = parseMachineData(currentPrompt);
-    downloadBlob(blob, `Complidoc_${d.maskin.replace(/[^a-zA-Z0-9]/g,'_')}_${d.serienr.replace(/\s/g,'-')}.zip`);
-  }catch(err){
-    alert('Kunne ikke lage ZIP: ' + err.message);
-    console.error(err);
-  }
+  const blob = await targetFile.async('blob');
+  triggerDownload(
+    new Blob([blob], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }),
+    targetFile.name.split('/').pop()
+  );
 }
 </script>
 </body>
