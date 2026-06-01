@@ -72,7 +72,7 @@ function signatureTable(d, dato) {
         children: [
           new Paragraph({ children: [new TextRun({ text: 'Sted og dato / Place and date:', bold: true, size: 20, font: 'Arial' })] }),
           blank(),
-          new Paragraph({ children: [new TextRun({ text: `Snartemo, ${dato}`, size: 20, font: 'Arial' })] }),
+          new Paragraph({ children: [new TextRun({ text: `Norge, ${dato}`, size: 20, font: 'Arial' })] }),
         ] }),
       new TableCell({ borders: BORDERS, width: { size: c, type: WidthType.DXA }, margins: CELL_M,
         children: [
@@ -110,7 +110,7 @@ function parseMarkdown(text) {
     if (t.startsWith('## '))  return h2(t.slice(3));
     if (t.startsWith('### ')) return new Paragraph({ spacing: { after: 100 },
       children: [new TextRun({ text: t.slice(4), bold: true, size: 22, font: 'Arial' })] });
-    if (t.startsWith('- ') || t.startsWith('* ') || t.startsWith('- [ ] ')) {
+    if (t.startsWith('- ') || t.startsWith('* ') || t.startsWith('- [ ] ') || t.startsWith('- [x] ')) {
       const txt = t.replace(/^-\s\[[ x]\]\s?/, '').replace(/^[-*]\s/, '');
       return new Paragraph({ bullet: { level: 0 }, spacing: { after: 60 },
         children: [new TextRun({ text: txt, size: 22, font: 'Arial' })] });
@@ -151,16 +151,15 @@ function buildTekniskFil(d, ai) {
     ...cover('Teknisk Fil', `${d.maskin} · ${d.serienr}`, `${d.produsent} · ${dato}`),
     blank(),
     infoTable([
-      ['Dokumentnummer',    docNr],
-      ['Maskin',            d.maskin],
-      ['Serienummer',       d.serienr],
-      ['Produsent',         d.produsent],
-      ['Adresse',           'Snartemo, Norge'],
-      ['Drivsystem',        d.driv],
-      ['Spenningsforsyning',d.spenning],
-      ['Installasjonsmiljø',d.miljo],
-      ['Direktiv',          'Maskindirektivet 2006/42/EC'],
-      ['Dato',              dato],
+      ['Dokumentnummer',     docNr],
+      ['Maskin',             d.maskin],
+      ['Serienummer',        d.serienr],
+      ['Produsent',          d.produsent],
+      ['Drivsystem',         d.drivsystem],
+      ['Energikilde',        d.energikilde],
+      ['Installasjonsmiljø', d.installasjonsmiljo],
+      ['Direktiv',           'Maskindirektivet 2006/42/EC'],
+      ['Dato',               dato],
     ]),
     blank(),
     ...parseMarkdown(ai),
@@ -173,8 +172,8 @@ function buildSamsvarserklaring(d, ai) {
     ...cover('EF-Samsvarserklæring', 'EC Declaration of Conformity', `${d.maskin} · ${d.serienr}`),
     blank(),
     infoTable([
-      ['Produsent / Manufacturer', d.produsent],
-      ['Maskin / Machine',         d.maskin],
+      ['Produsent / Manufacturer',  d.produsent],
+      ['Maskin / Machine',          d.maskin],
       ['Serienummer / Serial no.',  d.serienr],
       ['Prosjekt / Project',        d.prosjekt],
       ['Primært direktiv',          'Maskindirektivet 2006/42/EC'],
@@ -209,90 +208,259 @@ function buildQCsjekkliste(d, ai) {
 
 // ─── Parse maskindata ────────────────────────────────────────────────────────
 function parseMachineData(raw) {
-  const get = key => { const m = raw.match(new RegExp(key + ':\\s*(.+)')); return m ? m[1].trim() : '—'; };
-  return {
-    maskin:    get('Maskin'),
-    produsent: get('Produsent'),
-    serienr:   get('Serienummer'),
-    prosjekt:  get('Prosjekt/lokasjon'),
-    kunde:     get('Kunde'),
-    ingenior:  get('Ansvarlig ingeniør'),
-    driv:      get('Drivsystem'),
-    spenning:  get('Spenningsforsyning'),
-    miljo:     get('Installasjonsmiljø'),
+  const get = key => {
+    const m = raw.match(new RegExp(key + ':\\s*(.+)'));
+    return (m && m[1].trim() !== '' && m[1].trim() !== 'Ikke spesifisert') ? m[1].trim() : '—';
   };
+  return {
+    maskin:              get('Maskin'),
+    produsent:           get('Produsent'),
+    serienr:             get('Serienummer'),
+    prosjekt:            get('Prosjekt/lokasjon'),
+    kunde:               get('Kunde'),
+    ingenior:            get('Ansvarlig ingeniør'),
+    drivsystem:          get('Drivsystem'),
+    energikilde:         get('Energikilde'),
+    installasjonsmiljo:  get('Installasjonsmiljø'),
+    styring:             get('Styring'),
+    tiltenktBruk:        get('Tiltenkt bruk'),
+    beskrivelse:         get('Beskrivelse'),
+  };
+}
+
+// ─── Bygg kontekststreng for prompts ─────────────────────────────────────────
+function buildContext(machineData) {
+  return `=== MASKINDATA FRA BRUKER ===
+${machineData}
+=== SLUTT MASKINDATA ===`;
 }
 
 // ─── AI-generering ───────────────────────────────────────────────────────────
 async function generateText(apiKey, docType, machineData) {
+
+  const context = buildContext(machineData);
+
+  const MANGLER_REGEL = `
+VIKTIG REGEL — [MANGLER]-prinsippet:
+- Dersom et felt er "—", tomt, eller ikke oppgitt: skriv [MANGLER: kort beskrivelse av hva som mangler] akkurat der informasjonen ville stått.
+- ALDRI spekker, gjett eller finn opp tekniske verdier, dimensjoner, vekt, spenning, effekt eller andre spesifikke tall.
+- ALDRI anta maskintype, drivsystem, standarder eller direktiver utover det som er oppgitt.
+- Dokumentet skal være klart til bruk — [MANGLER]-markørene viser nøyaktig hva ingeniøren må fylle inn.
+- Skriv på norsk (bokmål) med faglig presisjon. Ingen spekulasjon.`;
+
   const prompts = {
-    risk: `Du er en teknisk compliance-ekspert. Skriv en komplett risikovurdering på norsk.
-Marker manglende info med [MANGLER: beskrivelse]. Aldri spekuler.
 
-${machineData}
+    risk: `Du er en senior teknisk compliance-ekspert med dyp kunnskap om Maskindirektivet 2006/42/EC og EN ISO 12100:2010.
 
-Bruk disse ## seksjonene:
+${MANGLER_REGEL}
+
+${context}
+
+Skriv en komplett risikovurdering basert KUN på informasjonen ovenfor.
+
+Struktur (bruk nøyaktig disse ## overskriftene):
+
 ## 1. Omfang og formål
+Beskriv hva denne risikovurderingen dekker. Referer til oppgitt maskintype og prosjekt.
+
 ## 2. Maskinbeskrivelse
-## 3. Fareidentifikasjon og risikovurdering
-Beskriv minst 8 farer. For hver: beskrivelse, S(1-4), P(1-4), RPN=S×P, tiltak.
-## 4. Restrisiko og konklusjon
-## 5. Revisjonslogg
+Beskriv maskinen basert på oppgitt informasjon. Bruk [MANGLER: ...] for alle ukjente tekniske detaljer.
 
-Kun markdown. Ingen JSON, ingen kodebokser.`,
+## 3. Grenser for maskinen
+- Tiltenkt bruk og rimelig forutsigbar feilbruk
+- Romlige grenser (arbeidsrom, installasjonsareal)
+- Tidsmessige grenser (forventet levetid, vedlikeholdsintervaller)
 
-    tech: `Du er en teknisk compliance-ekspert. Skriv en komplett teknisk fil på norsk.
-Marker manglende info med [MANGLER: beskrivelse]. Aldri spekuler.
+## 4. Fareidentifikasjon og risikovurdering
+Basert på oppgitt maskintype, identifiser relevante farer. For HVER fare:
+**Fare [nr]: [navn]**
+- Beskrivelse: ...
+- Faregruppe (iht. EN ISO 12100 Annex B): ...
+- Alvorlighetsgrad S (1=lett, 2=alvorlig, 3=svært alvorlig, 4=fatal): S = [verdi]
+- Sannsynlighet P (1=usannsynlig, 4=sannsynlig): P = [verdi]
+- RPN = S × P = [verdi]
+- Tiltak: ...
+- Restrisiko etter tiltak: Akseptabel / Ikke akseptabel
 
-${machineData}
+Identifiser minimum 8 relevante farer for denne maskintypen.
 
-Bruk disse ## seksjonene:
+## 5. Risikoreduksjonstiltak — sammendrag
+Oppsummer alle tiltak etter prioritet: 1) Innebygd sikkerhet, 2) Verneutstyr, 3) Brukerinformasjon.
+
+## 6. Restrisiko og konklusjon
+Samlet vurdering. Konkluder om maskinen kan CE-merkes.
+
+## 7. Revisjonslogg
+| Rev | Dato | Beskrivelse | Utført av |
+|-----|------|-------------|-----------|
+| 01  | [dato] | Første utgave | [MANGLER: ansvarlig ingeniør] |
+
+Kun markdown. Ingen JSON. Ingen kodebokser.`,
+
+    tech: `Du er en senior teknisk compliance-ekspert med dyp kunnskap om Maskindirektivet 2006/42/EC.
+
+${MANGLER_REGEL}
+
+${context}
+
+Skriv en komplett teknisk fil (Technical File) basert KUN på informasjonen ovenfor.
+
+Struktur (bruk nøyaktig disse ## overskriftene):
+
 ## 1. Produktidentifikasjon
-## 2. Teknisk beskrivelse og funksjon
-## 3. Direktiver og standarder
+Fullstendig produktidentifikasjon basert på oppgitte data. Bruk [MANGLER: ...] for ukjente felt.
+
+## 2. Teknisk beskrivelse og virkemåte
+Beskriv maskinens funksjon og virkemåte basert på oppgitt informasjon.
+Tekniske spesifikasjoner: Bruk [MANGLER: spesifikk parameter] for alle ukjente verdier (vekt, dimensjoner, effekt, moment, osv.)
+
+## 3. Gjeldende direktiver
+List opp direktiver som er relevante for denne maskintypen basert på oppgitt informasjon:
+- Maskindirektivet 2006/42/EC (alltid relevant for maskiner)
+- Andre direktiver kun dersom de er relevante for oppgitt drivsystem/energikilde
+
 ## 4. Harmoniserte standarder
+List harmoniserte standarder relevante for denne maskintypen. Basér utvalget på maskintype og tilgjengelig informasjon. Bruk [MANGLER: hvilken standard som trengs] dersom maskintypen ikke er tilstrekkelig beskrevet.
+
 ## 5. Tegningsliste og dokumentoversikt
+| Dok.nr | Tittel | Type | Rev |
+|--------|--------|------|-----|
+| [MANGLER: tegningsnummer] | Samletegning | CAD-tegning | 01 |
+| [MANGLER: dok.nr] | Hydraulikkskjema | P&ID | 01 |
+
+(Tilpass til oppgitt maskintype — slett irrelevante rader, legg til relevante)
+
 ## 6. Installasjon og driftsforhold
+Basert på oppgitt installasjonsmiljø og tiltenkt bruk.
+
 ## 7. Vedlikeholdskrav
+Generelle vedlikeholdskrav for denne maskintypen. Spesifikke intervaller: [MANGLER: vedlikeholdsplan]
 
-Kun markdown. Ingen JSON, ingen kodebokser.`,
+## 8. Referansedokumenter
+- Risikovurdering: FS-RISK-[serienr]-Rev01
+- QC-sjekkliste: FS-QC-[serienr]-Rev01
+- EF-Samsvarserklæring: FS-DOC-[serienr]-Rev01
 
-    doc: `Du er en teknisk compliance-ekspert. Skriv en komplett EF-samsvarserklæring på norsk og engelsk.
-Marker manglende info med [MANGLER: beskrivelse]. Aldri spekuler.
+Kun markdown. Ingen JSON. Ingen kodebokser.`,
 
-${machineData}
+    doc: `Du er en senior teknisk compliance-ekspert med dyp kunnskap om CE-merking og Maskindirektivet 2006/42/EC.
 
-## Norsk versjon
-(Fullstendig erklæringstekst: produsent, maskin, direktiver, standarder)
-## English version
-(Complete declaration: manufacturer, machine, directives, standards)
+${MANGLER_REGEL}
 
-Inkluder: 2006/42/EC, 2014/35/EU, 2014/30/EU der relevant.
-Kun markdown. Ingen JSON, ingen kodebokser.`,
+${context}
 
-    qc: `Du er en teknisk compliance-ekspert. Skriv en komplett QC-sjekkliste på norsk.
-Marker manglende info med [MANGLER: beskrivelse]. Aldri spekuler.
+Skriv en komplett EF-samsvarserklæring på NORSK og ENGELSK.
 
-${machineData}
+Struktur (bruk nøyaktig disse ## overskriftene):
 
-Bruk disse ## seksjonene med minst 6 punkter hver:
+## Norsk versjon — EF-Samsvarserklæring
+
+Vi, [produsent fra maskindata], erklærer under eneansvar at maskinen:
+
+**Beskrivelse:** [maskintype fra data]
+**Serienummer:** [serienummer fra data]
+**Produksjonsår:** [MANGLER: produksjonsår]
+
+er i samsvar med bestemmelsene i følgende EU-direktiver:
+
+**Direktiver:**
+- Maskindirektivet 2006/42/EC
+[Legg til kun direktiver som er relevante basert på oppgitt drivsystem og energikilde — IKKE list direktiver som ikke er relevante]
+
+**Harmoniserte standarder benyttet:**
+[List relevante standarder basert på maskintype. Bruk [MANGLER: hvilken standard] dersom maskintypen er utilstrekkelig beskrevet]
+
+Teknisk fil er utarbeidet og oppbevares av produsenten.
+
+---
+
+## English version — EC Declaration of Conformity
+
+We, [manufacturer from machine data], declare under sole responsibility that the machine:
+
+**Description:** [machine type from data]
+**Serial number:** [serial number from data]
+**Year of manufacture:** [MANGLER: year of manufacture]
+
+conforms to the provisions of the following EU Directives:
+
+**Directives:**
+- Machinery Directive 2006/42/EC
+[Add only directives relevant to the stated drive system and energy source]
+
+**Harmonised standards applied:**
+[List relevant standards based on machine type]
+
+The technical file is established and kept by the manufacturer.
+
+---
+
+Kun markdown. Ingen JSON. Ingen kodebokser.`,
+
+    qc: `Du er en senior teknisk compliance-ekspert og kvalitetsingeniør.
+
+${MANGLER_REGEL}
+
+${context}
+
+Skriv en komplett QC-sjekkliste tilpasset denne SPESIFIKKE maskintypen basert KUN på oppgitt informasjon.
+
+VIKTIG: Tilpass seksjonene til maskintypen. Inkluder KUN seksjoner som er relevante. En pumpe trenger ikke "Hydraulikk-seksjon" dersom det ikke er oppgitt hydraulikk. En elektromekanisk maskin trenger ikke "Hydraulikk"-seksjon.
+
+Struktur — inkluder kun relevante seksjoner:
+
+## Prosjektinformasjon
+- [ ] Prosjektnummer og kundeinfo bekreftet
+- [ ] Serienummer påført maskin
+- [ ] Dokumentpakke komplett (risikovurdering, teknisk fil, samsvarserklæring)
+
 ## Mekanisk kontroll
-## Hydraulikk / pneumatikk
-## Elektrisk kontroll
-## Sikkerhetsutstyr
-## Funksjonskontroll
-## Dokumentasjonskontroll
+[Minst 8 sjekkpunkter relevante for oppgitt maskintype]
+- [ ] [sjekkpunkt]
 
-Hvert punkt: - [ ] Beskrivelse
-Kun markdown. Ingen JSON, ingen kodebokser.`
+## Drivsystem og energiforsyning
+[Basert på oppgitt drivsystem og energikilde — bruk [MANGLER: spesifikk verdi] for ukjente grenseverdier]
+- [ ] [sjekkpunkt]
+
+## Sikkerhetssystemer og verneutstyr
+[Basert på maskintype og installasjonsmiljø]
+- [ ] Nødstopp tilstede og funksjonell
+- [ ] [ytterligere sjekkpunkter]
+
+## Funksjonskontroll
+[Funksjonskontroll tilpasset maskintypen]
+- [ ] [sjekkpunkt]
+
+## Merking og dokumentasjon
+- [ ] CE-merke påført med korrekt format
+- [ ] Produsent og serienummer-plate montert
+- [ ] Bruksanvisning medfølger på norsk (og engelsk der krevet)
+- [ ] Samsvarserklæring signert og medfølger
+- [ ] Teknisk fil arkivert hos produsent
+
+## Godkjenning og signatur
+- Utført av: [MANGLER: navn og stilling]
+- Dato: [MANGLER: dato]
+- Signatur: ___________________
+- Godkjent av: [MANGLER: navn og stilling]
+
+Kun markdown. Ingen JSON. Ingen kodebokser.`
   };
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
-    body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 3000,
-      messages: [{ role: 'user', content: prompts[docType] }] })
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 3500,
+      messages: [{ role: 'user', content: prompts[docType] }]
+    })
   });
+
   const data = await res.json();
   if (!res.ok) throw new Error(data.error?.message || 'Claude API feil');
   return data.content[0].text.trim();
@@ -313,7 +481,7 @@ module.exports = async function handler(req, res) {
   if (req.method === 'GET') {
     return res.status(200).json({
       ok: true,
-      version: 'v9-split-docs',
+      version: 'v10-universal',
       maxDuration: 120,
       bundled: typeof Document !== 'undefined',
       hasApiKey: !!process.env.ANTHROPIC_API_KEY
@@ -340,16 +508,16 @@ module.exports = async function handler(req, res) {
 
       const txt = await generateText(apiKey, docType, machineData);
       let buf;
-      if (docType === 'risk') buf = await Packer.toBuffer(buildRisikovurdering(d, txt));
+      if      (docType === 'risk') buf = await Packer.toBuffer(buildRisikovurdering(d, txt));
       else if (docType === 'tech') buf = await Packer.toBuffer(buildTekniskFil(d, txt));
-      else if (docType === 'doc') buf = await Packer.toBuffer(buildSamsvarserklaring(d, txt));
-      else buf = await Packer.toBuffer(buildQCsjekkliste(d, txt));
+      else if (docType === 'doc')  buf = await Packer.toBuffer(buildSamsvarserklaring(d, txt));
+      else                         buf = await Packer.toBuffer(buildQCsjekkliste(d, txt));
 
       const names = {
         risk: `01_Risikovurdering_${safeSerial}.docx`,
         tech: `02_Teknisk_Fil_${safeSerial}.docx`,
-        doc: `03_Samsvarserklaring_${safeSerial}.docx`,
-        qc: `04_QC_Sjekkliste_${safeSerial}.docx`
+        doc:  `03_Samsvarserklaring_${safeSerial}.docx`,
+        qc:   `04_QC_Sjekkliste_${safeSerial}.docx`
       };
 
       return res.status(200).json({
@@ -364,7 +532,7 @@ module.exports = async function handler(req, res) {
     });
 
   } catch (err) {
-    console.error('[debug-8fd491] generate error:', err.message);
+    console.error('[samsiq] generate error:', err.message);
     return res.status(500).json({ error: err.message });
   }
 };
