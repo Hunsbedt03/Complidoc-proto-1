@@ -809,8 +809,8 @@ document.addEventListener('DOMContentLoaded', function() {
       if (d.version !== 'v10-universal') {
         console.warn('[samsiq] API version mismatch. Live=' + d.version + ' expected=v10-universal');
       }
-      if (d.buildTag !== 'techfix-3') {
-        console.warn('[samsiq] API mangler techfix-3. Deploy api/generate/index.js. buildTag=' + d.buildTag);
+      if (d.buildTag !== 'neutral-prompts-1') {
+        console.warn('[samsiq] API mangler neutral-prompts-1. Deploy api/generate/index.js. buildTag=' + d.buildTag);
       }
     })
     .catch(() => { window.__apiOk = false; });

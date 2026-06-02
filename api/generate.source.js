@@ -267,35 +267,44 @@ async function generateText(apiKey, docType, machineData) {
 VIKTIG REGEL — [MANGLER]-prinsippet:
 - Dersom et felt er "—", tomt, eller ikke oppgitt: skriv [MANGLER: kort beskrivelse av hva som mangler] akkurat der informasjonen ville stått.
 - ALDRI spekker, gjett eller finn opp tekniske verdier, dimensjoner, vekt, spenning, effekt eller andre spesifikke tall.
-- ALDRI anta maskintype, drivsystem, standarder eller direktiver utover det som er oppgitt.
+- ALDRI anta maskintype, bransje, bruksområde, drivsystem, standarder eller direktiver utover det som er eksplisitt oppgitt i maskindata.
+- ALDRI bruk eksempler fra andre maskiner (f.eks. grindrenser, pumpe, kran) med mindre brukeren selv har oppgitt dette.
 - Dokumentet skal være klart til bruk — [MANGLER]-markørene viser nøyaktig hva ingeniøren må fylle inn.
 - Skriv på norsk (bokmål) med faglig presisjon. Ingen spekulasjon.`;
 
+  const NEUTRALITET = `
+NØYTRALITET:
+- Baser HELE dokumentet utelukkende på maskindata fra brukeren ovenfor.
+- Ikke anta hva maskinen er, hvor den brukes, eller hvilken bransje den tilhører.
+- Velg direktiver, standarder, farer og sjekkpunkter kun ut fra det brukeren faktisk har oppgitt.
+- Hvis opplysningene er utilstrekkelige til å vurdere relevans: bruk [MANGLER: ...], ikke antagelser.`;
+
   const prompts = {
 
-    risk: `Du er en senior teknisk compliance-ekspert med dyp kunnskap om Maskindirektivet 2006/42/EC og EN ISO 12100:2010.
+    risk: `Du er en senior teknisk compliance-ekspert med kunnskap om Maskindirektivet 2006/42/EC og EN ISO 12100:2010.
 
 ${MANGLER_REGEL}
+${NEUTRALITET}
 
 ${context}
 
-Skriv en komplett risikovurdering basert KUN på informasjonen ovenfor.
+Skriv en komplett risikovurdering basert KUN på informasjonen i maskindata.
 
 Struktur (bruk nøyaktig disse ## overskriftene):
 
 ## 1. Omfang og formål
-Beskriv hva denne risikovurderingen dekker. Referer til oppgitt maskintype og prosjekt.
+Beskriv hva risikovurderingen dekker, med utgangspunkt i oppgitt maskin/produkt og prosjekt.
 
 ## 2. Maskinbeskrivelse
-Beskriv maskinen basert på oppgitt informasjon. Bruk [MANGLER: ...] for alle ukjente tekniske detaljer.
+Beskriv maskinen utelukkende ut fra oppgitt informasjon. Bruk [MANGLER: ...] for alle ukjente tekniske detaljer.
 
 ## 3. Grenser for maskinen
-- Tiltenkt bruk og rimelig forutsigbar feilbruk
+- Tiltenkt bruk og rimelig forutsigbar feilbruk (kun det som fremgår av maskindata)
 - Romlige grenser (arbeidsrom, installasjonsareal)
 - Tidsmessige grenser (forventet levetid, vedlikeholdsintervaller)
 
 ## 4. Fareidentifikasjon og risikovurdering
-Basert på oppgitt maskintype, identifiser relevante farer. For HVER fare:
+Identifiser farer som kan utledes fra oppgitt informasjon — uten å anta maskintype eller bransje. For HVER fare:
 **Fare [nr]: [navn]**
 - Beskrivelse: ...
 - Faregruppe (iht. EN ISO 12100 Annex B): ...
@@ -305,13 +314,13 @@ Basert på oppgitt maskintype, identifiser relevante farer. For HVER fare:
 - Tiltak: ...
 - Restrisiko etter tiltak: Akseptabel / Ikke akseptabel
 
-Identifiser minimum 8 relevante farer for denne maskintypen.
+Identifiser minst 8 farer der det er grunnlag i maskindata. Hvis grunnlaget er begrenset, marker usikre punkter med [MANGLER: ...].
 
 ## 5. Risikoreduksjonstiltak — sammendrag
 Oppsummer alle tiltak etter prioritet: 1) Innebygd sikkerhet, 2) Verneutstyr, 3) Brukerinformasjon.
 
 ## 6. Restrisiko og konklusjon
-Samlet vurdering. Konkluder om maskinen kan CE-merkes.
+Samlet vurdering basert på oppgitt informasjon. Konkluder om CE-merking kan vurderes ut fra tilgjengelige data.
 
 ## 7. Revisjonslogg
 | Rev | Dato | Beskrivelse | Utført av |
@@ -320,13 +329,14 @@ Samlet vurdering. Konkluder om maskinen kan CE-merkes.
 
 Kun markdown. Ingen JSON. Ingen kodebokser.`,
 
-    tech: `Du er en senior teknisk compliance-ekspert med dyp kunnskap om Maskindirektivet 2006/42/EC.
+    tech: `Du er en senior teknisk compliance-ekspert med kunnskap om Maskindirektivet 2006/42/EC.
 
 ${MANGLER_REGEL}
+${NEUTRALITET}
 
 ${context}
 
-Skriv en komplett teknisk fil (Technical File) basert KUN på informasjonen ovenfor.
+Skriv en komplett teknisk fil (Technical File) basert KUN på informasjonen i maskindata.
 
 Struktur (bruk nøyaktig disse ## overskriftene):
 
@@ -334,30 +344,29 @@ Struktur (bruk nøyaktig disse ## overskriftene):
 Fullstendig produktidentifikasjon basert på oppgitte data. Bruk [MANGLER: ...] for ukjente felt.
 
 ## 2. Teknisk beskrivelse og virkemåte
-Beskriv maskinens funksjon og virkemåte basert på oppgitt informasjon.
-Tekniske spesifikasjoner: Bruk [MANGLER: spesifikk parameter] for alle ukjente verdier (vekt, dimensjoner, effekt, moment, osv.)
+Beskriv funksjon og virkemåte utelukkende ut fra oppgitt informasjon.
+Tekniske spesifikasjoner: Bruk [MANGLER: spesifikk parameter] for alle verdier som ikke er oppgitt.
 
 ## 3. Gjeldende direktiver
-List opp direktiver som er relevante for denne maskintypen basert på oppgitt informasjon:
-- Maskindirektivet 2006/42/EC (alltid relevant for maskiner)
-- Andre direktiver kun dersom de er relevante for oppgitt drivsystem/energikilde
+List direktiver som kan begrunnes ut fra oppgitt informasjon:
+- Maskindirektivet 2006/42/EC (for maskiner generelt)
+- Andre direktiver kun hvis oppgitt drivsystem, energikilde eller bruksområde indikerer det — ellers [MANGLER: vurdering av relevante direktiver]
 
 ## 4. Harmoniserte standarder
-List harmoniserte standarder relevante for denne maskintypen. Basér utvalget på maskintype og tilgjengelig informasjon. Bruk [MANGLER: hvilken standard som trengs] dersom maskintypen ikke er tilstrekkelig beskrevet.
+List standarder som kan begrunnes ut fra oppgitt informasjon. Hvis grunnlaget er utilstrekkelig: [MANGLER: hvilken standard som må vurderes]
 
 ## 5. Tegningsliste og dokumentoversikt
 | Dok.nr | Tittel | Type | Rev |
 |--------|--------|------|-----|
-| [MANGLER: tegningsnummer] | Samletegning | CAD-tegning | 01 |
-| [MANGLER: dok.nr] | Hydraulikkskjema | P&ID | 01 |
+| [MANGLER: tegningsnummer] | [MANGLER: tittel] | [MANGLER: type] | 01 |
 
-(Tilpass til oppgitt maskintype — slett irrelevante rader, legg til relevante)
+Legg kun til rader som kan begrunnes ut fra oppgitt informasjon. Ikke fyll inn typiske tegninger med mindre de følger av maskindata.
 
 ## 6. Installasjon og driftsforhold
-Basert på oppgitt installasjonsmiljø og tiltenkt bruk.
+Basert på oppgitt installasjonsmiljø og tiltenkt bruk — eller [MANGLER: ...] der data mangler.
 
 ## 7. Vedlikeholdskrav
-Generelle vedlikeholdskrav for denne maskintypen. Spesifikke intervaller: [MANGLER: vedlikeholdsplan]
+Vedlikeholdskrav ut fra oppgitt informasjon. Spesifikke intervaller: [MANGLER: vedlikeholdsplan] hvis ikke oppgitt.
 
 ## 8. Referansedokumenter
 - Risikovurdering: FS-RISK-[serienr]-Rev01
@@ -366,13 +375,14 @@ Generelle vedlikeholdskrav for denne maskintypen. Spesifikke intervaller: [MANGL
 
 Kun markdown. Ingen JSON. Ingen kodebokser.`,
 
-    doc: `Du er en senior teknisk compliance-ekspert med dyp kunnskap om CE-merking og Maskindirektivet 2006/42/EC.
+    doc: `Du er en senior teknisk compliance-ekspert med kunnskap om CE-merking og Maskindirektivet 2006/42/EC.
 
 ${MANGLER_REGEL}
+${NEUTRALITET}
 
 ${context}
 
-Skriv en komplett EF-samsvarserklæring på NORSK og ENGELSK.
+Skriv en komplett EF-samsvarserklæring på NORSK og ENGELSK, basert KUN på maskindata.
 
 Struktur (bruk nøyaktig disse ## overskriftene):
 
@@ -380,18 +390,18 @@ Struktur (bruk nøyaktig disse ## overskriftene):
 
 Vi, [produsent fra maskindata], erklærer under eneansvar at maskinen:
 
-**Beskrivelse:** [maskintype fra data]
-**Serienummer:** [serienummer fra data]
+**Beskrivelse:** [fra maskindata — ikke antatt]
+**Serienummer:** [serienummer fra maskindata]
 **Produksjonsår:** [MANGLER: produksjonsår]
 
 er i samsvar med bestemmelsene i følgende EU-direktiver:
 
 **Direktiver:**
 - Maskindirektivet 2006/42/EC
-[Legg til kun direktiver som er relevante basert på oppgitt drivsystem og energikilde — IKKE list direktiver som ikke er relevante]
+[Kun direktiver som kan begrunnes ut fra oppgitt informasjon — ellers [MANGLER: vurdering av direktiver]]
 
 **Harmoniserte standarder benyttet:**
-[List relevante standarder basert på maskintype. Bruk [MANGLER: hvilken standard] dersom maskintypen er utilstrekkelig beskrevet]
+[Kun standarder som kan begrunnes ut fra oppgitt informasjon — ellers [MANGLER: hvilken standard]]
 
 Teknisk fil er utarbeidet og oppbevares av produsenten.
 
@@ -401,18 +411,18 @@ Teknisk fil er utarbeidet og oppbevares av produsenten.
 
 We, [manufacturer from machine data], declare under sole responsibility that the machine:
 
-**Description:** [machine type from data]
-**Serial number:** [serial number from data]
+**Description:** [from machine data — not assumed]
+**Serial number:** [serial number from machine data]
 **Year of manufacture:** [MANGLER: year of manufacture]
 
 conforms to the provisions of the following EU Directives:
 
 **Directives:**
 - Machinery Directive 2006/42/EC
-[Add only directives relevant to the stated drive system and energy source]
+[Only directives supported by the provided information]
 
 **Harmonised standards applied:**
-[List relevant standards based on machine type]
+[Only standards supported by the provided information]
 
 The technical file is established and kept by the manufacturer.
 
@@ -423,12 +433,13 @@ Kun markdown. Ingen JSON. Ingen kodebokser.`,
     qc: `Du er en senior teknisk compliance-ekspert og kvalitetsingeniør.
 
 ${MANGLER_REGEL}
+${NEUTRALITET}
 
 ${context}
 
-Skriv en komplett QC-sjekkliste tilpasset denne SPESIFIKKE maskintypen basert KUN på oppgitt informasjon.
+Skriv en komplett QC-sjekkliste basert KUN på oppgitt informasjon i maskindata.
 
-VIKTIG: Tilpass seksjonene til maskintypen. Inkluder KUN seksjoner som er relevante. En pumpe trenger ikke "Hydraulikk-seksjon" dersom det ikke er oppgitt hydraulikk. En elektromekanisk maskin trenger ikke "Hydraulikk"-seksjon.
+VIKTIG: Inkluder KUN sjekkseksjoner og punkter som kan begrunnes ut fra det brukeren har oppgitt. Ikke legg til hydraulikk, mekanikk, elektro eller andre temaer med mindre det følger av maskindata.
 
 Struktur — inkluder kun relevante seksjoner:
 
@@ -438,20 +449,19 @@ Struktur — inkluder kun relevante seksjoner:
 - [ ] Dokumentpakke komplett (risikovurdering, teknisk fil, samsvarserklæring)
 
 ## Mekanisk kontroll
-[Minst 8 sjekkpunkter relevante for oppgitt maskintype]
+[Kun hvis relevant ut fra maskindata — minst 6 sjekkpunkter, ellers [MANGLER: mekaniske sjekkpunkter]]
 - [ ] [sjekkpunkt]
 
 ## Drivsystem og energiforsyning
-[Basert på oppgitt drivsystem og energikilde — bruk [MANGLER: spesifikk verdi] for ukjente grenseverdier]
+[Kun hvis drivsystem/energikilde er oppgitt — ellers utelat seksjonen eller bruk [MANGLER: ...]]
 - [ ] [sjekkpunkt]
 
 ## Sikkerhetssystemer og verneutstyr
-[Basert på maskintype og installasjonsmiljø]
-- [ ] Nødstopp tilstede og funksjonell
-- [ ] [ytterligere sjekkpunkter]
+[Kun punkter som kan begrunnes ut fra oppgitt informasjon]
+- [ ] [sjekkpunkt]
 
 ## Funksjonskontroll
-[Funksjonskontroll tilpasset maskintypen]
+[Kun funksjoner beskrevet i maskindata]
 - [ ] [sjekkpunkt]
 
 ## Merking og dokumentasjon
@@ -537,7 +547,7 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({
       ok: true,
       version: 'v10-universal',
-      buildTag: 'techfix-3',
+      buildTag: 'neutral-prompts-1',
       maxDuration: 120,
       bundled: typeof Document !== 'undefined',
       hasApiKey: !!process.env.ANTHROPIC_API_KEY
