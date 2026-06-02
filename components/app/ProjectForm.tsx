@@ -1,0 +1,297 @@
+'use client';
+
+import { useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { LoadingOverlay } from '@/components/ui/LoadingOverlay';
+import { useAuth } from '@/components/providers/AuthProvider';
+import { useGeneration } from '@/components/providers/GenerationProvider';
+import { EMPTY_FORM } from '@/lib/constants';
+import { generateDocumentPackage } from '@/lib/generate';
+import { saveGeneratedProject } from '@/lib/projects';
+import { createClient } from '@/lib/supabase/client';
+import type { ProjectFormData } from '@/lib/types';
+
+function CheckMark() {
+  return (
+    <svg width="8" height="6" viewBox="0 0 8 6" fill="none">
+      <path
+        d="M1 3l2 2 4-4"
+        stroke="white"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+export function ProjectForm() {
+  const router = useRouter();
+  const { user, bedriftId, refreshProjects } = useAuth();
+  const { setResult } = useGeneration();
+  const supabase = createClient();
+
+  const [form, setForm] = useState<ProjectFormData>({ ...EMPTY_FORM });
+  const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState({ stepIndex: 0, label: '', stepText: '' });
+
+  function update(field: keyof ProjectFormData, value: string) {
+    setForm((prev) => ({ ...prev, [field]: value }));
+  }
+
+  async function handleGenerate() {
+    setLoading(true);
+    try {
+      const result = await generateDocumentPackage(form, (p) =>
+        setProgress({ stepIndex: p.stepIndex, label: p.label, stepText: p.stepText })
+      );
+
+      setResult(result.zipData, result.title, form);
+
+      if (user) {
+        try {
+          await saveGeneratedProject(supabase, user.id, bedriftId, {
+            ...form,
+            machineData: result.machineData,
+            zipFilename: result.zipData.filename,
+            zipBase64: result.zipData.zip,
+            documents: result.documents,
+          });
+          await refreshProjects();
+        } catch (saveErr) {
+          console.warn('[samsiq] Supabase lagring feilet:', saveErr);
+          alert(
+            'Dokumentpakke generert, men lagring feilet: ' +
+              (saveErr instanceof Error ? saveErr.message : String(saveErr))
+          );
+        }
+      }
+
+      router.push('/app/output');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Generering feilet');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <>
+      <LoadingOverlay
+        active={loading}
+        label={progress.label || 'Genererer dokumentpakke...'}
+        stepText={progress.stepText}
+        stepIndex={progress.stepIndex}
+      />
+
+      <div className="step-bar">
+        <div className="step curr">
+          <div className="step-num">1</div>
+          <span className="step-label">Prosjektdetaljer</span>
+        </div>
+        <div className="step-line" />
+        <div className="step wait">
+          <div className="step-num">2</div>
+          <span className="step-label">Maskinbeskrivelse</span>
+        </div>
+        <div className="step-line" />
+        <div className="step wait">
+          <div className="step-num">3</div>
+          <span className="step-label">Generer</span>
+        </div>
+      </div>
+
+      <div className="form-card">
+        <div className="form-card-title">Prosjektinformasjon</div>
+        <div className="form-row">
+          <div className="form-group">
+            <label className="form-label">
+              Prosjektnavn / lokasjon <span className="hint">*</span>
+            </label>
+            <input
+              className="form-input"
+              value={form.prosjekt}
+              onChange={(e) => update('prosjekt', e.target.value)}
+              placeholder="f.eks. Strandafjorden kraftverk"
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Kunde / sluttbruker</label>
+            <input
+              className="form-input"
+              value={form.kunde}
+              onChange={(e) => update('kunde', e.target.value)}
+              placeholder="f.eks. Statkraft AS"
+            />
+          </div>
+        </div>
+        <div className="form-row">
+          <div className="form-group">
+            <label className="form-label">
+              Produsent / bedrift <span className="hint">*</span>
+            </label>
+            <input
+              className="form-input"
+              value={form.produsent}
+              onChange={(e) => update('produsent', e.target.value)}
+              placeholder="f.eks. Foss Solutions AS"
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Ansvarlig ingeniør</label>
+            <input
+              className="form-input"
+              value={form.ingenior}
+              onChange={(e) => update('ingenior', e.target.value)}
+              placeholder="Fullt navn"
+            />
+          </div>
+        </div>
+        <div className="form-row">
+          <div className="form-group">
+            <label className="form-label">Serienummer</label>
+            <input
+              className="form-input"
+              value={form.serienr}
+              onChange={(e) => update('serienr', e.target.value)}
+              placeholder="f.eks. GEH2000-1158-26"
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">
+              Maskinbetegnelse <span className="hint">*</span>
+            </label>
+            <input
+              className="form-input"
+              value={form.maskin}
+              onChange={(e) => update('maskin', e.target.value)}
+              placeholder="f.eks. GEH 2000 Grindrenser"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="form-card">
+        <div className="form-card-title">Teknisk beskrivelse</div>
+        <div className="form-card-hint">
+          Skriv så detaljert du kan. AI-en bruker kun det du oppgir — manglende info markeres med
+          [MANGLER] i dokumentene.
+        </div>
+        <div className="form-row full">
+          <div className="form-group">
+            <label className="form-label">
+              Maskinbeskrivelse og funksjon <span className="hint">*</span>
+            </label>
+            <textarea
+              className="form-input"
+              rows={4}
+              value={form.beskrivelse}
+              onChange={(e) => update('beskrivelse', e.target.value)}
+              placeholder="Beskriv hva maskinen gjør, hvordan den beveger seg og hva den brukes til."
+            />
+          </div>
+        </div>
+        <div className="form-row">
+          <div className="form-group">
+            <label className="form-label">Drivsystem og energikilde</label>
+            <input
+              className="form-input"
+              value={form.drivsystem}
+              onChange={(e) => update('drivsystem', e.target.value)}
+              placeholder="f.eks. Elektromotor 400V AC 3-fase, 2.2 kW"
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Styring</label>
+            <input
+              className="form-input"
+              value={form.styring}
+              onChange={(e) => update('styring', e.target.value)}
+              placeholder="f.eks. PLC automatikk + manuell betjening"
+            />
+          </div>
+        </div>
+        <div className="form-row">
+          <div className="form-group">
+            <label className="form-label">Installasjonsmiljø</label>
+            <input
+              className="form-input"
+              value={form.installasjonsmiljo}
+              onChange={(e) => update('installasjonsmiljo', e.target.value)}
+              placeholder="f.eks. Utendørs, fuktig miljø"
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Tiltenkt bruk</label>
+            <input
+              className="form-input"
+              value={form.tiltenktbruk}
+              onChange={(e) => update('tiltenktbruk', e.target.value)}
+              placeholder="f.eks. Rensing av inntak i vannkraftverk"
+            />
+          </div>
+        </div>
+        <div className="form-row">
+          <div className="form-group">
+            <label className="form-label">
+              Relevante standarder <span className="hint">valgfritt</span>
+            </label>
+            <input
+              className="form-input"
+              value={form.standarder}
+              onChange={(e) => update('standarder', e.target.value)}
+              placeholder="f.eks. EN ISO 12100, EN 60204-1"
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Marked</label>
+            <input
+              className="form-input"
+              value={form.marked}
+              onChange={(e) => update('marked', e.target.value)}
+              placeholder="f.eks. EU / EØS — Norge"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="form-card">
+        <div className="form-card-title">Dokumenter som genereres</div>
+        <div className="doc-check-grid">
+          {[
+            'Risikovurdering (EN ISO 12100)',
+            'Teknisk fil (2006/42/EC)',
+            'EF-Samsvarserklæring (NO+EN)',
+            'QC-sjekkliste',
+          ].map((label) => (
+            <div key={label} className="doc-check-item">
+              <div className="check-box">
+                <CheckMark />
+              </div>
+              {label}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="form-bottom">
+        <div className="form-info">4 dokumenter · Estimert tid: 4–5 minutter</div>
+        <div>
+          <Link href="/app/dashboard" className="btn-cancel">
+            Avbryt
+          </Link>
+          <button
+            className="btn-generate"
+            type="button"
+            id="btn-generate"
+            disabled={loading}
+            onClick={handleGenerate}
+          >
+            Generer dokumentpakke →
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}

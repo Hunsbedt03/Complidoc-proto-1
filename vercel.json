@@ -1,28 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "installCommand": "npm install && npm run build",
-  "buildCommand": "npm run build",
-  "rewrites": [
-    {
-      "source": "/((?!api/|js/).*)",
-      "destination": "/index.html"
-    }
-  ],
-  "headers": [
-    {
-      "source": "/index.html",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "no-cache, no-store, must-revalidate"
-        }
-      ]
-    }
-  ],
   "functions": {
-    "api/generate/index.js": {
-      "maxDuration": 120,
-      "includeFiles": "node_modules/{jszip,setimmediate,lie,immediate,pako,readable-stream,abort-controller}/**"
+    "app/api/generate/route.ts": {
+      "maxDuration": 120
     }
   }
 }

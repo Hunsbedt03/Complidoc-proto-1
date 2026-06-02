@@ -1,5 +1,22 @@
-api/generate.js
-api/lib/
-node_modules/
-package/
-*.tgz
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# next
+/.next/
+/out/
+
+# env
+.env*.local
+
+# debug
+npm-debug.log*
+debug-*.log
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# legacy build
+/public/index.html

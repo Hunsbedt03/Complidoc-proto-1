@@ -1,20 +1,32 @@
 {
-  "name": "complidoc",
-  "version": "1.0.0",
+  "name": "samsiq",
+  "version": "2.0.0",
   "private": true,
   "scripts": {
-    "build": "node scripts/build-api.js",
-    "dev": "node scripts/dev-server.js"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.6.1",
+    "@supabase/supabase-js": "^2.49.8",
     "abort-controller": "^3.0.0",
     "docx": "9.0.2",
-    "esbuild": "^0.25.0",
     "immediate": "^3.3.0",
     "jszip": "^3.10.1",
     "lie": "^3.3.0",
+    "next": "^15.3.3",
     "pako": "^2.1.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
     "readable-stream": "^4.7.0",
     "setimmediate": "^1.0.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "typescript": "^5.8.3"
   }
 }
