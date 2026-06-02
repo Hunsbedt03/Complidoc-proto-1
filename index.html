@@ -614,6 +614,25 @@ html[data-view="app"] #app-page{display:block!important;}
 let zipData = null;
 const FRONTEND_BUILD = 'v10-universal';
 
+async function postGenerate(machineData, docType) {
+  let lastRes = null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    lastRes = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ machineData, docType })
+    });
+    if (lastRes.ok || (lastRes.status !== 500 && lastRes.status !== 529) || attempt === 1) {
+      return lastRes;
+    }
+    // #region agent log
+    fetch('http://127.0.0.1:7899/ingest/bef89494-0ce9-4594-b826-2f6c32aab015',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'8fd491'},body:JSON.stringify({sessionId:'8fd491',location:'index.html:postGenerate',message:'retry after 500',data:{hypothesisId:'TECH-E',docType,attempt:attempt+1},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+    await new Promise(r => setTimeout(r, 2500));
+  }
+  return lastRes;
+}
+
 function triggerDownload(blob, filename) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -702,18 +721,22 @@ Beskrivelse: ${beskrivelse || 'Ikke spesifisert'}`;
       loadingStep.textContent = 'Dokument ' + (i + 1) + ' av 4';
       setDot(i);
 
-      const res = await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ machineData, docType: docSteps[i].docType })
-      });
+      const res = await postGenerate(machineData, docSteps[i].docType);
 
       if (!res.ok) {
         const txt = await res.text();
+        let errMsg = txt;
+        try {
+          const j = JSON.parse(txt);
+          if (j.error) errMsg = j.error;
+        } catch (_) {}
+        // #region agent log
+        fetch('http://127.0.0.1:7899/ingest/bef89494-0ce9-4594-b826-2f6c32aab015',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'8fd491'},body:JSON.stringify({sessionId:'8fd491',location:'index.html:generateDocs',message:'POST error',data:{hypothesisId:'TECH-D',docType:docSteps[i].docType,status:res.status,body:errMsg.slice(0,400)},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
         if (res.status === 504) {
           alert('Timeout ved ' + docSteps[i].docType + '. Prøv igjen om litt.');
         } else {
-          alert('Feil (' + res.status + ') for ' + docSteps[i].docType + ': ' + txt.slice(0, 300));
+          alert('Feil (' + res.status + ') for ' + docSteps[i].docType + ': ' + errMsg.slice(0, 300));
         }
         return;
       }
@@ -785,6 +808,9 @@ document.addEventListener('DOMContentLoaded', function() {
       window.__apiVersion = d.version;
       if (d.version !== 'v10-universal') {
         console.warn('[samsiq] API version mismatch. Live=' + d.version + ' expected=v10-universal');
+      }
+      if (d.buildTag !== 'techfix-3') {
+        console.warn('[samsiq] API mangler techfix-3. Deploy api/generate/index.js. buildTag=' + d.buildTag);
       }
     })
     .catch(() => { window.__apiOk = false; });

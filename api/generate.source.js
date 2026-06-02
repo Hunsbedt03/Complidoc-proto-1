@@ -19,17 +19,34 @@ function pageProps() {
 }
 
 // ─── Hjelpefunksjoner ────────────────────────────────────────────────────────
+function sanitizeText(text) {
+  if (text == null) return '—';
+  return String(text)
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '')
+    .replace(/\uFFFE|\uFFFF/g, '');
+}
+
+function agentLog(message, data) {
+  // #region agent log
+  fetch('http://127.0.0.1:7899/ingest/bef89494-0ce9-4594-b826-2f6c32aab015', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '8fd491' },
+    body: JSON.stringify({ sessionId: '8fd491', location: 'api/generate.source.js', message, data, timestamp: Date.now() })
+  }).catch(() => {});
+  // #endregion
+}
+
 function h1(text) {
   return new Paragraph({ heading: HeadingLevel.HEADING_1,
-    children: [new TextRun({ text, bold: true, size: 30, font: 'Arial', color: '1A3A5C' })] });
+    children: [new TextRun({ text: sanitizeText(text), bold: true, size: 30, font: 'Arial', color: '1A3A5C' })] });
 }
 function h2(text) {
   return new Paragraph({ heading: HeadingLevel.HEADING_2,
-    children: [new TextRun({ text, bold: true, size: 24, font: 'Arial', color: '2B4C7E' })] });
+    children: [new TextRun({ text: sanitizeText(text), bold: true, size: 24, font: 'Arial', color: '2B4C7E' })] });
 }
 function body(text) {
   return new Paragraph({ spacing: { after: 120 },
-    children: [new TextRun({ text, size: 22, font: 'Arial' })] });
+    children: [new TextRun({ text: sanitizeText(text), size: 22, font: 'Arial' })] });
 }
 function blank() {
   return new Paragraph({ children: [new TextRun({ text: '', size: 22 })] });
@@ -104,21 +121,22 @@ function makeDoc(children) {
 
 // ─── Markdown → docx-noder ───────────────────────────────────────────────────
 function parseMarkdown(text) {
-  return text.split('\n').filter(l => l.trim()).map(line => {
+  return sanitizeText(text).split('\n').filter(l => l.trim()).map(line => {
     const t = line.trim();
+    if (/^\|[-:| ]+\|$/.test(t)) return null;
     if (t.startsWith('# '))   return h1(t.slice(2));
     if (t.startsWith('## '))  return h2(t.slice(3));
     if (t.startsWith('### ')) return new Paragraph({ spacing: { after: 100 },
-      children: [new TextRun({ text: t.slice(4), bold: true, size: 22, font: 'Arial' })] });
+      children: [new TextRun({ text: sanitizeText(t.slice(4)), bold: true, size: 22, font: 'Arial' })] });
     if (t.startsWith('- ') || t.startsWith('* ') || t.startsWith('- [ ] ') || t.startsWith('- [x] ')) {
       const txt = t.replace(/^-\s\[[ x]\]\s?/, '').replace(/^[-*]\s/, '');
       return new Paragraph({ bullet: { level: 0 }, spacing: { after: 60 },
-        children: [new TextRun({ text: txt, size: 22, font: 'Arial' })] });
+        children: [new TextRun({ text: sanitizeText(txt), size: 22, font: 'Arial' })] });
     }
-    if (t.match(/^\d+\.\s/)) return new Paragraph({ numbering: { reference: 'nums', level: 0 },
-      spacing: { after: 60 }, children: [new TextRun({ text: t.replace(/^\d+\.\s/, ''), size: 22, font: 'Arial' })] });
+    if (t.match(/^\d+\.\s/)) return body(t);
+    if (t.startsWith('|')) return body(t.replace(/\|/g, ' · ').replace(/\s+/g, ' ').trim());
     return body(t);
-  });
+  }).filter(Boolean);
 }
 
 // ─── Dokument-builders ───────────────────────────────────────────────────────
@@ -209,9 +227,12 @@ function buildQCsjekkliste(d, ai) {
 // ─── Parse maskindata ────────────────────────────────────────────────────────
 function parseMachineData(raw) {
   const get = key => {
-    const m = raw.match(new RegExp(key + ':\\s*(.+)'));
-    return (m && m[1].trim() !== '' && m[1].trim() !== 'Ikke spesifisert') ? m[1].trim() : '—';
+    const m = raw.match(new RegExp('^' + key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ':\\s*(.+)$', 'm'));
+    const val = m ? m[1].trim() : '';
+    return (val && val !== 'Ikke spesifisert') ? val : '—';
   };
+  const energikilde = get('Energikilde');
+  const spenning = get('Spenningsforsyning');
   return {
     maskin:              get('Maskin'),
     produsent:           get('Produsent'),
@@ -220,10 +241,12 @@ function parseMachineData(raw) {
     kunde:               get('Kunde'),
     ingenior:            get('Ansvarlig ingeniør'),
     drivsystem:          get('Drivsystem'),
-    energikilde:         get('Energikilde'),
+    energikilde:         energikilde !== '—' ? energikilde : spenning,
     installasjonsmiljo:  get('Installasjonsmiljø'),
     styring:             get('Styring'),
     tiltenktBruk:        get('Tiltenkt bruk'),
+    marked:              get('Marked'),
+    standarder:          get('Relevante standarder'),
     beskrivelse:         get('Beskrivelse'),
   };
 }
@@ -447,26 +470,58 @@ Struktur — inkluder kun relevante seksjoner:
 Kun markdown. Ingen JSON. Ingen kodebokser.`
   };
 
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01'
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 3500,
-      messages: [{ role: 'user', content: prompts[docType] }]
-    })
-  });
+  const maxTokens = docType === 'tech' ? 4096 : 3500;
+  let lastError = null;
 
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error?.message || 'Claude API feil');
-  return data.content[0].text.trim();
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: maxTokens,
+        messages: [{ role: 'user', content: prompts[docType] }]
+      })
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      lastError = new Error(data.error?.message || 'Claude API feil');
+      agentLog('claude api error', { hypothesisId: 'TECH-A', docType, attempt, status: res.status, message: lastError.message });
+      if (attempt === 0 && (res.status === 429 || res.status === 529)) {
+        await new Promise(r => setTimeout(r, 2000));
+        continue;
+      }
+      throw lastError;
+    }
+
+    const block = Array.isArray(data.content)
+      ? data.content.find(b => b && b.type === 'text' && b.text)
+      : null;
+    if (!block || !block.text) {
+      lastError = new Error('Claude returnerte tomt svar for ' + docType);
+      agentLog('claude empty content', { hypothesisId: 'TECH-B', docType, stopReason: data.stop_reason });
+      throw lastError;
+    }
+    return sanitizeText(block.text).trim();
+  }
+
+  throw lastError || new Error('Claude API feil');
 }
 
 // ─── Handler ─────────────────────────────────────────────────────────────────
+async function packDoc(label, buildFn) {
+  try {
+    return await Packer.toBuffer(buildFn());
+  } catch (err) {
+    throw new Error('docx ' + label + ': ' + err.message);
+  }
+}
+
 function parseBody(req) {
   let body = req.body;
   if (typeof body === 'string') {
@@ -482,6 +537,7 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({
       ok: true,
       version: 'v10-universal',
+      buildTag: 'techfix-3',
       maxDuration: 120,
       bundled: typeof Document !== 'undefined',
       hasApiKey: !!process.env.ANTHROPIC_API_KEY
@@ -508,10 +564,10 @@ module.exports = async function handler(req, res) {
 
       const txt = await generateText(apiKey, docType, machineData);
       let buf;
-      if      (docType === 'risk') buf = await Packer.toBuffer(buildRisikovurdering(d, txt));
-      else if (docType === 'tech') buf = await Packer.toBuffer(buildTekniskFil(d, txt));
-      else if (docType === 'doc')  buf = await Packer.toBuffer(buildSamsvarserklaring(d, txt));
-      else                         buf = await Packer.toBuffer(buildQCsjekkliste(d, txt));
+      if      (docType === 'risk') buf = await packDoc('risk', () => buildRisikovurdering(d, txt));
+      else if (docType === 'tech') buf = await packDoc('tech', () => buildTekniskFil(d, txt));
+      else if (docType === 'doc')  buf = await packDoc('doc',  () => buildSamsvarserklaring(d, txt));
+      else                         buf = await packDoc('qc',   () => buildQCsjekkliste(d, txt));
 
       const names = {
         risk: `01_Risikovurdering_${safeSerial}.docx`,
@@ -532,8 +588,14 @@ module.exports = async function handler(req, res) {
     });
 
   } catch (err) {
-    console.error('[samsiq] generate error:', err.message);
-    return res.status(500).json({ error: err.message });
+    console.error('[samsiq] generate error:', docType, err.message);
+    agentLog('generate error', {
+      hypothesisId: 'TECH-C',
+      docType: docType || 'unknown',
+      message: err.message,
+      name: err.name
+    });
+    return res.status(500).json({ error: err.message, docType: docType || null });
   }
 };
 

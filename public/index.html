@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- complidoc-build: v9-split-docs -->
+<!-- samsiq-build: v10-universal -->
 <html lang="no" data-view="landing">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<title>Complidoc — AI-drevet industriell dokumentasjon</title>
+<title>Samsiq — AI-drevet industriell dokumentasjon</title>
 <script>
 (function () {
   function applyPanel(name) {
@@ -17,8 +17,8 @@
       n.classList.toggle('active', id === 'nav-' + name);
     });
     var titles = {
-      dashboard: ['Oversikt', 'Foss Solutions · 2025'],
-      new: ['Nytt prosjekt', 'Fyll inn detaljer for å generere dokumentpakke'],
+      dashboard: ['Oversikt', 'Dine prosjekter'],
+      new: ['Nytt prosjekt', 'Fyll inn maskindata for å generere dokumentpakke'],
       output: ['Dokumentpakke klar', 'Last ned og signer']
     };
     if (titles[name]) {
@@ -132,15 +132,6 @@ h2{font-size:30px;font-weight:600;letter-spacing:-0.6px;color:#F1F3F8;margin-bot
 .btn-filled{background:#1A6FD4;border:none;color:white;}
 .btn-filled:hover{background:#1558A8;}
 
-/* TESTIMONIALS */
-.t-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:40px;}
-.testimonial{background:#111318;border:0.5px solid rgba(255,255,255,0.08);border-radius:12px;padding:24px;}
-.t-quote{font-size:14px;color:#D1D5DB;line-height:1.7;margin-bottom:16px;font-style:italic;}
-.t-author{display:flex;align-items:center;gap:10px;}
-.t-avatar{width:32px;height:32px;border-radius:50%;background:rgba(26,111,212,0.2);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;color:#85B7EB;flex-shrink:0;}
-.t-name{font-size:13px;font-weight:500;color:#E8EAF0;}
-.t-role{font-size:11px;color:#6B7280;}
-
 /* CTA */
 .cta-section{margin:0 24px 60px;background:#111318;border:0.5px solid rgba(26,111,212,0.3);border-radius:14px;padding:48px 40px;text-align:center;}
 .cta-title{font-size:28px;font-weight:600;color:#F1F3F8;letter-spacing:-0.6px;margin-bottom:12px;}
@@ -159,7 +150,6 @@ html[data-view="app"] #app-page{display:block!important;}
 #app-page{display:none;}
 .app-wrap{display:flex;height:calc(100vh - 69px);}
 .app-sidebar{width:220px;background:#0F1217;border-right:0.5px solid rgba(255,255,255,0.07);display:flex;flex-direction:column;flex-shrink:0;padding:16px 12px;}
-.app-logo-row{display:flex;align-items:center;gap:8px;margin-bottom:24px;padding:4px;}
 .app-nav-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:6px;font-size:13px;color:#6B7280;margin-bottom:2px;cursor:pointer;transition:all 0.15s;}
 .app-nav-item:hover{background:rgba(255,255,255,0.05);color:#E8EAF0;}
 .app-nav-item.active{background:rgba(26,111,212,0.2);color:#85B7EB;}
@@ -200,13 +190,17 @@ html[data-view="app"] #app-page{display:block!important;}
 .step-line{width:20px;height:1px;background:rgba(255,255,255,0.07);margin:0 4px;}
 .step-line.done{background:#1A6FD4;}
 .form-card{background:#16191F;border:0.5px solid rgba(255,255,255,0.07);border-radius:10px;padding:20px;margin-bottom:16px;}
-.form-card-title{font-size:13px;font-weight:500;color:#E8EAF0;margin-bottom:16px;padding-bottom:10px;border-bottom:0.5px solid rgba(255,255,255,0.06);}
+.form-card-title{font-size:13px;font-weight:500;color:#E8EAF0;margin-bottom:4px;padding-bottom:10px;border-bottom:0.5px solid rgba(255,255,255,0.06);}
+.form-card-hint{font-size:11px;color:#4B5563;margin-bottom:16px;padding-bottom:10px;border-bottom:0.5px solid rgba(255,255,255,0.06);}
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:14px;}
 .form-row.full{grid-template-columns:1fr;}
+.form-row.triple{grid-template-columns:1fr 1fr 1fr;gap:14px;}
 .form-group{display:flex;flex-direction:column;gap:5px;}
 .form-label{font-size:12px;color:#6B7280;}
+.form-label .hint{font-size:10px;color:#4B5563;font-weight:400;margin-left:4px;}
 .form-input{padding:8px 10px;border:0.5px solid rgba(255,255,255,0.1);border-radius:6px;font-size:13px;color:#E8EAF0;background:#0D0F12;font-family:inherit;}
 .form-input:focus{outline:none;border-color:#1A6FD4;}
+.form-input::placeholder{color:#4B5563;}
 .doc-check-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
 .doc-check-item{display:flex;align-items:center;gap:8px;font-size:12px;color:#9CA3AF;padding:8px 10px;background:#0D0F12;border-radius:6px;}
 .check-box{width:16px;height:16px;border-radius:4px;background:#1A6FD4;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
@@ -236,12 +230,15 @@ html[data-view="app"] #app-page{display:block!important;}
 .btn-new{background:transparent;border:0.5px solid rgba(255,255,255,0.1);color:#9CA3AF;padding:10px 16px;border-radius:8px;font-size:13px;cursor:pointer;}
 
 /* LOADING */
-.loading-overlay{display:none;position:fixed;inset:0;background:rgba(13,15,18,0.9);z-index:200;align-items:center;justify-content:center;flex-direction:column;gap:16px;}
+.loading-overlay{display:none;position:fixed;inset:0;background:rgba(13,15,18,0.92);z-index:200;align-items:center;justify-content:center;flex-direction:column;gap:16px;}
 .loading-overlay.active{display:flex;}
 .spinner{width:40px;height:40px;border:2px solid rgba(26,111,212,0.2);border-top-color:#1A6FD4;border-radius:50%;animation:spin 0.8s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
 .loading-text{font-size:14px;color:#9CA3AF;}
 .loading-step{font-size:12px;color:#6B7280;margin-top:4px;}
+.loading-progress{display:flex;gap:6px;margin-top:8px;}
+.loading-dot{width:8px;height:8px;border-radius:50%;background:rgba(26,111,212,0.2);transition:background 0.3s;}
+.loading-dot.active{background:#1A6FD4;}
 </style>
 </head>
 <body>
@@ -251,6 +248,12 @@ html[data-view="app"] #app-page{display:block!important;}
   <div class="spinner"></div>
   <div class="loading-text" id="loading-text">Genererer dokumentpakke...</div>
   <div class="loading-step" id="loading-step"></div>
+  <div class="loading-progress">
+    <div class="loading-dot" id="dot-0"></div>
+    <div class="loading-dot" id="dot-1"></div>
+    <div class="loading-dot" id="dot-2"></div>
+    <div class="loading-dot" id="dot-3"></div>
+  </div>
 </div>
 
 <!-- LANDING PAGE -->
@@ -260,27 +263,27 @@ html[data-view="app"] #app-page{display:block!important;}
       <div class="logo-mark">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="5" height="5" rx="1" fill="white"/><rect x="9" y="2" width="5" height="5" rx="1" fill="white" opacity="0.6"/><rect x="2" y="9" width="5" height="5" rx="1" fill="white" opacity="0.6"/><rect x="9" y="9" width="5" height="5" rx="1" fill="white" opacity="0.3"/></svg>
       </div>
-      <span class="logo-name">Complidoc</span><span class="logo-tag">by Hultech</span>
+      <span class="logo-name">Samsiq</span><span class="logo-tag">by Hultech</span>
     </div>
     <div class="nav-links">
       <span class="nav-link" onclick="document.getElementById('how').scrollIntoView({behavior:'smooth'})">Produkt</span>
       <span class="nav-link" onclick="document.getElementById('pricing').scrollIntoView({behavior:'smooth'})">Priser</span>
       <span class="nav-link">Om oss</span>
     </div>
-    <button class="nav-cta" type="button" data-action="app" onclick="showApp()">Åpne app</button>
+    <button class="nav-cta" type="button" onclick="showApp()">Åpne app</button>
   </nav>
 
   <div class="hero">
     <div class="hero-badge"><div class="badge-dot"></div>AI-drevet teknisk dokumentasjon</div>
-    <h1>Fra tekniske data til<br><span>ferdig dokumentpakke</span><br>på under ett minutt</h1>
-    <p class="hero-sub">Complidoc genererer risikovurderinger, samsvarserklæringer, tekniske filer og QC-sjekklister automatisk — skreddersydd for din maskin og ditt marked.</p>
+    <h1>Fra maskindata til<br><span>ferdig dokumentpakke</span><br>på under fem minutter</h1>
+    <p class="hero-sub">Samsiq genererer risikovurderinger, samsvarserklæringer, tekniske filer og QC-sjekklister automatisk — for alle maskintyper, skreddersydd til ditt prosjekt.</p>
     <div class="hero-actions">
-      <button class="btn-hero" type="button" data-action="app" onclick="showApp()">Prøv gratis nå</button>
+      <button class="btn-hero" type="button" onclick="showApp()">Prøv gratis nå</button>
       <button class="btn-ghost" onclick="document.getElementById('how').scrollIntoView({behavior:'smooth'})">Se hvordan det fungerer</button>
     </div>
     <div class="proof">
       <div class="proof-item"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="6" fill="rgba(26,111,212,0.2)"/><path d="M4 7l2 2 4-4" stroke="#1A6FD4" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Ingen kredittkort kreves</div>
-      <div class="proof-item"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="6" fill="rgba(26,111,212,0.2)"/><path d="M4 7l2 2 4-4" stroke="#1A6FD4" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>CE-godkjent output</div>
+      <div class="proof-item"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="6" fill="rgba(26,111,212,0.2)"/><path d="M4 7l2 2 4-4" stroke="#1A6FD4" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Alle maskintyper</div>
       <div class="proof-item"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="6" fill="rgba(26,111,212,0.2)"/><path d="M4 7l2 2 4-4" stroke="#1A6FD4" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Norsk og engelsk</div>
     </div>
   </div>
@@ -290,12 +293,12 @@ html[data-view="app"] #app-page{display:block!important;}
   <div class="section" id="how">
     <div class="eyebrow">Slik fungerer det</div>
     <h2>Fire steg fra data til<br>godkjent dokumentpakke</h2>
-    <p class="section-sub">Complidoc guider deg gjennom hele prosessen. Ingen dokumentasjonsekspertise nødvendig.</p>
+    <p class="section-sub">Samsiq guider deg gjennom hele prosessen. Fungerer for alle maskintyper — fra pumper og transportbånd til spesialmaskiner.</p>
     <div class="flow-grid">
-      <div class="flow-step"><div class="flow-num">01</div><div class="flow-title">Velg maskintype</div><div class="flow-desc">Systemet vet hvilke direktiver og standarder som gjelder for akkurat din maskin.</div></div>
-      <div class="flow-step"><div class="flow-num">02</div><div class="flow-title">Fyll inn skjema</div><div class="flow-desc">Dynamiske spørsmål tilpasset produktet. Bare relevant informasjon — ingenting overflødig.</div></div>
-      <div class="flow-step"><div class="flow-num">03</div><div class="flow-title">AI genererer</div><div class="flow-desc">Risikovurdering, teknisk fil, samsvarserklæring og QC-sjekkliste på under ett minutt.</div></div>
-      <div class="flow-step"><div class="flow-num">04</div><div class="flow-title">Last ned og signer</div><div class="flow-desc">Ferdig formatert i Word og PDF. Klar for signatur og levering til kunde.</div></div>
+      <div class="flow-step"><div class="flow-num">01</div><div class="flow-title">Beskriv maskinen</div><div class="flow-desc">Skriv fritt om maskintype, drivsystem og bruksområde. Jo mer detaljer, jo bedre dokumenter.</div></div>
+      <div class="flow-step"><div class="flow-num">02</div><div class="flow-title">Fyll inn prosjektdata</div><div class="flow-desc">Kunde, serienummer, produsent og ansvarlig ingeniør. Tar 2 minutter.</div></div>
+      <div class="flow-step"><div class="flow-num">03</div><div class="flow-title">AI genererer</div><div class="flow-desc">Risikovurdering, teknisk fil, samsvarserklæring og QC-sjekkliste. Manglende info merkes tydelig.</div></div>
+      <div class="flow-step"><div class="flow-num">04</div><div class="flow-title">Last ned og fullfør</div><div class="flow-desc">Ferdig formatert i Word. Fyll inn [MANGLER]-feltene og signer — klar for levering.</div></div>
     </div>
   </div>
 
@@ -305,12 +308,12 @@ html[data-view="app"] #app-page{display:block!important;}
     <div class="eyebrow">Funksjoner</div>
     <h2>Alt du trenger for<br>CE-merking og compliance</h2>
     <div class="features-grid">
-      <div class="feature"><div class="feature-icon" style="background:rgba(226,75,74,0.15);"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2L14 14H2L8 2Z" stroke="#E24B4A" stroke-width="1.2" stroke-linejoin="round"/><line x1="8" y1="7" x2="8" y2="10" stroke="#E24B4A" stroke-width="1.2" stroke-linecap="round"/></svg></div><div class="feature-title">Automatisk risikovurdering</div><div class="feature-desc">Komplett risikovurdering etter EN ISO 12100 med RPN-matrise og tiltaksplan.</div></div>
-      <div class="feature"><div class="feature-icon" style="background:rgba(97,153,34,0.15);"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="#97C459" stroke-width="1.2"/><path d="M5 8l2 2 4-4" stroke="#97C459" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="feature-title">EF-samsvarserklæring</div><div class="feature-desc">Riktige direktiver identifiseres automatisk. Maskindirektivet, LVD, EMC og mer.</div></div>
-      <div class="feature"><div class="feature-icon" style="background:rgba(239,159,39,0.15);"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="3" width="14" height="10" rx="1.5" stroke="#EF9F27" stroke-width="1.2"/><line x1="4" y1="7" x2="12" y2="7" stroke="#EF9F27" stroke-width="1.2" stroke-linecap="round"/></svg></div><div class="feature-title">QC-sjekklister</div><div class="feature-desc">Produktspesifikke kontrollpunkter for mekanisk, hydraulikk, elektrisk og sikkerhet.</div></div>
-      <div class="feature"><div class="feature-icon" style="background:rgba(26,111,212,0.15);"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="1" width="10" height="13" rx="1.5" stroke="#85B7EB" stroke-width="1.2"/><line x1="4.5" y1="5" x2="9.5" y2="5" stroke="#85B7EB" stroke-width="1.2" stroke-linecap="round"/><line x1="4.5" y1="7.5" x2="9.5" y2="7.5" stroke="#85B7EB" stroke-width="1.2" stroke-linecap="round"/></svg></div><div class="feature-title">Teknisk fil</div><div class="feature-desc">Komplett teknisk dokumentasjon strukturert etter direktivkrav.</div></div>
-      <div class="feature"><div class="feature-icon" style="background:rgba(97,153,34,0.15);"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="6" cy="6" r="4" stroke="#97C459" stroke-width="1.2"/><path d="M10 10l4 4" stroke="#97C459" stroke-width="1.2" stroke-linecap="round"/></svg></div><div class="feature-title">Bedriftslæring</div><div class="feature-desc">Systemet husker dine maskiner og preferanser. Hvert prosjekt går raskere.</div></div>
-      <div class="feature"><div class="feature-icon" style="background:rgba(26,111,212,0.15);"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1v14M1 8h14" stroke="#85B7EB" stroke-width="1.2" stroke-linecap="round"/></svg></div><div class="feature-title">Norsk og engelsk</div><div class="feature-desc">All dokumentasjon genereres simultant på begge språk.</div></div>
+      <div class="feature"><div class="feature-icon" style="background:rgba(226,75,74,0.15);"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2L14 14H2L8 2Z" stroke="#E24B4A" stroke-width="1.2" stroke-linejoin="round"/><line x1="8" y1="7" x2="8" y2="10" stroke="#E24B4A" stroke-width="1.2" stroke-linecap="round"/></svg></div><div class="feature-title">Automatisk risikovurdering</div><div class="feature-desc">Komplett risikovurdering etter EN ISO 12100 med RPN-matrise og tiltaksplan — for alle maskintyper.</div></div>
+      <div class="feature"><div class="feature-icon" style="background:rgba(97,153,34,0.15);"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="#97C459" stroke-width="1.2"/><path d="M5 8l2 2 4-4" stroke="#97C459" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="feature-title">EF-samsvarserklæring</div><div class="feature-desc">Riktige direktiver identifiseres basert på din maskines drivsystem og energikilde.</div></div>
+      <div class="feature"><div class="feature-icon" style="background:rgba(239,159,39,0.15);"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="3" width="14" height="10" rx="1.5" stroke="#EF9F27" stroke-width="1.2"/><line x1="4" y1="7" x2="12" y2="7" stroke="#EF9F27" stroke-width="1.2" stroke-linecap="round"/></svg></div><div class="feature-title">QC-sjekklister</div><div class="feature-desc">Tilpassede kontrollpunkter basert på oppgitt maskintype — ikke generiske lister.</div></div>
+      <div class="feature"><div class="feature-icon" style="background:rgba(226,75,74,0.15);"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="3" y="2" width="10" height="12" rx="1.5" stroke="#E24B4A" stroke-width="1.2"/><line x1="6" y1="6" x2="10" y2="6" stroke="#E24B4A" stroke-width="1.2" stroke-linecap="round"/><line x1="6" y1="9" x2="10" y2="9" stroke="#E24B4A" stroke-width="1.2" stroke-linecap="round"/></svg></div><div class="feature-title">[MANGLER]-prinsippet</div><div class="feature-desc">AI gjetter aldri. Manglende info merkes eksplisitt — du vet nøyaktig hva som må fylles inn.</div></div>
+      <div class="feature"><div class="feature-icon" style="background:rgba(26,111,212,0.15);"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="1" width="10" height="13" rx="1.5" stroke="#85B7EB" stroke-width="1.2"/><line x1="4.5" y1="5" x2="9.5" y2="5" stroke="#85B7EB" stroke-width="1.2" stroke-linecap="round"/><line x1="4.5" y1="7.5" x2="9.5" y2="7.5" stroke="#85B7EB" stroke-width="1.2" stroke-linecap="round"/></svg></div><div class="feature-title">Teknisk fil</div><div class="feature-desc">Komplett teknisk dokumentasjon strukturert etter Maskindirektivet 2006/42/EC.</div></div>
+      <div class="feature"><div class="feature-icon" style="background:rgba(26,111,212,0.15);"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1v14M1 8h14" stroke="#85B7EB" stroke-width="1.2" stroke-linecap="round"/></svg></div><div class="feature-title">Norsk og engelsk</div><div class="feature-desc">Samsvarserklæring genereres simultant på begge språk.</div></div>
     </div>
   </div>
 
@@ -328,8 +331,8 @@ html[data-view="app"] #app-page{display:block!important;}
         <div class="price-divider"></div>
         <div class="price-feature"><div class="pf-check"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#1A6FD4" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>5 dokumentpakker/mnd</div>
         <div class="price-feature"><div class="pf-check"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#1A6FD4" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>2 brukere</div>
-        <div class="price-feature"><div class="pf-check"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#1A6FD4" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>Word og PDF eksport</div>
-        <button class="price-btn btn-outline" type="button" data-action="app" onclick="showApp()">Kom i gang</button>
+        <div class="price-feature"><div class="pf-check"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#1A6FD4" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>Word eksport</div>
+        <button class="price-btn btn-outline" type="button" onclick="showApp()">Kom i gang</button>
       </div>
       <div class="price-card featured">
         <div class="price-badge">Mest populær</div>
@@ -339,9 +342,9 @@ html[data-view="app"] #app-page{display:block!important;}
         <div class="price-divider"></div>
         <div class="price-feature"><div class="pf-check"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#1A6FD4" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>Ubegrenset dokumentpakker</div>
         <div class="price-feature"><div class="pf-check"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#1A6FD4" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>10 brukere</div>
-        <div class="price-feature"><div class="pf-check"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#1A6FD4" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>Bedriftslæring og maskinarkiv</div>
+        <div class="price-feature"><div class="pf-check"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#1A6FD4" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>Maskinarkiv</div>
         <div class="price-feature"><div class="pf-check"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#1A6FD4" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>Prioritert support</div>
-        <button class="price-btn btn-filled" type="button" data-action="app" onclick="showApp()">Start gratis prøveperiode</button>
+        <button class="price-btn btn-filled" type="button" onclick="showApp()">Start gratis prøveperiode</button>
       </div>
       <div class="price-card">
         <div class="price-name">Enterprise</div>
@@ -358,12 +361,12 @@ html[data-view="app"] #app-page{display:block!important;}
 
   <div class="cta-section">
     <div class="cta-title">Klar til å spare tid på dokumentasjon?</div>
-    <div class="cta-sub">Prøv Complidoc gratis. Ingen binding, ingen kredittkort.</div>
-    <button class="btn-hero" type="button" data-action="app" onclick="showApp()">Start nå</button>
+    <div class="cta-sub">Prøv Samsiq gratis. Ingen binding, ingen kredittkort.</div>
+    <button class="btn-hero" type="button" onclick="showApp()">Start nå</button>
   </div>
 
   <footer>
-    <div class="footer-left">© 2025 Complidoc · Hultech ENK · Kristiansand, Norge</div>
+    <div class="footer-left">© 2025 Samsiq · Hultech ENK · Kristiansand, Norge</div>
     <div class="footer-links">
       <span class="footer-link">Personvern</span>
       <span class="footer-link">Vilkår</span>
@@ -379,19 +382,19 @@ html[data-view="app"] #app-page{display:block!important;}
       <div class="logo-mark">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="5" height="5" rx="1" fill="white"/><rect x="9" y="2" width="5" height="5" rx="1" fill="white" opacity="0.6"/><rect x="2" y="9" width="5" height="5" rx="1" fill="white" opacity="0.6"/><rect x="9" y="9" width="5" height="5" rx="1" fill="white" opacity="0.3"/></svg>
       </div>
-      <span class="logo-name">Complidoc</span>
+      <span class="logo-name">Samsiq</span>
     </div>
     <div style="font-size:12px;color:#4B5563;">Demo — ikke tilkoblet konto</div>
-    <button class="nav-cta" type="button" data-action="panel" data-panel="new" onclick="showPanel('new')">+ Nytt prosjekt</button>
+    <button class="nav-cta" type="button" onclick="showPanel('new')">+ Nytt prosjekt</button>
   </nav>
 
   <div class="app-wrap">
     <div class="app-sidebar">
-      <div class="app-nav-item" id="nav-dashboard" data-action="panel" data-panel="dashboard" onclick="showPanel('dashboard')">
+      <div class="app-nav-item" id="nav-dashboard" onclick="showPanel('dashboard')">
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="6" height="6" rx="1.5" fill="currentColor"/><rect x="9" y="1" width="6" height="6" rx="1.5" fill="currentColor" opacity="0.5"/><rect x="1" y="9" width="6" height="6" rx="1.5" fill="currentColor" opacity="0.5"/><rect x="9" y="9" width="6" height="6" rx="1.5" fill="currentColor" opacity="0.3"/></svg>
         Oversikt
       </div>
-      <div class="app-nav-item active" id="nav-new" data-action="panel" data-panel="new" onclick="showPanel('new')">
+      <div class="app-nav-item active" id="nav-new" onclick="showPanel('new')">
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor"/><line x1="8" y1="5" x2="8" y2="11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="5" y1="8" x2="11" y2="8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
         Nytt prosjekt
       </div>
@@ -406,7 +409,7 @@ html[data-view="app"] #app-page{display:block!important;}
       <div style="margin-top:auto;padding-top:16px;border-top:0.5px solid rgba(255,255,255,0.06);">
         <div style="display:flex;align-items:center;gap:8px;">
           <div style="width:26px;height:26px;border-radius:50%;background:rgba(26,111,212,0.2);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;color:#85B7EB;">FS</div>
-          <div><div style="font-size:12px;color:#D1D5DB;font-weight:500;">Foss Solutions</div><div style="font-size:11px;color:#4B5563;">Pro-abonnement</div></div>
+          <div><div style="font-size:12px;color:#D1D5DB;font-weight:500;">Demo-bruker</div><div style="font-size:11px;color:#4B5563;">Pro-abonnement</div></div>
         </div>
       </div>
     </div>
@@ -415,7 +418,7 @@ html[data-view="app"] #app-page{display:block!important;}
       <div class="app-topbar">
         <div>
           <div class="app-title" id="app-title">Nytt prosjekt</div>
-          <div class="app-sub" id="app-sub">Fyll inn detaljer for å generere dokumentpakke</div>
+          <div class="app-sub" id="app-sub">Fyll inn maskindata for å generere dokumentpakke</div>
         </div>
       </div>
       <div class="app-content">
@@ -453,119 +456,112 @@ html[data-view="app"] #app-page{display:block!important;}
           <div class="step-bar">
             <div class="step curr"><div class="step-num">1</div><span class="step-label">Prosjektdetaljer</span></div>
             <div class="step-line"></div>
-            <div class="step wait"><div class="step-num">2</div><span class="step-label">Tekniske data</span></div>
+            <div class="step wait"><div class="step-num">2</div><span class="step-label">Maskinbeskrivelse</span></div>
             <div class="step-line"></div>
             <div class="step wait"><div class="step-num">3</div><span class="step-label">Generer</span></div>
           </div>
 
+          <!-- Seksjon 1: Prosjektinfo -->
           <div class="form-card">
             <div class="form-card-title">Prosjektinformasjon</div>
             <div class="form-row">
-              <div class="form-group"><label class="form-label">Maskintype</label>
-                <select class="form-input" id="f-maskintype">
-                  <option>Grindrenser / Trash rack cleaner</option>
-                  <option>Hydraulisk løfteutstyr</option>
-                  <option>Transportbånd</option>
-                  <option>Kran og løfteredskap</option>
-                  <option>Pumpe og rørsystem</option>
-                  <option>Annet</option>
-                </select>
-              </div>
-              <div class="form-group"><label class="form-label">Prosjektnavn / lokasjon</label>
+              <div class="form-group">
+                <label class="form-label">Prosjektnavn / lokasjon <span class="hint">*</span></label>
                 <input class="form-input" id="f-prosjekt" type="text" placeholder="f.eks. Strandafjorden kraftverk">
               </div>
-            </div>
-            <div class="form-row">
-              <div class="form-group"><label class="form-label">Serienummer</label>
-                <input class="form-input" id="f-serienr" type="text" placeholder="f.eks. GEH 2000 1158-26">
-              </div>
-              <div class="form-group"><label class="form-label">Kunde / sluttbruker</label>
+              <div class="form-group">
+                <label class="form-label">Kunde / sluttbruker</label>
                 <input class="form-input" id="f-kunde" type="text" placeholder="f.eks. Statkraft AS">
               </div>
             </div>
             <div class="form-row">
-              <div class="form-group"><label class="form-label">Produsent / bedrift</label>
-                <input class="form-input" id="f-produsent" type="text" placeholder="f.eks. Foss Solutions" value="Foss Solutions">
+              <div class="form-group">
+                <label class="form-label">Produsent / bedrift <span class="hint">*</span></label>
+                <input class="form-input" id="f-produsent" type="text" placeholder="f.eks. Foss Solutions AS">
               </div>
-              <div class="form-group"><label class="form-label">Ansvarlig ingeniør</label>
+              <div class="form-group">
+                <label class="form-label">Ansvarlig ingeniør</label>
                 <input class="form-input" id="f-ingenior" type="text" placeholder="Fullt navn">
               </div>
             </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Serienummer</label>
+                <input class="form-input" id="f-serienr" type="text" placeholder="f.eks. GEH2000-1158-26">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Maskinbetegnelse <span class="hint">*</span></label>
+                <input class="form-input" id="f-maskin" type="text" placeholder="f.eks. GEH 2000 Grindrenser">
+              </div>
+            </div>
           </div>
 
+          <!-- Seksjon 2: Teknisk beskrivelse — fritekst -->
           <div class="form-card">
-            <div class="form-card-title">Tekniske detaljer</div>
-            <div class="form-row">
-              <div class="form-group"><label class="form-label">Drivsystem</label>
-                <select class="form-input" id="f-driv">
-                  <option>Elektromekanisk</option>
-                  <option>Elektrohydraulisk</option>
-                  <option>Begge varianter</option>
-                  <option>Pneumatisk</option>
-                </select>
-              </div>
-              <div class="form-group"><label class="form-label">Spenningsforsyning</label>
-                <select class="form-input" id="f-spenning">
-                  <option>400V AC (3-fase)</option>
-                  <option>230V AC</option>
-                  <option>Begge varianter</option>
-                  <option>24V DC</option>
-                </select>
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="form-group"><label class="form-label">Installasjonsmiljø</label>
-                <select class="form-input" id="f-miljo">
-                  <option>Utendørs — eksponert vær</option>
-                  <option>Innendørs — industribygg</option>
-                  <option>Marint / offshore</option>
-                  <option>Ex-sone (eksplosiv atmosfære)</option>
-                </select>
-              </div>
-              <div class="form-group"><label class="form-label">Transport til site</label>
-                <select class="form-input" id="f-transport">
-                  <option>Lastebil / trailer</option>
-                  <option>Helikopter</option>
-                  <option>Båt</option>
-                  <option>Kombinert</option>
-                </select>
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="form-group"><label class="form-label">Styring</label>
-                <select class="form-input" id="f-styring">
-                  <option>Manuell betjening</option>
-                  <option>Automatisk sekvens (PLC)</option>
-                  <option>Begge modi</option>
-                </select>
-              </div>
-              <div class="form-group"><label class="form-label">Marked</label>
-                <select class="form-input" id="f-marked">
-                  <option>EU / EØS</option>
-                  <option>Norge (EØS)</option>
-                  <option>Globalt</option>
-                </select>
-              </div>
-            </div>
+            <div class="form-card-title">Teknisk beskrivelse</div>
+            <div class="form-card-hint">Skriv så detaljert du kan. AI-en bruker kun det du oppgir — manglende info markeres med [MANGLER] i dokumentene.</div>
+
             <div class="form-row full">
-              <div class="form-group"><label class="form-label">Kort produktbeskrivelse</label>
-                <textarea class="form-input" id="f-beskrivelse" rows="3" placeholder="Beskriv maskinens funksjon, bevegelse og bruksområde..."></textarea>
+              <div class="form-group">
+                <label class="form-label">Maskinbeskrivelse og funksjon <span class="hint">*</span></label>
+                <textarea class="form-input" id="f-beskrivelse" rows="4"
+                  placeholder="Beskriv hva maskinen gjør, hvordan den beveger seg og hva den brukes til.&#10;&#10;Eks: Elektromekanisk grindrenser for fjerning av rusk og debris fra inntak i vannkraftverk. Rensegrinden beveges vertikalt langs skinner ved hjelp av elektromotor og kjedestrekk. Driftes både manuelt og automatisk via PLC."></textarea>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Drivsystem og energikilde</label>
+                <input class="form-input" id="f-drivsystem" type="text"
+                  placeholder="f.eks. Elektromotor 400V AC 3-fase, 2.2 kW">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Styring</label>
+                <input class="form-input" id="f-styring" type="text"
+                  placeholder="f.eks. PLC automatikk + manuell betjening">
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Installasjonsmiljø</label>
+                <input class="form-input" id="f-installasjonsmiljo" type="text"
+                  placeholder="f.eks. Utendørs, eksponert for vær og vind, fuktig miljø">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Tiltenkt bruk</label>
+                <input class="form-input" id="f-tiltenktbruk" type="text"
+                  placeholder="f.eks. Rensing av inntak i vannkraftverk, sesongdrift">
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Relevante standarder <span class="hint">valgfritt</span></label>
+                <input class="form-input" id="f-standarder" type="text"
+                  placeholder="f.eks. EN ISO 12100, EN 60204-1, EN 50598">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Marked</label>
+                <input class="form-input" id="f-marked" type="text"
+                  placeholder="f.eks. EU / EØS — Norge">
               </div>
             </div>
           </div>
 
+          <!-- Dokumenter som genereres -->
           <div class="form-card">
             <div class="form-card-title">Dokumenter som genereres</div>
             <div class="doc-check-grid">
-              <div class="doc-check-item"><div class="check-box"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="white" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>Risikovurdering (NO+EN)</div>
-              <div class="doc-check-item"><div class="check-box"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="white" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>Teknisk fil</div>
-              <div class="doc-check-item"><div class="check-box"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="white" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>EF-Samsvarserklæring</div>
+              <div class="doc-check-item"><div class="check-box"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="white" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>Risikovurdering (EN ISO 12100)</div>
+              <div class="doc-check-item"><div class="check-box"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="white" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>Teknisk fil (2006/42/EC)</div>
+              <div class="doc-check-item"><div class="check-box"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="white" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>EF-Samsvarserklæring (NO+EN)</div>
               <div class="doc-check-item"><div class="check-box"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="white" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>QC-sjekkliste</div>
             </div>
           </div>
 
           <div class="form-bottom">
-            <div class="form-info">4 dokumenter · Estimert tid: 3–4 minutter</div>
+            <div class="form-info">4 dokumenter · Estimert tid: 4–5 minutter</div>
             <div>
               <button class="btn-cancel" onclick="showPanel('dashboard')">Avbryt</button>
               <button class="btn-generate" type="button" id="btn-generate" onclick="generateDocs()">Generer dokumentpakke →</button>
@@ -598,7 +594,7 @@ html[data-view="app"] #app-page{display:block!important;}
             </div>
             <div class="doc-card">
               <div class="doc-card-header"><div class="doc-card-icon" style="background:rgba(239,159,39,0.15);"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="1" y="3" width="14" height="10" rx="1.5" stroke="#EF9F27" stroke-width="1.2"/><line x1="4" y1="7" x2="12" y2="7" stroke="#EF9F27" stroke-width="1.2" stroke-linecap="round"/></svg></div><div><div class="doc-card-name">QC-sjekkliste</div><div class="doc-card-sub" id="doc4-sub">FS-QC · Rev.01</div></div></div>
-              <div class="doc-card-desc">Mekanisk · Hydraulikk · Elektrisk · Sikkerhet</div>
+              <div class="doc-card-desc">Tilpasset maskintype · Mekanisk · Elektrisk · Sikkerhet</div>
               <div class="doc-btns"><button class="btn-dl" onclick="downloadDoc('qc')">Last ned .docx</button></div>
             </div>
           </div>
@@ -616,17 +612,25 @@ html[data-view="app"] #app-page{display:block!important;}
 
 <script>
 let zipData = null;
-const FRONTEND_BUILD = 'v9-split-docs';
+const FRONTEND_BUILD = 'v10-universal';
 
-function showDeployBanner(message) {
-  let el = document.getElementById('deploy-banner');
-  if (!el) {
-    el = document.createElement('div');
-    el.id = 'deploy-banner';
-    el.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#b45309;color:#fff;padding:12px 16px;font:14px/1.4 sans-serif;text-align:center;';
-    document.body.appendChild(el);
+async function postGenerate(machineData, docType) {
+  let lastRes = null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    lastRes = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ machineData, docType })
+    });
+    if (lastRes.ok || (lastRes.status !== 500 && lastRes.status !== 529) || attempt === 1) {
+      return lastRes;
+    }
+    // #region agent log
+    fetch('http://127.0.0.1:7899/ingest/bef89494-0ce9-4594-b826-2f6c32aab015',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'8fd491'},body:JSON.stringify({sessionId:'8fd491',location:'index.html:postGenerate',message:'retry after 500',data:{hypothesisId:'TECH-E',docType,attempt:attempt+1},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+    await new Promise(r => setTimeout(r, 2500));
   }
-  el.textContent = message;
+  return lastRes;
 }
 
 function triggerDownload(blob, filename) {
@@ -651,126 +655,95 @@ async function loadJSZip() {
   });
 }
 
+function setDot(idx) {
+  document.querySelectorAll('.loading-dot').forEach((d, i) => {
+    d.classList.toggle('active', i === idx);
+  });
+}
+
 async function generateDocs() {
   const btn = document.getElementById('btn-generate');
   if (btn && btn.disabled) return;
 
-  if (!String(generateDocs).includes('docType')) {
-    alert('Gammel versjon lastet. Siden oppdateres nå — prøv igjen om et øyeblikk.');
-    location.reload();
+  const get = id => (document.getElementById(id) || {}).value || '';
+
+  // Valider påkrevde felt
+  const maskin    = get('f-maskin').trim();
+  const prosjekt  = get('f-prosjekt').trim();
+  const produsent = get('f-produsent').trim();
+  const beskrivelse = get('f-beskrivelse').trim();
+
+  if (!maskin || !prosjekt || !produsent) {
+    alert('Fyll inn maskinbetegnelse, prosjektnavn og produsent før du genererer.');
     return;
   }
 
-  if (window.__apiVersion && window.__apiVersion !== 'v9-split-docs') {
-    alert(
-      'Serveren kjører gammel versjon (' + window.__apiVersion + '). ' +
-      'Deploy siste kode til Vercel og hard refresh (Ctrl+F5). ' +
-      'Forventet: v9-split-docs'
-    );
-    return;
-  }
-
-  const get = id => document.getElementById(id).value;
-  const maskintype = get('f-maskintype');
-  const prosjekt = get('f-prosjekt') || 'Ukjent lokasjon';
-  const serienr = get('f-serienr') || 'N/A';
-  const kunde = get('f-kunde') || 'Ukjent kunde';
-  const produsent = get('f-produsent') || 'Ukjent produsent';
-  const ingenior = get('f-ingenior') || 'Ansvarlig ingeniør';
-  const driv = get('f-driv');
-  const spenning = get('f-spenning');
-  const miljo = get('f-miljo');
-  const transport = get('f-transport');
-  const styring = get('f-styring');
-  const beskrivelse = get('f-beskrivelse') || 'Ikke spesifisert';
+  const machineData =
+`Maskin: ${maskin}
+Produsent: ${produsent}
+Serienummer: ${get('f-serienr') || 'Ikke spesifisert'}
+Prosjekt/lokasjon: ${prosjekt}
+Kunde: ${get('f-kunde') || 'Ikke spesifisert'}
+Ansvarlig ingeniør: ${get('f-ingenior') || 'Ikke spesifisert'}
+Drivsystem: ${get('f-drivsystem') || 'Ikke spesifisert'}
+Energikilde: ${get('f-drivsystem') || 'Ikke spesifisert'}
+Installasjonsmiljø: ${get('f-installasjonsmiljo') || 'Ikke spesifisert'}
+Styring: ${get('f-styring') || 'Ikke spesifisert'}
+Tiltenkt bruk: ${get('f-tiltenktbruk') || 'Ikke spesifisert'}
+Marked: ${get('f-marked') || 'Ikke spesifisert'}
+Relevante standarder: ${get('f-standarder') || 'Ikke spesifisert'}
+Beskrivelse: ${beskrivelse || 'Ikke spesifisert'}`;
 
   const loading = document.getElementById('loading');
   const loadingText = document.getElementById('loading-text');
   const loadingStep = document.getElementById('loading-step');
   loading.classList.add('active');
   if (btn) btn.disabled = true;
-  loadingStep.textContent = 'Dokument 0 av 4 · ca. 1 min per dokument';
-
-  const steps = [
-    'Analyserer maskintype og direktiver...',
-    'Genererer risikovurdering (EN ISO 12100)...',
-    'Utarbeider teknisk fil og samsvarserklæring...',
-    'Bygger .docx-filer og pakker ZIP...'
-  ];
-  let interval;
-  let si = 0;
-  loadingText.textContent = steps[0];
-  interval = setInterval(() => {
-    si = Math.min(si + 1, steps.length - 1);
-    loadingText.textContent = steps[si];
-  }, 6000);
-
-  const machineData =
-`Maskin: ${maskintype}
-Produsent: ${produsent}
-Serienummer: ${serienr}
-Prosjekt/lokasjon: ${prosjekt}
-Kunde: ${kunde}
-Ansvarlig ingeniør: ${ingenior}
-Drivsystem: ${driv}
-Spenningsforsyning: ${spenning}
-Installasjonsmiljø: ${miljo}
-Transport: ${transport}
-Styring: ${styring}
-Beskrivelse: ${beskrivelse}`;
 
   const docSteps = [
     { docType: 'risk', label: 'Genererer risikovurdering (EN ISO 12100)...' },
     { docType: 'tech', label: 'Utarbeider teknisk fil...' },
-    { docType: 'doc', label: 'Genererer samsvarserklæring...' },
-    { docType: 'qc', label: 'Bygger QC-sjekkliste...' }
+    { docType: 'doc',  label: 'Genererer samsvarserklæring...' },
+    { docType: 'qc',   label: 'Bygger QC-sjekkliste...' }
   ];
 
   try {
     await loadJSZip();
 
-    const safeSerial = serienr.replace(/[^a-zA-Z0-9]/g, '_');
-    const zipFolderName = 'Complidoc_' + safeSerial;
+    const safeSerial = (get('f-serienr') || maskin).replace(/[^a-zA-Z0-9]/g, '_');
+    const zipFolderName = 'Samsiq_' + safeSerial;
     const zip = new JSZip();
     const folder = zip.folder(zipFolderName);
-    const zipFilename = 'Complidoc_' + maskintype.replace(/[^a-zA-Z0-9]/g, '_') + '_' + safeSerial + '.zip';
+    const zipFilename = 'Samsiq_' + maskin.replace(/[^a-zA-Z0-9]/g, '_') + '_' + safeSerial + '.zip';
 
     for (let i = 0; i < docSteps.length; i++) {
       loadingText.textContent = docSteps[i].label;
-      loadingStep.textContent = 'Dokument ' + (i + 1) + ' av 4 · ca. 1 min per dokument';
+      loadingStep.textContent = 'Dokument ' + (i + 1) + ' av 4';
+      setDot(i);
 
-      const res = await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ machineData, docType: docSteps[i].docType })
-      });
+      const res = await postGenerate(machineData, docSteps[i].docType);
 
       if (!res.ok) {
         const txt = await res.text();
-        if (res.status === 404) {
-          alert('API ikke tilgjengelig (404). Hard refresh (Ctrl+F5) og prøv igjen.');
-        } else if (res.status === 504) {
+        let errMsg = txt;
+        try {
+          const j = JSON.parse(txt);
+          if (j.error) errMsg = j.error;
+        } catch (_) {}
+        // #region agent log
+        fetch('http://127.0.0.1:7899/ingest/bef89494-0ce9-4594-b826-2f6c32aab015',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'8fd491'},body:JSON.stringify({sessionId:'8fd491',location:'index.html:generateDocs',message:'POST error',data:{hypothesisId:'TECH-D',docType:docSteps[i].docType,status:res.status,body:errMsg.slice(0,400)},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
+        if (res.status === 504) {
           alert('Timeout ved ' + docSteps[i].docType + '. Prøv igjen om litt.');
-        } else if (res.status === 400 && txt.includes('docType')) {
-          alert(
-            'Gammel frontend er lastet (mangler docType). ' +
-            'Deploy siste index.html til Vercel og hard refresh (Ctrl+F5).'
-          );
         } else {
-          alert('Server feil (' + res.status + ') for ' + docSteps[i].docType + ': ' + txt.slice(0, 300));
+          alert('Feil (' + res.status + ') for ' + docSteps[i].docType + ': ' + errMsg.slice(0, 300));
         }
         return;
       }
 
       const data = await res.json();
-      if (data.error) {
-        alert('Feil ved ' + docSteps[i].docType + ': ' + data.error);
-        return;
-      }
-      if (!data.docx || !data.filename) {
-        alert('Uventet svar for ' + docSteps[i].docType + ' — mangler docx/filename.');
-        return;
-      }
+      if (data.error) { alert('Feil ved ' + docSteps[i].docType + ': ' + data.error); return; }
+      if (!data.docx || !data.filename) { alert('Uventet svar for ' + docSteps[i].docType); return; }
 
       const bytes = atob(data.docx);
       const arr = new Uint8Array(bytes.length);
@@ -778,33 +751,29 @@ Beskrivelse: ${beskrivelse}`;
       folder.file(data.filename, arr);
     }
 
-    clearInterval(interval);
-    loading.classList.remove('active');
-    loadingStep.textContent = '';
     loadingText.textContent = 'Pakker ZIP...';
+    loadingStep.textContent = '';
+    setDot(-1);
 
     const zipB64 = await zip.generateAsync({ type: 'base64', compression: 'DEFLATE' });
     zipData = { zip: zipB64, filename: zipFilename };
 
     document.getElementById('output-title').textContent =
-      'Dokumentpakke generert — ' + maskintype + ' · ' + prosjekt;
+      'Dokumentpakke generert — ' + maskin + ' · ' + prosjekt;
     showPanel('output');
+
   } catch (err) {
     alert('Nettverksfeil: ' + err.message);
     console.error(err);
   } finally {
-    if (interval) clearInterval(interval);
     loading.classList.remove('active');
-    if (loadingStep) loadingStep.textContent = '';
+    loadingStep.textContent = '';
     if (btn) btn.disabled = false;
   }
 }
 
 function downloadAll() {
-  if (!zipData) {
-    alert('Generer en dokumentpakke først.');
-    return;
-  }
+  if (!zipData) { alert('Generer en dokumentpakke først.'); return; }
   const bytes = atob(zipData.zip);
   const arr = new Uint8Array(bytes.length);
   for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
@@ -812,27 +781,14 @@ function downloadAll() {
 }
 
 async function downloadDoc(prefix) {
-  if (!zipData) {
-    alert('Generer en dokumentpakke først.');
-    return;
-  }
-
+  if (!zipData) { alert('Generer en dokumentpakke først.'); return; }
   await loadJSZip();
-
   const prefixMap = { risk: '01_', tech: '02_', doc: '03_', qc: '04_' };
   const p = prefixMap[prefix] || prefix;
   const zip = await JSZip.loadAsync(zipData.zip, { base64: true });
-
   let targetFile = null;
-  zip.forEach((path, file) => {
-    if (!file.dir && path.includes(p)) targetFile = file;
-  });
-
-  if (!targetFile) {
-    alert('Fant ikke filen i pakken.');
-    return;
-  }
-
+  zip.forEach((path, file) => { if (!file.dir && path.includes(p)) targetFile = file; });
+  if (!targetFile) { alert('Fant ikke filen i pakken.'); return; }
   const blob = await targetFile.async('blob');
   triggerDownload(
     new Blob([blob], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }),
@@ -844,37 +800,20 @@ window.generateDocs = generateDocs;
 window.downloadAll = downloadAll;
 window.downloadDoc = downloadDoc;
 
+// Helsesjekk mot API ved oppstart
 document.addEventListener('DOMContentLoaded', function() {
-  if (!sessionStorage.getItem('complidoc-cache-check')) {
-    fetch('/index.html', { cache: 'no-store' })
-      .then(function(r) { return r.text(); })
-      .then(function(html) {
-        if (html.includes('docType: docSteps[i].docType') && !generateDocs.toString().includes('docType')) {
-          sessionStorage.setItem('complidoc-cache-check', '1');
-          location.reload();
-        }
-      })
-      .catch(function() {});
-  }
-
   fetch('/api/generate')
-    .then(function(r) {
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      return r.json();
-    })
-    .then(function(d) {
+    .then(r => r.json())
+    .then(d => {
       window.__apiVersion = d.version;
-      window.__apiOk = true;
-      if (d.version !== 'v9-split-docs') {
-        console.warn('[complidoc] API version mismatch. Deploy siste kode. Live=', d.version, 'expected=v9-split-docs');
+      if (d.version !== 'v10-universal') {
+        console.warn('[samsiq] API version mismatch. Live=' + d.version + ' expected=v10-universal');
       }
-      if (!generateDocs.toString().includes('docType')) {
-        showDeployBanner('Frontend er utdatert (mangler docType). Deploy siste index.html og hard refresh.');
+      if (d.buildTag !== 'techfix-3') {
+        console.warn('[samsiq] API mangler techfix-3. Deploy api/generate/index.js. buildTag=' + d.buildTag);
       }
     })
-    .catch(function(err) {
-      window.__apiOk = false;
-    });
+    .catch(() => { window.__apiOk = false; });
 });
 </script>
 </body>

@@ -21135,22 +21135,34 @@ function pageProps() {
     margin: { top: MARGIN, right: MARGIN, bottom: MARGIN, left: MARGIN }
   } };
 }
+function sanitizeText(text) {
+  if (text == null) return "\u2014";
+  return String(text).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "").replace(/\uFFFE|\uFFFF/g, "");
+}
+function agentLog(message, data) {
+  fetch("http://127.0.0.1:7899/ingest/bef89494-0ce9-4594-b826-2f6c32aab015", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "8fd491" },
+    body: JSON.stringify({ sessionId: "8fd491", location: "api/generate.source.js", message, data, timestamp: Date.now() })
+  }).catch(() => {
+  });
+}
 function h1(text) {
   return new Paragraph({
     heading: HeadingLevel.HEADING_1,
-    children: [new TextRun({ text, bold: true, size: 30, font: "Arial", color: "1A3A5C" })]
+    children: [new TextRun({ text: sanitizeText(text), bold: true, size: 30, font: "Arial", color: "1A3A5C" })]
   });
 }
 function h2(text) {
   return new Paragraph({
     heading: HeadingLevel.HEADING_2,
-    children: [new TextRun({ text, bold: true, size: 24, font: "Arial", color: "2B4C7E" })]
+    children: [new TextRun({ text: sanitizeText(text), bold: true, size: 24, font: "Arial", color: "2B4C7E" })]
   });
 }
 function body(text) {
   return new Paragraph({
     spacing: { after: 120 },
-    children: [new TextRun({ text, size: 22, font: "Arial" })]
+    children: [new TextRun({ text: sanitizeText(text), size: 22, font: "Arial" })]
   });
 }
 function blank() {
@@ -21211,7 +21223,7 @@ function signatureTable(d, dato) {
         children: [
           new Paragraph({ children: [new TextRun({ text: "Sted og dato / Place and date:", bold: true, size: 20, font: "Arial" })] }),
           blank(),
-          new Paragraph({ children: [new TextRun({ text: `Snartemo, ${dato}`, size: 20, font: "Arial" })] })
+          new Paragraph({ children: [new TextRun({ text: `Norge, ${dato}`, size: 20, font: "Arial" })] })
         ]
       }),
       new TableCell({
@@ -21255,29 +21267,27 @@ function makeDoc(children) {
   });
 }
 function parseMarkdown(text) {
-  return text.split("\n").filter((l) => l.trim()).map((line) => {
+  return sanitizeText(text).split("\n").filter((l) => l.trim()).map((line) => {
     const t = line.trim();
+    if (/^\|[-:| ]+\|$/.test(t)) return null;
     if (t.startsWith("# ")) return h1(t.slice(2));
     if (t.startsWith("## ")) return h2(t.slice(3));
     if (t.startsWith("### ")) return new Paragraph({
       spacing: { after: 100 },
-      children: [new TextRun({ text: t.slice(4), bold: true, size: 22, font: "Arial" })]
+      children: [new TextRun({ text: sanitizeText(t.slice(4)), bold: true, size: 22, font: "Arial" })]
     });
-    if (t.startsWith("- ") || t.startsWith("* ") || t.startsWith("- [ ] ")) {
+    if (t.startsWith("- ") || t.startsWith("* ") || t.startsWith("- [ ] ") || t.startsWith("- [x] ")) {
       const txt = t.replace(/^-\s\[[ x]\]\s?/, "").replace(/^[-*]\s/, "");
       return new Paragraph({
         bullet: { level: 0 },
         spacing: { after: 60 },
-        children: [new TextRun({ text: txt, size: 22, font: "Arial" })]
+        children: [new TextRun({ text: sanitizeText(txt), size: 22, font: "Arial" })]
       });
     }
-    if (t.match(/^\d+\.\s/)) return new Paragraph({
-      numbering: { reference: "nums", level: 0 },
-      spacing: { after: 60 },
-      children: [new TextRun({ text: t.replace(/^\d+\.\s/, ""), size: 22, font: "Arial" })]
-    });
+    if (t.match(/^\d+\.\s/)) return body(t);
+    if (t.startsWith("|")) return body(t.replace(/\|/g, " \xB7 ").replace(/\s+/g, " ").trim());
     return body(t);
-  });
+  }).filter(Boolean);
 }
 function buildRisikovurdering(d, ai) {
   const dato = (/* @__PURE__ */ new Date()).toLocaleDateString("no-NO");
@@ -21311,10 +21321,9 @@ function buildTekniskFil(d, ai) {
       ["Maskin", d.maskin],
       ["Serienummer", d.serienr],
       ["Produsent", d.produsent],
-      ["Adresse", "Snartemo, Norge"],
-      ["Drivsystem", d.driv],
-      ["Spenningsforsyning", d.spenning],
-      ["Installasjonsmilj\xF8", d.miljo],
+      ["Drivsystem", d.drivsystem],
+      ["Energikilde", d.energikilde],
+      ["Installasjonsmilj\xF8", d.installasjonsmiljo],
       ["Direktiv", "Maskindirektivet 2006/42/EC"],
       ["Dato", dato]
     ]),
@@ -21362,9 +21371,12 @@ function buildQCsjekkliste(d, ai) {
 }
 function parseMachineData(raw) {
   const get = (key) => {
-    const m = raw.match(new RegExp(key + ":\\s*(.+)"));
-    return m ? m[1].trim() : "\u2014";
+    const m = raw.match(new RegExp("^" + key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ":\\s*(.+)$", "m"));
+    const val = m ? m[1].trim() : "";
+    return val && val !== "Ikke spesifisert" ? val : "\u2014";
   };
+  const energikilde = get("Energikilde");
+  const spenning = get("Spenningsforsyning");
   return {
     maskin: get("Maskin"),
     produsent: get("Produsent"),
@@ -21372,82 +21384,266 @@ function parseMachineData(raw) {
     prosjekt: get("Prosjekt/lokasjon"),
     kunde: get("Kunde"),
     ingenior: get("Ansvarlig ingeni\xF8r"),
-    driv: get("Drivsystem"),
-    spenning: get("Spenningsforsyning"),
-    miljo: get("Installasjonsmilj\xF8")
+    drivsystem: get("Drivsystem"),
+    energikilde: energikilde !== "\u2014" ? energikilde : spenning,
+    installasjonsmiljo: get("Installasjonsmilj\xF8"),
+    styring: get("Styring"),
+    tiltenktBruk: get("Tiltenkt bruk"),
+    marked: get("Marked"),
+    standarder: get("Relevante standarder"),
+    beskrivelse: get("Beskrivelse")
   };
 }
+function buildContext(machineData) {
+  return `=== MASKINDATA FRA BRUKER ===
+${machineData}
+=== SLUTT MASKINDATA ===`;
+}
 async function generateText(apiKey, docType, machineData) {
+  const context = buildContext(machineData);
+  const MANGLER_REGEL = `
+VIKTIG REGEL \u2014 [MANGLER]-prinsippet:
+- Dersom et felt er "\u2014", tomt, eller ikke oppgitt: skriv [MANGLER: kort beskrivelse av hva som mangler] akkurat der informasjonen ville st\xE5tt.
+- ALDRI spekker, gjett eller finn opp tekniske verdier, dimensjoner, vekt, spenning, effekt eller andre spesifikke tall.
+- ALDRI anta maskintype, drivsystem, standarder eller direktiver utover det som er oppgitt.
+- Dokumentet skal v\xE6re klart til bruk \u2014 [MANGLER]-mark\xF8rene viser n\xF8yaktig hva ingeni\xF8ren m\xE5 fylle inn.
+- Skriv p\xE5 norsk (bokm\xE5l) med faglig presisjon. Ingen spekulasjon.`;
   const prompts = {
-    risk: `Du er en teknisk compliance-ekspert. Skriv en komplett risikovurdering p\xE5 norsk.
-Marker manglende info med [MANGLER: beskrivelse]. Aldri spekuler.
+    risk: `Du er en senior teknisk compliance-ekspert med dyp kunnskap om Maskindirektivet 2006/42/EC og EN ISO 12100:2010.
 
-${machineData}
+${MANGLER_REGEL}
 
-Bruk disse ## seksjonene:
+${context}
+
+Skriv en komplett risikovurdering basert KUN p\xE5 informasjonen ovenfor.
+
+Struktur (bruk n\xF8yaktig disse ## overskriftene):
+
 ## 1. Omfang og form\xE5l
+Beskriv hva denne risikovurderingen dekker. Referer til oppgitt maskintype og prosjekt.
+
 ## 2. Maskinbeskrivelse
-## 3. Fareidentifikasjon og risikovurdering
-Beskriv minst 8 farer. For hver: beskrivelse, S(1-4), P(1-4), RPN=S\xD7P, tiltak.
-## 4. Restrisiko og konklusjon
-## 5. Revisjonslogg
+Beskriv maskinen basert p\xE5 oppgitt informasjon. Bruk [MANGLER: ...] for alle ukjente tekniske detaljer.
 
-Kun markdown. Ingen JSON, ingen kodebokser.`,
-    tech: `Du er en teknisk compliance-ekspert. Skriv en komplett teknisk fil p\xE5 norsk.
-Marker manglende info med [MANGLER: beskrivelse]. Aldri spekuler.
+## 3. Grenser for maskinen
+- Tiltenkt bruk og rimelig forutsigbar feilbruk
+- Romlige grenser (arbeidsrom, installasjonsareal)
+- Tidsmessige grenser (forventet levetid, vedlikeholdsintervaller)
 
-${machineData}
+## 4. Fareidentifikasjon og risikovurdering
+Basert p\xE5 oppgitt maskintype, identifiser relevante farer. For HVER fare:
+**Fare [nr]: [navn]**
+- Beskrivelse: ...
+- Faregruppe (iht. EN ISO 12100 Annex B): ...
+- Alvorlighetsgrad S (1=lett, 2=alvorlig, 3=sv\xE6rt alvorlig, 4=fatal): S = [verdi]
+- Sannsynlighet P (1=usannsynlig, 4=sannsynlig): P = [verdi]
+- RPN = S \xD7 P = [verdi]
+- Tiltak: ...
+- Restrisiko etter tiltak: Akseptabel / Ikke akseptabel
 
-Bruk disse ## seksjonene:
+Identifiser minimum 8 relevante farer for denne maskintypen.
+
+## 5. Risikoreduksjonstiltak \u2014 sammendrag
+Oppsummer alle tiltak etter prioritet: 1) Innebygd sikkerhet, 2) Verneutstyr, 3) Brukerinformasjon.
+
+## 6. Restrisiko og konklusjon
+Samlet vurdering. Konkluder om maskinen kan CE-merkes.
+
+## 7. Revisjonslogg
+| Rev | Dato | Beskrivelse | Utf\xF8rt av |
+|-----|------|-------------|-----------|
+| 01  | [dato] | F\xF8rste utgave | [MANGLER: ansvarlig ingeni\xF8r] |
+
+Kun markdown. Ingen JSON. Ingen kodebokser.`,
+    tech: `Du er en senior teknisk compliance-ekspert med dyp kunnskap om Maskindirektivet 2006/42/EC.
+
+${MANGLER_REGEL}
+
+${context}
+
+Skriv en komplett teknisk fil (Technical File) basert KUN p\xE5 informasjonen ovenfor.
+
+Struktur (bruk n\xF8yaktig disse ## overskriftene):
+
 ## 1. Produktidentifikasjon
-## 2. Teknisk beskrivelse og funksjon
-## 3. Direktiver og standarder
+Fullstendig produktidentifikasjon basert p\xE5 oppgitte data. Bruk [MANGLER: ...] for ukjente felt.
+
+## 2. Teknisk beskrivelse og virkem\xE5te
+Beskriv maskinens funksjon og virkem\xE5te basert p\xE5 oppgitt informasjon.
+Tekniske spesifikasjoner: Bruk [MANGLER: spesifikk parameter] for alle ukjente verdier (vekt, dimensjoner, effekt, moment, osv.)
+
+## 3. Gjeldende direktiver
+List opp direktiver som er relevante for denne maskintypen basert p\xE5 oppgitt informasjon:
+- Maskindirektivet 2006/42/EC (alltid relevant for maskiner)
+- Andre direktiver kun dersom de er relevante for oppgitt drivsystem/energikilde
+
 ## 4. Harmoniserte standarder
+List harmoniserte standarder relevante for denne maskintypen. Bas\xE9r utvalget p\xE5 maskintype og tilgjengelig informasjon. Bruk [MANGLER: hvilken standard som trengs] dersom maskintypen ikke er tilstrekkelig beskrevet.
+
 ## 5. Tegningsliste og dokumentoversikt
+| Dok.nr | Tittel | Type | Rev |
+|--------|--------|------|-----|
+| [MANGLER: tegningsnummer] | Samletegning | CAD-tegning | 01 |
+| [MANGLER: dok.nr] | Hydraulikkskjema | P&ID | 01 |
+
+(Tilpass til oppgitt maskintype \u2014 slett irrelevante rader, legg til relevante)
+
 ## 6. Installasjon og driftsforhold
+Basert p\xE5 oppgitt installasjonsmilj\xF8 og tiltenkt bruk.
+
 ## 7. Vedlikeholdskrav
+Generelle vedlikeholdskrav for denne maskintypen. Spesifikke intervaller: [MANGLER: vedlikeholdsplan]
 
-Kun markdown. Ingen JSON, ingen kodebokser.`,
-    doc: `Du er en teknisk compliance-ekspert. Skriv en komplett EF-samsvarserkl\xE6ring p\xE5 norsk og engelsk.
-Marker manglende info med [MANGLER: beskrivelse]. Aldri spekuler.
+## 8. Referansedokumenter
+- Risikovurdering: FS-RISK-[serienr]-Rev01
+- QC-sjekkliste: FS-QC-[serienr]-Rev01
+- EF-Samsvarserkl\xE6ring: FS-DOC-[serienr]-Rev01
 
-${machineData}
+Kun markdown. Ingen JSON. Ingen kodebokser.`,
+    doc: `Du er en senior teknisk compliance-ekspert med dyp kunnskap om CE-merking og Maskindirektivet 2006/42/EC.
 
-## Norsk versjon
-(Fullstendig erkl\xE6ringstekst: produsent, maskin, direktiver, standarder)
-## English version
-(Complete declaration: manufacturer, machine, directives, standards)
+${MANGLER_REGEL}
 
-Inkluder: 2006/42/EC, 2014/35/EU, 2014/30/EU der relevant.
-Kun markdown. Ingen JSON, ingen kodebokser.`,
-    qc: `Du er en teknisk compliance-ekspert. Skriv en komplett QC-sjekkliste p\xE5 norsk.
-Marker manglende info med [MANGLER: beskrivelse]. Aldri spekuler.
+${context}
 
-${machineData}
+Skriv en komplett EF-samsvarserkl\xE6ring p\xE5 NORSK og ENGELSK.
 
-Bruk disse ## seksjonene med minst 6 punkter hver:
+Struktur (bruk n\xF8yaktig disse ## overskriftene):
+
+## Norsk versjon \u2014 EF-Samsvarserkl\xE6ring
+
+Vi, [produsent fra maskindata], erkl\xE6rer under eneansvar at maskinen:
+
+**Beskrivelse:** [maskintype fra data]
+**Serienummer:** [serienummer fra data]
+**Produksjons\xE5r:** [MANGLER: produksjons\xE5r]
+
+er i samsvar med bestemmelsene i f\xF8lgende EU-direktiver:
+
+**Direktiver:**
+- Maskindirektivet 2006/42/EC
+[Legg til kun direktiver som er relevante basert p\xE5 oppgitt drivsystem og energikilde \u2014 IKKE list direktiver som ikke er relevante]
+
+**Harmoniserte standarder benyttet:**
+[List relevante standarder basert p\xE5 maskintype. Bruk [MANGLER: hvilken standard] dersom maskintypen er utilstrekkelig beskrevet]
+
+Teknisk fil er utarbeidet og oppbevares av produsenten.
+
+---
+
+## English version \u2014 EC Declaration of Conformity
+
+We, [manufacturer from machine data], declare under sole responsibility that the machine:
+
+**Description:** [machine type from data]
+**Serial number:** [serial number from data]
+**Year of manufacture:** [MANGLER: year of manufacture]
+
+conforms to the provisions of the following EU Directives:
+
+**Directives:**
+- Machinery Directive 2006/42/EC
+[Add only directives relevant to the stated drive system and energy source]
+
+**Harmonised standards applied:**
+[List relevant standards based on machine type]
+
+The technical file is established and kept by the manufacturer.
+
+---
+
+Kun markdown. Ingen JSON. Ingen kodebokser.`,
+    qc: `Du er en senior teknisk compliance-ekspert og kvalitetsingeni\xF8r.
+
+${MANGLER_REGEL}
+
+${context}
+
+Skriv en komplett QC-sjekkliste tilpasset denne SPESIFIKKE maskintypen basert KUN p\xE5 oppgitt informasjon.
+
+VIKTIG: Tilpass seksjonene til maskintypen. Inkluder KUN seksjoner som er relevante. En pumpe trenger ikke "Hydraulikk-seksjon" dersom det ikke er oppgitt hydraulikk. En elektromekanisk maskin trenger ikke "Hydraulikk"-seksjon.
+
+Struktur \u2014 inkluder kun relevante seksjoner:
+
+## Prosjektinformasjon
+- [ ] Prosjektnummer og kundeinfo bekreftet
+- [ ] Serienummer p\xE5f\xF8rt maskin
+- [ ] Dokumentpakke komplett (risikovurdering, teknisk fil, samsvarserkl\xE6ring)
+
 ## Mekanisk kontroll
-## Hydraulikk / pneumatikk
-## Elektrisk kontroll
-## Sikkerhetsutstyr
-## Funksjonskontroll
-## Dokumentasjonskontroll
+[Minst 8 sjekkpunkter relevante for oppgitt maskintype]
+- [ ] [sjekkpunkt]
 
-Hvert punkt: - [ ] Beskrivelse
-Kun markdown. Ingen JSON, ingen kodebokser.`
+## Drivsystem og energiforsyning
+[Basert p\xE5 oppgitt drivsystem og energikilde \u2014 bruk [MANGLER: spesifikk verdi] for ukjente grenseverdier]
+- [ ] [sjekkpunkt]
+
+## Sikkerhetssystemer og verneutstyr
+[Basert p\xE5 maskintype og installasjonsmilj\xF8]
+- [ ] N\xF8dstopp tilstede og funksjonell
+- [ ] [ytterligere sjekkpunkter]
+
+## Funksjonskontroll
+[Funksjonskontroll tilpasset maskintypen]
+- [ ] [sjekkpunkt]
+
+## Merking og dokumentasjon
+- [ ] CE-merke p\xE5f\xF8rt med korrekt format
+- [ ] Produsent og serienummer-plate montert
+- [ ] Bruksanvisning medf\xF8lger p\xE5 norsk (og engelsk der krevet)
+- [ ] Samsvarserkl\xE6ring signert og medf\xF8lger
+- [ ] Teknisk fil arkivert hos produsent
+
+## Godkjenning og signatur
+- Utf\xF8rt av: [MANGLER: navn og stilling]
+- Dato: [MANGLER: dato]
+- Signatur: ___________________
+- Godkjent av: [MANGLER: navn og stilling]
+
+Kun markdown. Ingen JSON. Ingen kodebokser.`
   };
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-6",
-      max_tokens: 3e3,
-      messages: [{ role: "user", content: prompts[docType] }]
-    })
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error?.message || "Claude API feil");
-  return data.content[0].text.trim();
+  const maxTokens = docType === "tech" ? 4096 : 3500;
+  let lastError = null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01"
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: maxTokens,
+        messages: [{ role: "user", content: prompts[docType] }]
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      lastError = new Error(data.error?.message || "Claude API feil");
+      agentLog("claude api error", { hypothesisId: "TECH-A", docType, attempt, status: res.status, message: lastError.message });
+      if (attempt === 0 && (res.status === 429 || res.status === 529)) {
+        await new Promise((r) => setTimeout(r, 2e3));
+        continue;
+      }
+      throw lastError;
+    }
+    const block = Array.isArray(data.content) ? data.content.find((b) => b && b.type === "text" && b.text) : null;
+    if (!block || !block.text) {
+      lastError = new Error("Claude returnerte tomt svar for " + docType);
+      agentLog("claude empty content", { hypothesisId: "TECH-B", docType, stopReason: data.stop_reason });
+      throw lastError;
+    }
+    return sanitizeText(block.text).trim();
+  }
+  throw lastError || new Error("Claude API feil");
+}
+async function packDoc(label, buildFn) {
+  try {
+    return await Packer.toBuffer(buildFn());
+  } catch (err) {
+    throw new Error("docx " + label + ": " + err.message);
+  }
 }
 function parseBody(req) {
   let body2 = req.body;
@@ -21465,7 +21661,8 @@ module.exports = async function handler(req, res) {
   if (req.method === "GET") {
     return res.status(200).json({
       ok: true,
-      version: "v9-split-docs",
+      version: "v10-universal",
+      buildTag: "techfix-3",
       maxDuration: 120,
       bundled: typeof Document !== "undefined",
       hasApiKey: !!process.env.ANTHROPIC_API_KEY
@@ -21486,10 +21683,10 @@ module.exports = async function handler(req, res) {
       }
       const txt = await generateText(apiKey, docType, machineData);
       let buf;
-      if (docType === "risk") buf = await Packer.toBuffer(buildRisikovurdering(d, txt));
-      else if (docType === "tech") buf = await Packer.toBuffer(buildTekniskFil(d, txt));
-      else if (docType === "doc") buf = await Packer.toBuffer(buildSamsvarserklaring(d, txt));
-      else buf = await Packer.toBuffer(buildQCsjekkliste(d, txt));
+      if (docType === "risk") buf = await packDoc("risk", () => buildRisikovurdering(d, txt));
+      else if (docType === "tech") buf = await packDoc("tech", () => buildTekniskFil(d, txt));
+      else if (docType === "doc") buf = await packDoc("doc", () => buildSamsvarserklaring(d, txt));
+      else buf = await packDoc("qc", () => buildQCsjekkliste(d, txt));
       const names = {
         risk: `01_Risikovurdering_${safeSerial}.docx`,
         tech: `02_Teknisk_Fil_${safeSerial}.docx`,
@@ -21506,8 +21703,14 @@ module.exports = async function handler(req, res) {
       error: "Bruk docType (risk|tech|doc|qc). Full pakke genereres sekvensielt i frontend."
     });
   } catch (err) {
-    console.error("[debug-8fd491] generate error:", err.message);
-    return res.status(500).json({ error: err.message });
+    console.error("[samsiq] generate error:", docType, err.message);
+    agentLog("generate error", {
+      hypothesisId: "TECH-C",
+      docType: docType || "unknown",
+      message: err.message,
+      name: err.name
+    });
+    return res.status(500).json({ error: err.message, docType: docType || null });
   }
 };
 module.exports.config = {
