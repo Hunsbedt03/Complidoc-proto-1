@@ -57,7 +57,9 @@
   });
 
   document.addEventListener('DOMContentLoaded', function () {
-    if (location.hash === '#app' || location.hash === '#new') showApp();
+    if ((location.hash === '#app' || location.hash === '#new') && window.SamsiqAuth && window.SamsiqAuth.isLoggedIn()) {
+      showApp(true);
+    }
   });
 })();
 </script>
@@ -239,6 +241,23 @@ html[data-view="app"] #app-page{display:block!important;}
 .loading-progress{display:flex;gap:6px;margin-top:8px;}
 .loading-dot{width:8px;height:8px;border-radius:50%;background:rgba(26,111,212,0.2);transition:background 0.3s;}
 .loading-dot.active{background:#1A6FD4;}
+
+/* AUTH MODAL */
+.auth-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:1000;align-items:center;justify-content:center;padding:20px;}
+.auth-modal.active{display:flex;}
+.auth-box{background:#111318;border:0.5px solid rgba(255,255,255,0.1);border-radius:12px;padding:28px;width:100%;max-width:400px;position:relative;}
+.auth-box h3{font-size:18px;margin-bottom:18px;color:#F1F3F8;}
+.auth-field{margin-bottom:14px;}
+.auth-field label{display:block;font-size:12px;color:#9CA3AF;margin-bottom:6px;}
+.auth-field input{width:100%;background:#0D0F12;border:0.5px solid rgba(255,255,255,0.12);border-radius:8px;padding:10px 12px;color:#E8EAF0;font-size:14px;}
+.auth-field input:focus{outline:none;border-color:#1A6FD4;}
+.auth-error{font-size:12px;color:#E24B4A;margin-bottom:12px;min-height:16px;}
+.auth-submit{width:100%;background:#1A6FD4;color:white;border:none;padding:11px;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;margin-top:4px;}
+.auth-submit:hover{background:#1558A8;}
+.auth-toggle{background:none;border:none;color:#85B7EB;font-size:12px;cursor:pointer;margin-top:14px;width:100%;text-align:center;}
+.auth-close{position:absolute;top:12px;right:14px;background:none;border:none;color:#6B7280;font-size:20px;cursor:pointer;}
+.btn-logout{margin-top:10px;width:100%;background:transparent;border:0.5px solid rgba(255,255,255,0.12);color:#9CA3AF;padding:6px 10px;border-radius:6px;font-size:11px;cursor:pointer;}
+.btn-logout:hover{color:#E8EAF0;border-color:rgba(255,255,255,0.25);}
 </style>
 </head>
 <body>
@@ -270,7 +289,8 @@ html[data-view="app"] #app-page{display:block!important;}
       <span class="nav-link" onclick="document.getElementById('pricing').scrollIntoView({behavior:'smooth'})">Priser</span>
       <span class="nav-link">Om oss</span>
     </div>
-    <button class="nav-cta" type="button" onclick="showApp()">Åpne app</button>
+    <button class="nav-cta btn-ghost" type="button" id="btn-landing-login" style="margin-right:8px;">Logg inn</button>
+    <button class="nav-cta" type="button" id="btn-landing-open" onclick="showApp()">Åpne app</button>
   </nav>
 
   <div class="hero">
@@ -384,7 +404,7 @@ html[data-view="app"] #app-page{display:block!important;}
       </div>
       <span class="logo-name">Samsiq</span>
     </div>
-    <div style="font-size:12px;color:#4B5563;">Demo — ikke tilkoblet konto</div>
+    <div id="auth-status" style="font-size:12px;color:#4B5563;">Ikke innlogget</div>
     <button class="nav-cta" type="button" onclick="showPanel('new')">+ Nytt prosjekt</button>
   </nav>
 
@@ -408,9 +428,10 @@ html[data-view="app"] #app-page{display:block!important;}
       </div>
       <div style="margin-top:auto;padding-top:16px;border-top:0.5px solid rgba(255,255,255,0.06);">
         <div style="display:flex;align-items:center;gap:8px;">
-          <div style="width:26px;height:26px;border-radius:50%;background:rgba(26,111,212,0.2);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;color:#85B7EB;">FS</div>
-          <div><div style="font-size:12px;color:#D1D5DB;font-weight:500;">Demo-bruker</div><div style="font-size:11px;color:#4B5563;">Pro-abonnement</div></div>
+          <div id="user-avatar" style="width:26px;height:26px;border-radius:50%;background:rgba(26,111,212,0.2);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;color:#85B7EB;">?</div>
+          <div><div id="user-name" style="font-size:12px;color:#D1D5DB;font-weight:500;">Gjest</div><div id="user-sub" style="font-size:11px;color:#4B5563;">Logg inn for å lagre</div></div>
         </div>
+        <button type="button" class="btn-logout" id="btn-logout" style="display:none;">Logg ut</button>
       </div>
     </div>
 
@@ -427,28 +448,12 @@ html[data-view="app"] #app-page{display:block!important;}
         <div class="panel" id="panel-dashboard">
           <div class="section-label" style="margin-bottom:10px;">Denne måneden</div>
           <div class="stats-grid">
-            <div class="stat-card"><div class="stat-label">Pakker generert</div><div class="stat-val">12</div><div class="stat-sub">+4 fra forrige måned</div></div>
-            <div class="stat-card"><div class="stat-label">Timer spart (est.)</div><div class="stat-val">48t</div><div class="stat-sub">4t per pakke</div></div>
-            <div class="stat-card"><div class="stat-label">Aktive prosjekter</div><div class="stat-val">3</div><div class="stat-sub">1 venter signatur</div></div>
+            <div class="stat-card"><div class="stat-label">Pakker generert</div><div class="stat-val" id="stat-packages">0</div><div class="stat-sub">Lagret i skyen</div></div>
+            <div class="stat-card"><div class="stat-label">Timer spart (est.)</div><div class="stat-val" id="stat-hours">0t</div><div class="stat-sub">4t per pakke</div></div>
+            <div class="stat-card"><div class="stat-label">Aktive prosjekter</div><div class="stat-val" id="stat-projects">0</div><div class="stat-sub">Dine prosjekter</div></div>
           </div>
           <div class="section-label" style="margin-top:8px;">Siste prosjekter</div>
-          <div class="proj-list">
-            <div class="proj-card" onclick="showPanel('new')">
-              <div class="proj-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="1" width="10" height="13" rx="1.5" stroke="#85B7EB" stroke-width="1.2"/><line x1="4.5" y1="5" x2="9.5" y2="5" stroke="#85B7EB" stroke-width="1.2" stroke-linecap="round"/><line x1="4.5" y1="7.5" x2="9.5" y2="7.5" stroke="#85B7EB" stroke-width="1.2" stroke-linecap="round"/></svg></div>
-              <div><div class="proj-name">GEH 2000 — Strandafjorden</div><div class="proj-meta">Grindrenser · 4 dokumenter · 01.06.2025</div></div>
-              <span class="badge badge-done">Fullført</span>
-            </div>
-            <div class="proj-card">
-              <div class="proj-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="1" width="10" height="13" rx="1.5" stroke="#EF9F27" stroke-width="1.2"/></svg></div>
-              <div><div class="proj-name">Hydraulisk løftebord — Hydro ASA</div><div class="proj-meta">Løfteutstyr · Mangler signaturer</div></div>
-              <span class="badge badge-prog">Pågår</span>
-            </div>
-            <div class="proj-card" onclick="showPanel('new')">
-              <div class="proj-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="1" width="10" height="13" rx="1.5" stroke="#85B7EB" stroke-width="1.2"/></svg></div>
-              <div><div class="proj-name">+ Opprett nytt prosjekt</div><div class="proj-meta">Klikk for å starte</div></div>
-              <span class="badge badge-new">Ny</span>
-            </div>
-          </div>
+          <div class="proj-list" id="proj-list"></div>
         </div>
 
         <!-- NEW PROJECT FORM -->
@@ -610,6 +615,33 @@ html[data-view="app"] #app-page{display:block!important;}
   </div>
 </div>
 
+<!-- AUTH MODAL -->
+<div class="auth-modal" id="auth-modal" data-mode="login">
+  <div class="auth-box">
+    <button type="button" class="auth-close" id="auth-close" aria-label="Lukk">&times;</button>
+    <h3 id="auth-modal-title">Logg inn</h3>
+    <form id="auth-form">
+      <div class="auth-field" id="auth-name-row" style="display:none;">
+        <label for="auth-name">Fullt navn</label>
+        <input type="text" id="auth-name" autocomplete="name">
+      </div>
+      <div class="auth-field">
+        <label for="auth-email">E-post</label>
+        <input type="email" id="auth-email" required autocomplete="email">
+      </div>
+      <div class="auth-field">
+        <label for="auth-password">Passord</label>
+        <input type="password" id="auth-password" required minlength="6" autocomplete="current-password">
+      </div>
+      <div class="auth-error" id="auth-error"></div>
+      <button type="submit" class="auth-submit" id="auth-submit">Logg inn</button>
+    </form>
+    <button type="button" class="auth-toggle" id="auth-toggle">Ny bruker? Opprett konto</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="/js/samsiq-supabase.js"></script>
 <script>
 let zipData = null;
 const FRONTEND_BUILD = 'v10-universal';
@@ -715,6 +747,7 @@ Beskrivelse: ${beskrivelse || 'Ikke spesifisert'}`;
     const zip = new JSZip();
     const folder = zip.folder(zipFolderName);
     const zipFilename = 'Samsiq_' + maskin.replace(/[^a-zA-Z0-9]/g, '_') + '_' + safeSerial + '.zip';
+    const generatedDocs = [];
 
     for (let i = 0; i < docSteps.length; i++) {
       loadingText.textContent = docSteps[i].label;
@@ -749,6 +782,7 @@ Beskrivelse: ${beskrivelse || 'Ikke spesifisert'}`;
       const arr = new Uint8Array(bytes.length);
       for (let b = 0; b < bytes.length; b++) arr[b] = bytes.charCodeAt(b);
       folder.file(data.filename, arr);
+      generatedDocs.push({ docType: docSteps[i].docType, filename: data.filename, docx: data.docx });
     }
 
     loadingText.textContent = 'Pakker ZIP...';
@@ -757,6 +791,30 @@ Beskrivelse: ${beskrivelse || 'Ikke spesifisert'}`;
 
     const zipB64 = await zip.generateAsync({ type: 'base64', compression: 'DEFLATE' });
     zipData = { zip: zipB64, filename: zipFilename };
+
+    if (window.SamsiqAuth && window.SamsiqAuth.isLoggedIn()) {
+      try {
+        await window.SamsiqAuth.saveGeneratedProject({
+          maskin, prosjekt, produsent, beskrivelse,
+          serienr: get('f-serienr'),
+          kunde: get('f-kunde'),
+          ingenior: get('f-ingenior'),
+          drivsystem: get('f-drivsystem'),
+          styring: get('f-styring'),
+          installasjonsmiljo: get('f-installasjonsmiljo'),
+          tiltenktbruk: get('f-tiltenktbruk'),
+          standarder: get('f-standarder'),
+          marked: get('f-marked'),
+          machineData,
+          zipFilename,
+          zipBase64: zipB64,
+          documents: generatedDocs
+        });
+      } catch (saveErr) {
+        console.warn('[samsiq] Supabase lagring feilet:', saveErr);
+        alert('Dokumentpakke generert, men lagring feilet: ' + (saveErr.message || saveErr));
+      }
+    }
 
     document.getElementById('output-title').textContent =
       'Dokumentpakke generert — ' + maskin + ' · ' + prosjekt;
