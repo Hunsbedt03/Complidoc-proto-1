@@ -26,16 +26,6 @@ function sanitizeText(text) {
     .replace(/\uFFFE|\uFFFF/g, '');
 }
 
-function agentLog(message, data) {
-  // #region agent log
-  fetch('http://127.0.0.1:7899/ingest/bef89494-0ce9-4594-b826-2f6c32aab015', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '8fd491' },
-    body: JSON.stringify({ sessionId: '8fd491', location: 'api/generate.source.js', message, data, timestamp: Date.now() })
-  }).catch(() => {});
-  // #endregion
-}
-
 function h1(text) {
   return new Paragraph({ heading: HeadingLevel.HEADING_1,
     children: [new TextRun({ text: sanitizeText(text), bold: true, size: 30, font: 'Arial', color: '1A3A5C' })] });
@@ -501,7 +491,6 @@ Kun markdown. Ingen JSON. Ingen kodebokser.`
     const data = await res.json();
     if (!res.ok) {
       lastError = new Error(data.error?.message || 'Claude API feil');
-      agentLog('claude api error', { hypothesisId: 'TECH-A', docType, attempt, status: res.status, message: lastError.message });
       if (attempt === 0 && (res.status === 429 || res.status === 529)) {
         await new Promise(r => setTimeout(r, 2000));
         continue;
@@ -514,7 +503,6 @@ Kun markdown. Ingen JSON. Ingen kodebokser.`
       : null;
     if (!block || !block.text) {
       lastError = new Error('Claude returnerte tomt svar for ' + docType);
-      agentLog('claude empty content', { hypothesisId: 'TECH-B', docType, stopReason: data.stop_reason });
       throw lastError;
     }
     return sanitizeText(block.text).trim();
@@ -599,12 +587,6 @@ module.exports = async function handler(req, res) {
 
   } catch (err) {
     console.error('[samsiq] generate error:', docType, err.message);
-    agentLog('generate error', {
-      hypothesisId: 'TECH-C',
-      docType: docType || 'unknown',
-      message: err.message,
-      name: err.name
-    });
     return res.status(500).json({ error: err.message, docType: docType || null });
   }
 };

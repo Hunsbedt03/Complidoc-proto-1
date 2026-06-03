@@ -101,6 +101,34 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
 
+-- Sikrer public.users-rad for innlogget bruker (omgår RLS ved første lagring)
+create or replace function public.ensure_user_profile()
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_email text;
+  v_name text;
+begin
+  if auth.uid() is null then
+    raise exception 'Not authenticated';
+  end if;
+  select email, coalesce(raw_user_meta_data->>'full_name', split_part(email, '@', 1))
+  into v_email, v_name
+  from auth.users
+  where id = auth.uid();
+  insert into public.users (id, email, full_name)
+  values (auth.uid(), coalesce(v_email, ''), v_name)
+  on conflict (id) do update set
+    email = excluded.email,
+    full_name = coalesce(excluded.full_name, public.users.full_name);
+end;
+$$;
+
+grant execute on function public.ensure_user_profile() to authenticated;
+
 -- ─── Row Level Security ────────────────────────────────────────────────────
 alter table public.users enable row level security;
 alter table public.bedrifter enable row level security;
@@ -111,6 +139,7 @@ alter table public.dokumenter enable row level security;
 
 -- users
 create policy "users_select_own" on public.users for select using (auth.uid() = id);
+create policy "users_insert_own" on public.users for insert with check (auth.uid() = id);
 create policy "users_update_own" on public.users for update using (auth.uid() = id);
 
 -- bedrifter (via medlemskap)

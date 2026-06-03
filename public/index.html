@@ -625,9 +625,6 @@ async function postGenerate(machineData, docType) {
     if (lastRes.ok || (lastRes.status !== 500 && lastRes.status !== 529) || attempt === 1) {
       return lastRes;
     }
-    // #region agent log
-    fetch('http://127.0.0.1:7899/ingest/bef89494-0ce9-4594-b826-2f6c32aab015',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'8fd491'},body:JSON.stringify({sessionId:'8fd491',location:'index.html:postGenerate',message:'retry after 500',data:{hypothesisId:'TECH-E',docType,attempt:attempt+1},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
     await new Promise(r => setTimeout(r, 2500));
   }
   return lastRes;
@@ -730,9 +727,6 @@ Beskrivelse: ${beskrivelse || 'Ikke spesifisert'}`;
           const j = JSON.parse(txt);
           if (j.error) errMsg = j.error;
         } catch (_) {}
-        // #region agent log
-        fetch('http://127.0.0.1:7899/ingest/bef89494-0ce9-4594-b826-2f6c32aab015',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'8fd491'},body:JSON.stringify({sessionId:'8fd491',location:'index.html:generateDocs',message:'POST error',data:{hypothesisId:'TECH-D',docType:docSteps[i].docType,status:res.status,body:errMsg.slice(0,400)},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
         if (res.status === 504) {
           alert('Timeout ved ' + docSteps[i].docType + '. Prøv igjen om litt.');
         } else {

@@ -657,9 +657,6 @@ async function postGenerate(machineData, docType) {
     if (lastRes.ok || (lastRes.status !== 500 && lastRes.status !== 529) || attempt === 1) {
       return lastRes;
     }
-    // #region agent log
-    fetch('http://127.0.0.1:7899/ingest/bef89494-0ce9-4594-b826-2f6c32aab015',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'8fd491'},body:JSON.stringify({sessionId:'8fd491',location:'index.html:postGenerate',message:'retry after 500',data:{hypothesisId:'TECH-E',docType,attempt:attempt+1},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
     await new Promise(r => setTimeout(r, 2500));
   }
   return lastRes;
@@ -763,9 +760,6 @@ Beskrivelse: ${beskrivelse || 'Ikke spesifisert'}`;
           const j = JSON.parse(txt);
           if (j.error) errMsg = j.error;
         } catch (_) {}
-        // #region agent log
-        fetch('http://127.0.0.1:7899/ingest/bef89494-0ce9-4594-b826-2f6c32aab015',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'8fd491'},body:JSON.stringify({sessionId:'8fd491',location:'index.html:generateDocs',message:'POST error',data:{hypothesisId:'TECH-D',docType:docSteps[i].docType,status:res.status,body:errMsg.slice(0,400)},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
         if (res.status === 504) {
           alert('Timeout ved ' + docSteps[i].docType + '. Prøv igjen om litt.');
         } else {
@@ -811,8 +805,58 @@ Beskrivelse: ${beskrivelse || 'Ikke spesifisert'}`;
           documents: generatedDocs
         });
       } catch (saveErr) {
-        console.warn('[samsiq] Supabase lagring feilet:', saveErr);
-        alert('Dokumentpakke generert, men lagring feilet: ' + (saveErr.message || saveErr));
+        var saveErrText = window.SamsiqAuth && window.SamsiqAuth.formatSaveErr
+          ? window.SamsiqAuth.formatSaveErr(saveErr)
+          : 'Lagring feilet';
+        if (
+          (window.SamsiqAuth && window.SamsiqAuth.isSetupSaveError(saveErr)) ||
+          (window.SamsiqAuth && !(await window.SamsiqAuth.isCloudStorageReady()))
+        ) {
+          var localId = window.SamsiqAuth.saveProjectLocally({
+            maskin, prosjekt, produsent, beskrivelse,
+            serienr: get('f-serienr'),
+            kunde: get('f-kunde'),
+            ingenior: get('f-ingenior'),
+            drivsystem: get('f-drivsystem'),
+            styring: get('f-styring'),
+            installasjonsmiljo: get('f-installasjonsmiljo'),
+            tiltenktbruk: get('f-tiltenktbruk'),
+            standarder: get('f-standarder'),
+            marked: get('f-marked'),
+            machineData,
+            zipFilename,
+            zipBase64: zipB64,
+            documents: generatedDocs
+          });
+          await window.SamsiqAuth.loadDashboardProjects();
+          console.warn('[samsiq] Supabase ikke konfigurert — lagret lokalt:', localId, saveErrText);
+        } else {
+          console.error('[samsiq] Supabase lagring feilet (lagrer lokalt):', {
+            message: saveErr && saveErr.message,
+            code: saveErr && saveErr.code,
+            details: saveErr && saveErr.details,
+            hint: saveErr && saveErr.hint,
+            formatted: saveErrText
+          }, saveErr);
+          var rescueId = window.SamsiqAuth.saveProjectLocally({
+            maskin, prosjekt, produsent, beskrivelse,
+            serienr: get('f-serienr'),
+            kunde: get('f-kunde'),
+            ingenior: get('f-ingenior'),
+            drivsystem: get('f-drivsystem'),
+            styring: get('f-styring'),
+            installasjonsmiljo: get('f-installasjonsmiljo'),
+            tiltenktbruk: get('f-tiltenktbruk'),
+            standarder: get('f-standarder'),
+            marked: get('f-marked'),
+            machineData,
+            zipFilename,
+            zipBase64: zipB64,
+            documents: generatedDocs
+          });
+          await window.SamsiqAuth.loadDashboardProjects();
+          console.warn('[samsiq] Lagret lokalt etter sky-feil:', rescueId, saveErrText);
+        }
       }
     }
 

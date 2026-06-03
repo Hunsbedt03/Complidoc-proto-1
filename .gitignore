@@ -9,6 +9,7 @@
 
 # env
 .env*.local
+.supabase-service-role.local
 
 # debug
 npm-debug.log*

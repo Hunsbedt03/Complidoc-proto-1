@@ -1,0 +1,2 @@
+# Kopier til .supabase-service-role.local (gitignored via .env*.local pattern — legg filen i rot)
+# Verdi: service_role secret fra Supabase → Project Settings → API

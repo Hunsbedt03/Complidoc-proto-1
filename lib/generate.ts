@@ -89,7 +89,15 @@ export async function generateDocumentPackage(
       throw new Error('Feil (' + res.status + ') for ' + step.docType + ': ' + errMsg.slice(0, 300));
     }
 
-    const data = await res.json();
+    const text = await res.text();
+    let data: { error?: string; docx?: string; filename?: string } = {};
+    if (text.trim()) {
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error('Ugyldig svar for ' + step.docType + ': ' + text.slice(0, 200));
+      }
+    }
     if (data.error) throw new Error('Feil ved ' + step.docType + ': ' + data.error);
     if (!data.docx || !data.filename) throw new Error('Uventet svar for ' + step.docType);
 

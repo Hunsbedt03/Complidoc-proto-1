@@ -2,18 +2,48 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useGeneration } from '@/components/providers/GenerationProvider';
 import { createClient } from '@/lib/supabase/client';
+import { getLocalProject, listLocalProjects } from '@/lib/localProjects';
+import { rebuildZipFromDocs } from '@/lib/rebuildZip';
 import { formatDate, loadProjectZip } from '@/lib/projects';
 
 export function Dashboard() {
   const router = useRouter();
-  const { projects } = useAuth();
+  const { projects, refreshProjects } = useAuth();
   const { setZipFromProject } = useGeneration();
   const supabase = createClient();
 
+  const [localProjects, setLocalProjects] = useState<ReturnType<typeof listLocalProjects>>(
+    []
+  );
+
+  useEffect(() => {
+    setLocalProjects(listLocalProjects());
+    refreshProjects();
+  }, [refreshProjects]);
+
+  const displayProjects = useMemo(() => {
+    const merged = [...projects];
+    for (const lp of localProjects) {
+      if (!merged.some((p) => p.id === lp.id)) merged.push(lp);
+    }
+    return merged.sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+  }, [projects, localProjects]);
+
   async function openProject(projectId: string) {
+    const local = getLocalProject(projectId);
+    if (local) {
+      const zip = await rebuildZipFromDocs(local.payload.documents, local.payload.zipFilename);
+      setZipFromProject(zip, local.payload.prosjekt);
+      router.push('/app/output');
+      return;
+    }
+
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -29,7 +59,7 @@ export function Dashboard() {
     router.push('/app/output');
   }
 
-  const count = projects.length;
+  const count = displayProjects.length;
 
   return (
     <>
@@ -42,7 +72,7 @@ export function Dashboard() {
           <div className="stat-val" id="stat-packages">
             {count}
           </div>
-          <div className="stat-sub">Lagret i skyen</div>
+          <div className="stat-sub">Lokalt og i sky</div>
         </div>
         <div className="stat-card">
           <div className="stat-label">Timer spart (est.)</div>
@@ -63,7 +93,7 @@ export function Dashboard() {
         Siste prosjekter
       </div>
       <div className="proj-list" id="proj-list">
-        {!projects.length && (
+        {!displayProjects.length && (
           <Link href="/app/new" className="proj-card">
             <div className="proj-icon">+</div>
             <div>
@@ -73,7 +103,7 @@ export function Dashboard() {
             <span className="badge badge-new">Ny</span>
           </Link>
         )}
-        {projects.map((p) => (
+        {displayProjects.map((p) => (
           <button
             key={p.id}
             type="button"
@@ -92,7 +122,7 @@ export function Dashboard() {
             </span>
           </button>
         ))}
-        {projects.length > 0 && (
+        {displayProjects.length > 0 && (
           <Link href="/app/new" className="proj-card">
             <div className="proj-icon">+</div>
             <div>

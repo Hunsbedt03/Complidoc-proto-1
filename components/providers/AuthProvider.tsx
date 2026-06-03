@@ -10,6 +10,8 @@ import {
   type ReactNode,
 } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { listLocalProjects } from '@/lib/localProjects';
+import { formatSupabaseError } from '@/lib/supabaseError';
 import { getBedriftId, loadProjects } from '@/lib/projects';
 import type { ProsjektSummary, UserProfile } from '@/lib/types';
 import type { User } from '@supabase/supabase-js';
@@ -55,44 +57,69 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [projects, setProjects] = useState<ProsjektSummary[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const mergeWithLocal = useCallback((cloud: ProsjektSummary[]) => {
+    const local = listLocalProjects();
+    const merged = [...cloud];
+    for (const lp of local) {
+      if (!merged.some((p) => p.id === lp.id)) merged.push(lp);
+    }
+    return merged.sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+  }, []);
+
   const loadUserData = useCallback(
     async (currentUser: User | null) => {
-      if (!currentUser) {
-        setProfile(null);
-        setBedriftId(null);
-        setProjects([]);
-        return;
-      }
-
-      const { data: profileData } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', currentUser.id)
-        .maybeSingle();
-
-      setProfile(
-        profileData || {
-          id: currentUser.id,
-          email: currentUser.email || '',
-          full_name: null,
+      try {
+        if (!currentUser) {
+          setProfile(null);
+          setBedriftId(null);
+          setProjects(listLocalProjects());
+          return;
         }
-      );
 
-      const bId = await getBedriftId(supabase, currentUser.id);
-      setBedriftId(bId);
-      const list = await loadProjects(supabase, currentUser.id);
-      setProjects(list);
+        const { data: profileData } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', currentUser.id)
+          .maybeSingle();
+
+        setProfile(
+          profileData || {
+            id: currentUser.id,
+            email: currentUser.email || '',
+            full_name: null,
+          }
+        );
+
+        fetch('/api/bootstrap-profile', { method: 'POST' }).catch(() => {});
+
+        const bId = await getBedriftId(supabase, currentUser.id);
+        setBedriftId(bId);
+        const cloud = await loadProjects(supabase, currentUser.id);
+        setProjects(mergeWithLocal(cloud));
+      } catch (err) {
+        console.warn('[samsiq] loadUserData feilet, viser lokale prosjekter:', err);
+        setProjects(listLocalProjects());
+      }
     },
-    [supabase]
+    [supabase, mergeWithLocal]
   );
 
   const refreshProjects = useCallback(async () => {
-    if (!user) return;
-    const list = await loadProjects(supabase, user.id);
-    setProjects(list);
-  }, [supabase, user]);
+    const {
+      data: { user: currentUser },
+    } = await supabase.auth.getUser();
+    if (!currentUser) {
+      setProjects(listLocalProjects());
+      return;
+    }
+    const cloud = await loadProjects(supabase, currentUser.id);
+    setProjects(mergeWithLocal(cloud));
+  }, [supabase, mergeWithLocal]);
 
   useEffect(() => {
+    setProjects(listLocalProjects());
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       loadUserData(session?.user ?? null).finally(() => setLoading(false));
@@ -111,7 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = useCallback(
     async (email: string, password: string) => {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
+      if (error) throw new Error(formatSupabaseError(error));
     },
     [supabase]
   );
@@ -123,7 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         password,
         options: { data: { full_name: fullName } },
       });
-      if (error) throw error;
+      if (error) throw new Error(formatSupabaseError(error));
       return { needsConfirmation: !data.session };
     },
     [supabase]

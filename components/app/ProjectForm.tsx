@@ -8,8 +8,14 @@ import { useAuth } from '@/components/providers/AuthProvider';
 import { useGeneration } from '@/components/providers/GenerationProvider';
 import { EMPTY_FORM } from '@/lib/constants';
 import { generateDocumentPackage } from '@/lib/generate';
-import { saveGeneratedProject } from '@/lib/projects';
+import { saveProjectLocally } from '@/lib/localProjects';
+import {
+  formatApiError,
+  isSupabaseSetupError,
+  parseJsonResponse,
+} from '@/lib/parseJsonResponse';
 import { createClient } from '@/lib/supabase/client';
+import { formatSupabaseError, supabaseErrorFields } from '@/lib/supabaseError';
 import type { ProjectFormData } from '@/lib/types';
 
 function CheckMark() {
@@ -30,7 +36,6 @@ export function ProjectForm() {
   const router = useRouter();
   const { user, bedriftId, refreshProjects } = useAuth();
   const { setResult } = useGeneration();
-  const supabase = createClient();
 
   const [form, setForm] = useState<ProjectFormData>({ ...EMPTY_FORM });
   const [loading, setLoading] = useState(false);
@@ -49,22 +54,81 @@ export function ProjectForm() {
 
       setResult(result.zipData, result.title, form);
 
-      if (user) {
+      const savePayload = {
+        ...form,
+        machineData: result.machineData,
+        zipFilename: result.zipData.filename,
+        zipBase64: result.zipData.zip,
+        documents: result.documents,
+      };
+
+      const supabase = createClient();
+      const {
+        data: { user: saveUser },
+      } = await supabase.auth.getUser();
+
+      async function persistLocal(extra?: Record<string, unknown>) {
+        const localId = saveProjectLocally(savePayload);
         try {
-          await saveGeneratedProject(supabase, user.id, bedriftId, {
-            ...form,
-            machineData: result.machineData,
-            zipFilename: result.zipData.filename,
-            zipBase64: result.zipData.zip,
-            documents: result.documents,
-          });
           await refreshProjects();
-        } catch (saveErr) {
-          console.warn('[samsiq] Supabase lagring feilet:', saveErr);
-          alert(
-            'Dokumentpakke generert, men lagring feilet: ' +
-              (saveErr instanceof Error ? saveErr.message : String(saveErr))
+        } catch (refreshErr) {
+          console.warn(
+            '[samsiq] Lokal lagring OK, dashboard-oppdatering feilet:',
+            formatSupabaseError(refreshErr)
           );
+        }
+        console.warn('[samsiq] Lagret lokalt:', localId, extra ?? '');
+        return localId;
+      }
+
+      if (!saveUser) {
+        await persistLocal();
+      } else {
+        try {
+          const healthRes = await fetch('/api/health/supabase');
+          const health = await parseJsonResponse<{ ready?: boolean }>(healthRes);
+          if (!health.ready) {
+            await persistLocal({ health });
+          } else {
+          const saveRes = await fetch('/api/projects/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              bedriftId,
+              payload: savePayload,
+            }),
+          });
+          const saveJson = await parseJsonResponse<{
+            error?: unknown;
+            setupRequired?: boolean;
+            projectId?: string;
+          }>(saveRes);
+          if (!saveRes.ok) {
+            const apiErr = formatApiError(saveJson.error) || 'Lagring feilet';
+            const err = new Error(apiErr);
+            (err as Error & { setupRequired?: boolean }).setupRequired =
+              saveJson.setupRequired === true || saveRes.status === 503;
+            throw err;
+          }
+          await refreshProjects();
+          }
+        } catch (saveErr) {
+          const errMsg = formatSupabaseError(saveErr);
+          const setupFlag =
+            (saveErr as { setupRequired?: boolean }).setupRequired === true;
+          const errFields = supabaseErrorFields(saveErr);
+          const useFallback =
+            setupFlag || isSupabaseSetupError(errMsg) || !saveUser;
+          if (useFallback) {
+            await persistLocal({ errMsg, ...errFields });
+          } else {
+            console.error(
+              '[samsiq] Sky-lagring feilet (lagrer lokalt):',
+              errFields,
+              saveErr
+            );
+            await persistLocal({ errMsg, ...errFields });
+          }
         }
       }
 

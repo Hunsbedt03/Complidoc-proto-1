@@ -9,6 +9,111 @@
   let profile = null;
   let bedriftId = null;
 
+  var LOCAL_STORAGE_KEY = 'samsiq-local-projects';
+
+  function formatSaveErr(err) {
+    if (!err) return 'Ukjent feil';
+    if (typeof err === 'string') return err;
+    var parts = [];
+    if (typeof err.message === 'string' && err.message && err.message !== '[object Object]') {
+      parts.push(err.message);
+    }
+    if (err.code) parts.push('(' + err.code + ')');
+    if (err.details) parts.push(err.details);
+    if (err.hint) parts.push(err.hint);
+    if (parts.length) return parts.join(' ');
+    try { return JSON.stringify(err); } catch (_) { return 'Ukjent feil'; }
+  }
+
+  function isSetupSaveError(err) {
+    var msg = formatSaveErr(err);
+    return (
+      msg.indexOf('42501') >= 0 ||
+      msg.indexOf('PGRST202') >= 0 ||
+      msg.indexOf('ensure_user_profile') >= 0 ||
+      msg.indexOf('brukerprofiler') >= 0 ||
+      msg.indexOf('Database mangler oppsett') >= 0 ||
+      msg.indexOf('row-level security') >= 0 ||
+      msg.indexOf('23503') >= 0
+    );
+  }
+
+  function readLocalProjects() {
+    try {
+      var raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (!raw) return [];
+      var parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  function saveProjectLocally(payload) {
+    var records = readLocalProjects();
+    var id = 'local-' + crypto.randomUUID();
+    records.unshift({
+      id: id,
+      created_at: new Date().toISOString(),
+      payload: payload
+    });
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(records.slice(0, 20)));
+    return id;
+  }
+
+  function getLocalProjectRecord(id) {
+    return readLocalProjects().find(function (r) { return r.id === id; }) || null;
+  }
+
+  function logSaveFail(step, err, extra, runId) {
+    var fields = {
+      message: err && err.message,
+      code: err && err.code,
+      details: err && err.details,
+      hint: err && err.hint
+    };
+    console.error('[samsiq] Supabase lagring —', step, fields, extra || '');
+  }
+
+  function throwSaveFail(step, err, extra) {
+    logSaveFail(step, err, extra);
+    throw new Error(formatSaveErr(err));
+  }
+
+  function isMissingRpcError(err) {
+    if (!err) return false;
+    return err.code === 'PGRST202' || err.code === '42883' ||
+      (err.message && (err.message.indexOf('ensure_user_profile') >= 0 || err.message.indexOf('Could not find the function') >= 0));
+  }
+
+  async function ensureUserProfile() {
+    if (!session) throw new Error('Ikke innlogget');
+    var sb = getClient();
+    var meta = session.user.user_metadata || {};
+    var fullName = meta.full_name || meta.fullName || null;
+    var profile = {
+      id: session.user.id,
+      email: session.user.email || '',
+      full_name: fullName
+    };
+    var existingRes = await sb.from('users').select('id').eq('id', session.user.id).maybeSingle();
+    if (existingRes.error) throwSaveFail('H2-users-select', existingRes.error, { userId: session.user.id });
+    if (existingRes.data && existingRes.data.id) {
+      var updateRes = await sb.from('users').update(profile).eq('id', session.user.id);
+      if (updateRes.error) throwSaveFail('H2-users-update', updateRes.error, { userId: session.user.id });
+      return;
+    }
+    var rpcRes = await sb.rpc('ensure_user_profile');
+    if (!rpcRes.error) return;
+    if (!isMissingRpcError(rpcRes.error)) throwSaveFail('H2-users-rpc', rpcRes.error, { userId: session.user.id });
+    var insertRes = await sb.from('users').insert(profile);
+    if (!insertRes.error) return;
+    if (insertRes.error.code === '42501') {
+      throw new Error('Database mangler oppsett for brukerprofiler. Kjør supabase/patch-ensure-user-profile.sql i Supabase SQL Editor, eller bruk Next.js med SUPABASE_SERVICE_ROLE_KEY.');
+    }
+    throwSaveFail('H2-users-insert', insertRes.error, { userId: session.user.id });
+  }
+
   function getClient() {
     if (!client) {
       if (!global.supabase) throw new Error('Supabase SDK ikke lastet');
@@ -90,13 +195,13 @@
     const sb = getClient();
     const navn = (produsentNavn || 'Min bedrift').trim() || 'Min bedrift';
     const { data: bedrift, error: bErr } = await sb.from('bedrifter').insert({ navn }).select('id').single();
-    if (bErr) throw bErr;
+    if (bErr) throwSaveFail('H5-bedrifter', bErr);
     const { error: linkErr } = await sb.from('brukere_bedrifter').insert({
       user_id: session.user.id,
       bedrift_id: bedrift.id,
       rolle: 'admin'
     });
-    if (linkErr) throw linkErr;
+    if (linkErr) throwSaveFail('H5-brukere_bedrifter', linkErr);
     bedriftId = bedrift.id;
     return bedriftId;
   }
@@ -142,30 +247,36 @@
     if (global.showLanding) global.showLanding();
   }
 
+  async function isCloudStorageReady() {
+    try {
+      var res = await fetch(SUPABASE_URL + '/rest/v1/rpc/ensure_user_profile', {
+        method: 'POST',
+        headers: { apikey: SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+        body: '{}'
+      });
+      var text = await res.text();
+      return !text.includes('PGRST202');
+    } catch (_) {
+      return false;
+    }
+  }
+
   async function saveGeneratedProject(payload) {
     if (!session) throw new Error('Ikke innlogget');
+    if (!(await isCloudStorageReady())) {
+      var localId = saveProjectLocally(payload);
+      global.currentProjectId = localId;
+      await loadDashboardProjects();
+      return localId;
+    }
     const sb = getClient();
-    const bId = await ensureBedrift(payload.produsent);
-
-    const { data: maskin, error: mErr } = await sb.from('maskiner').insert({
-      user_id: session.user.id,
-      bedrift_id: bId,
-      navn: payload.maskin,
-      serienummer: payload.serienr,
-      beskrivelse: payload.beskrivelse,
-      drivsystem: payload.drivsystem,
-      styring: payload.styring,
-      installasjonsmiljo: payload.installasjonsmiljo,
-      tiltenkt_bruk: payload.tiltenktbruk,
-      standarder: payload.standarder,
-      marked: payload.marked
-    }).select('id').single();
-    if (mErr) throw mErr;
+    await ensureUserProfile();
+    var bId = bedriftId;
 
     const { data: prosjekt, error: pErr } = await sb.from('prosjekter').insert({
       user_id: session.user.id,
       bedrift_id: bId,
-      maskin_id: maskin.id,
+      maskin_id: null,
       navn: payload.prosjekt,
       kunde: payload.kunde,
       produsent: payload.produsent,
@@ -173,27 +284,23 @@
       status: 'fullført',
       machine_data: payload.machineData,
       zip_filename: payload.zipFilename,
-      zip_base64: payload.zipBase64
+      zip_base64: null
     }).select('id').single();
-    if (pErr) throw pErr;
+    if (pErr) throwSaveFail('H3-prosjekter', pErr, { zipLen: 0 });
 
-    const docRows = payload.documents.map(function (d) {
-      return {
+    for (var di = 0; di < payload.documents.length; di++) {
+      var docItem = payload.documents[di];
+      var docIns = await sb.from('dokumenter').insert({
         prosjekt_id: prosjekt.id,
         user_id: session.user.id,
-        doc_type: d.docType,
-        filename: d.filename,
-        docx_base64: d.docx
-      };
-    });
-    const { error: dErr } = await sb.from('dokumenter').insert(docRows);
-    if (dErr) throw dErr;
-
+        doc_type: docItem.docType,
+        filename: docItem.filename,
+        docx_base64: docItem.docx
+      });
+      if (docIns.error) throwSaveFail('H4-dokumenter', docIns.error, { rowIndex: di, docType: docItem.docType });
+    }
     global.currentProjectId = prosjekt.id;
     await loadDashboardProjects();
-    // #region agent log
-    fetch('http://127.0.0.1:7899/ingest/bef89494-0ce9-4594-b826-2f6c32aab015',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'8fd491'},body:JSON.stringify({sessionId:'8fd491',location:'samsiq-supabase.js:saveGeneratedProject',message:'project saved',data:{hypothesisId:'SB-1',projectId:prosjekt.id,docCount:docRows.length},timestamp:Date.now()})}).catch(function(){});
-    // #endregion
     return prosjekt.id;
   }
 
@@ -249,6 +356,16 @@
 
   async function loadDashboardProjects() {
     if (!session) { renderProjectList([]); return []; }
+    var localSummaries = readLocalProjects().map(function (r) {
+      return {
+        id: r.id,
+        navn: r.payload.prosjekt,
+        produsent: r.payload.produsent || null,
+        status: 'fullført',
+        created_at: r.created_at,
+        zip_filename: r.payload.zipFilename
+      };
+    });
     const sb = getClient();
     const { data, error } = await sb
       .from('prosjekter')
@@ -256,13 +373,43 @@
       .eq('user_id', session.user.id)
       .order('created_at', { ascending: false })
       .limit(20);
-    if (error) throw error;
-    renderProjectList(data || []);
-    return data || [];
+    if (error) {
+      renderProjectList(localSummaries);
+      return localSummaries;
+    }
+    var merged = localSummaries.concat(data || []);
+    merged.sort(function (a, b) {
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+    renderProjectList(merged.slice(0, 20));
+    return merged;
   }
 
   async function openProject(projectId) {
     if (!session) return openAuth('login');
+    var localRec = getLocalProjectRecord(projectId);
+    if (localRec && global.JSZip) {
+      var p = localRec.payload;
+      var zipName = p.zipFilename || 'Samsiq.zip';
+      var folderName = zipName.replace(/\.zip$/i, '') || 'Samsiq_export';
+      var zip = new global.JSZip();
+      var folder = zip.folder(folderName);
+      (p.documents || []).forEach(function (doc) {
+        var bytes = atob(doc.docx);
+        var arr = new Uint8Array(bytes.length);
+        for (var i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+        folder.file(doc.filename, arr);
+      });
+      global.currentProjectId = projectId;
+      global.zipData = {
+        zip: await zip.generateAsync({ type: 'base64', compression: 'DEFLATE' }),
+        filename: zipName
+      };
+      document.getElementById('output-title').textContent =
+        'Dokumentpakke — ' + (p.prosjekt || 'Prosjekt');
+      global.showPanel('output');
+      return;
+    }
     const sb = getClient();
     const { data: prosjekt, error: pErr } = await sb
       .from('prosjekter')
@@ -280,9 +427,23 @@
     if (dErr) throw dErr;
 
     global.currentProjectId = projectId;
-    global.zipData = prosjekt.zip_base64
-      ? { zip: prosjekt.zip_base64, filename: prosjekt.zip_filename || 'Samsiq.zip' }
-      : null;
+    if (prosjekt.zip_base64) {
+      global.zipData = { zip: prosjekt.zip_base64, filename: prosjekt.zip_filename || 'Samsiq.zip' };
+    } else if (docs && docs.length && global.JSZip) {
+      var zipName = prosjekt.zip_filename || 'Samsiq.zip';
+      var folderName = zipName.replace(/\.zip$/i, '') || 'Samsiq_export';
+      var zip = new global.JSZip();
+      var folder = zip.folder(folderName);
+      docs.forEach(function (doc) {
+        var bytes = atob(doc.docx_base64);
+        var arr = new Uint8Array(bytes.length);
+        for (var i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+        folder.file(doc.filename, arr);
+      });
+      global.zipData = { zip: await zip.generateAsync({ type: 'base64', compression: 'DEFLATE' }), filename: zipName };
+    } else {
+      global.zipData = null;
+    }
 
     document.getElementById('output-title').textContent =
       'Dokumentpakke — ' + (prosjekt.navn || 'Prosjekt');
@@ -296,10 +457,6 @@
     if (session) await loadProfile();
     updateAuthUI();
     if (session) await loadDashboardProjects();
-
-    // #region agent log
-    fetch('http://127.0.0.1:7899/ingest/bef89494-0ce9-4594-b826-2f6c32aab015',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'8fd491'},body:JSON.stringify({sessionId:'8fd491',location:'samsiq-supabase.js:init',message:'auth init',data:{hypothesisId:'SB-2',hasSession:!!session},timestamp:Date.now()})}).catch(function(){});
-    // #endregion
 
     if (global.showApp) {
       const origShowApp = global.showApp;
@@ -342,15 +499,9 @@
             }
           } else {
             await signIn(email, password);
-            // #region agent log
-            fetch('http://127.0.0.1:7899/ingest/bef89494-0ce9-4594-b826-2f6c32aab015',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'8fd491'},body:JSON.stringify({sessionId:'8fd491',location:'samsiq-supabase.js:signIn',message:'login ok',data:{hypothesisId:'SB-3'},timestamp:Date.now()})}).catch(function(){});
-            // #endregion
             if (global.showApp) global.showApp(true);
           }
         } catch (err) {
-          // #region agent log
-          fetch('http://127.0.0.1:7899/ingest/bef89494-0ce9-4594-b826-2f6c32aab015',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'8fd491'},body:JSON.stringify({sessionId:'8fd491',location:'samsiq-supabase.js:authForm',message:'auth error',data:{hypothesisId:'SB-4',error:String(err.message||err).slice(0,120)},timestamp:Date.now()})}).catch(function(){});
-          // #endregion
           errEl.textContent = err.message || 'Innlogging feilet';
         }
       });
@@ -383,6 +534,10 @@
     signUp,
     signOut,
     saveGeneratedProject,
+    saveProjectLocally,
+    isSetupSaveError,
+    isCloudStorageReady,
+    formatSaveErr,
     loadDashboardProjects,
     openProject,
     requireAuthForApp
