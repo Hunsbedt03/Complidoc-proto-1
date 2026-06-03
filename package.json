@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "node scripts/assert-vercel-config.mjs && next build",
+    "build": "node scripts/assert-vercel-config.mjs && node scripts/assert-edge-middleware.mjs && next build",
     "start": "next start",
     "lint": "next lint",
     "setup:check": "node scripts/verify-supabase-setup.mjs",
