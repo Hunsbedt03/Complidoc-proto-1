@@ -10,7 +10,11 @@ if (!fs.existsSync(path)) {
   process.exit(1);
 }
 
-const raw = fs.readFileSync(path, 'utf8').replace(/^\uFEFF/, '');
+const raw = fs.readFileSync(path, 'utf8');
+if (raw.charCodeAt(0) === 0xfeff || raw.startsWith('\uFEFF')) {
+  console.error(`[vercel] ${path} has UTF-8 BOM — remove it (save as UTF-8 without BOM)`);
+  process.exit(1);
+}
 const config = JSON.parse(raw);
 if (config.functions) {
   console.error(
