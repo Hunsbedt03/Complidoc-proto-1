@@ -125,8 +125,7 @@ export async function loadProjects(
     .order('created_at', { ascending: false })
     .limit(20);
   if (error) {
-    console.warn('[samsiq] Kunne ikke laste sky-prosjekter:', formatSupabaseError(error));
-    return [];
+    throwSaveError('loadProjects', error, { userId });
   }
   return data || [];
 }

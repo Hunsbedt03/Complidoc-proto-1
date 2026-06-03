@@ -12,6 +12,7 @@ import {
 import { createClient } from '@/lib/supabase/client';
 import { listLocalProjects } from '@/lib/localProjects';
 import { formatSupabaseError } from '@/lib/supabaseError';
+import { debugClientLog } from '@/lib/debugClientLog';
 import { getBedriftId, loadProjects } from '@/lib/projects';
 import type { ProsjektSummary, UserProfile } from '@/lib/types';
 import type { User } from '@supabase/supabase-js';
@@ -21,8 +22,10 @@ type AuthContextValue = {
   profile: UserProfile | null;
   bedriftId: string | null;
   projects: ProsjektSummary[];
+  projectsError: string | null;
   loading: boolean;
   refreshProjects: () => Promise<void>;
+  hydrateCloudProjects: (cloud: ProsjektSummary[]) => void;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, fullName: string) => Promise<{ needsConfirmation: boolean }>;
   signOut: () => Promise<void>;
@@ -55,7 +58,61 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [bedriftId, setBedriftId] = useState<string | null>(null);
   const [projects, setProjects] = useState<ProsjektSummary[]>([]);
+  const [projectsError, setProjectsError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const fetchCloudProjects = useCallback(
+    async (currentUser: User): Promise<ProsjektSummary[]> => {
+      try {
+        const cloud = await loadProjects(supabase, currentUser.id);
+        debugClientLog(
+          'AuthProvider.tsx:fetchCloudProjects',
+          'client loadProjects ok',
+          {
+            count: cloud.length,
+            userId: currentUser.id,
+            email: currentUser.email ?? null,
+          },
+          'H-client'
+        );
+        return cloud;
+      } catch (clientErr) {
+        const clientMsg = formatSupabaseError(clientErr);
+        debugClientLog(
+          'AuthProvider.tsx:fetchCloudProjects',
+          'client loadProjects failed, trying API',
+          { error: clientMsg },
+          'H-client'
+        );
+      }
+
+      const res = await fetch('/api/projects', { credentials: 'include', cache: 'no-store' });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok) {
+        const projects = Array.isArray(json.projects) ? json.projects : [];
+        debugClientLog(
+          'AuthProvider.tsx:fetchCloudProjects',
+          'API projects ok',
+          { count: projects.length, status: res.status },
+          'H-API'
+        );
+        return projects;
+      }
+
+      const msg =
+        typeof json.error === 'string'
+          ? json.error
+          : 'Kunne ikke hente prosjekter fra databasen';
+      debugClientLog(
+        'AuthProvider.tsx:fetchCloudProjects',
+        'API projects failed',
+        { status: res.status, error: msg },
+        'H-API'
+      );
+      throw new Error(msg);
+    },
+    [supabase]
+  );
 
   const mergeWithLocal = useCallback((cloud: ProsjektSummary[]) => {
     const local = listLocalProjects();
@@ -74,6 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!currentUser) {
           setProfile(null);
           setBedriftId(null);
+          setProjectsError(null);
           setProjects(listLocalProjects());
           return;
         }
@@ -96,14 +154,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         const bId = await getBedriftId(supabase, currentUser.id);
         setBedriftId(bId);
-        const cloud = await loadProjects(supabase, currentUser.id);
-        setProjects(mergeWithLocal(cloud));
+        try {
+          const cloud = await fetchCloudProjects(currentUser);
+          setProjectsError(null);
+          setProjects(mergeWithLocal(cloud));
+        } catch (projectErr) {
+          const msg = formatSupabaseError(projectErr);
+          console.warn('[samsiq] Sky-prosjekter feilet:', msg);
+          setProjectsError(msg);
+          setProjects((prev) => (prev.length ? prev : mergeWithLocal([])));
+        }
       } catch (err) {
         console.warn('[samsiq] loadUserData feilet, viser lokale prosjekter:', err);
+        setProjectsError(formatSupabaseError(err));
         setProjects(listLocalProjects());
       }
     },
-    [supabase, mergeWithLocal]
+    [supabase, mergeWithLocal, fetchCloudProjects]
+  );
+
+  const hydrateCloudProjects = useCallback(
+    (cloud: ProsjektSummary[]) => {
+      setProjectsError(null);
+      setProjects(mergeWithLocal(cloud));
+    },
+    [mergeWithLocal]
   );
 
   const refreshProjects = useCallback(async () => {
@@ -111,25 +186,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       data: { user: currentUser },
     } = await supabase.auth.getUser();
     if (!currentUser) {
-      setProjects(listLocalProjects());
       return;
     }
-    const cloud = await loadProjects(supabase, currentUser.id);
-    setProjects(mergeWithLocal(cloud));
-  }, [supabase, mergeWithLocal]);
+    try {
+      const cloud = await fetchCloudProjects(currentUser);
+      setProjectsError(null);
+      setProjects(mergeWithLocal(cloud));
+      debugClientLog(
+        'AuthProvider.tsx:refreshProjects',
+        'refresh merged',
+        { count: cloud.length },
+        'H-race'
+      );
+    } catch (projectErr) {
+      const msg = formatSupabaseError(projectErr);
+      console.warn('[samsiq] refreshProjects feilet:', msg);
+      setProjectsError(msg);
+      setProjects((prev) => (prev.length ? prev : mergeWithLocal([])));
+    }
+  }, [supabase, mergeWithLocal, fetchCloudProjects]);
 
   useEffect(() => {
-    setProjects(listLocalProjects());
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      loadUserData(session?.user ?? null).finally(() => setLoading(false));
+    supabase.auth.getUser().then(({ data: { user: currentUser } }) => {
+      setUser(currentUser);
+      loadUserData(currentUser).finally(() => setLoading(false));
     });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
-      loadUserData(session?.user ?? null);
+      void loadUserData(session?.user ?? null);
     });
 
     return () => subscription.unsubscribe();
@@ -166,13 +253,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       profile,
       bedriftId,
       projects,
+      projectsError,
       loading,
       refreshProjects,
+      hydrateCloudProjects,
       signIn,
       signUp,
       signOut,
     }),
-    [user, profile, bedriftId, projects, loading, refreshProjects, signIn, signUp, signOut]
+    [
+      user,
+      profile,
+      bedriftId,
+      projects,
+      projectsError,
+      loading,
+      refreshProjects,
+      hydrateCloudProjects,
+      signIn,
+      signUp,
+      signOut,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

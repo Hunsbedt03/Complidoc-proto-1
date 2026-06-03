@@ -18,11 +18,16 @@ if (fs.existsSync(legacyLib)) {
 const source = fs.readFileSync(rootMiddleware, 'utf8').replace(/^\uFEFF/, '');
 const forbidden = [
   '@/lib/supabase/middleware',
-  "from '@supabase/ssr'",
-  'from "@supabase/ssr"',
   "from '@supabase/supabase-js'",
   'from "@supabase/supabase-js"',
 ];
+
+if (!source.includes("from '@supabase/ssr'") && !source.includes('from "@supabase/ssr"')) {
+  console.error(
+    `[middleware] ${rootMiddleware} must import createServerClient from @supabase/ssr for session refresh`
+  );
+  process.exit(1);
+}
 
 for (const needle of forbidden) {
   if (source.includes(needle)) {

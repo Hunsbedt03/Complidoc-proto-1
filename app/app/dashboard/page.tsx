@@ -4,6 +4,7 @@ import { PANEL_TITLES } from '@/lib/constants';
 
 export default function DashboardPage() {
   const [title, subtitle] = PANEL_TITLES.dashboard;
+
   return (
     <>
       <AppTopbar title={title} subtitle={subtitle} />

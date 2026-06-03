@@ -1,6 +1,7 @@
 export async function register() {
   if (process.env.NODE_ENV !== 'development') return;
   if (!process.env.SUPABASE_DB_PASSWORD?.trim()) return;
+  if (process.env.SAMSIQ_SKIP_DB_PATCH === '1') return;
 
   try {
     const { spawn } = await import(/* webpackIgnore: true */ 'node:child_process');
