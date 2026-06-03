@@ -3,7 +3,7 @@ export async function register() {
   if (!process.env.SUPABASE_DB_PASSWORD?.trim()) return;
 
   try {
-    const { spawn } = await import('child_process');
+    const { spawn } = await import(/* webpackIgnore: true */ 'node:child_process');
     await new Promise<void>((resolve, reject) => {
       const child = spawn('node', ['scripts/apply-db-patch.mjs'], {
         cwd: process.cwd(),

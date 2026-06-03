@@ -23,16 +23,18 @@ export function downloadZip(zipData: ZipData) {
 export async function downloadDocFromZip(zipData: ZipData, prefix: string) {
   const p = DOC_PREFIX_MAP[prefix] || prefix;
   const zip = await JSZip.loadAsync(zipData.zip, { base64: true });
-  let targetFile: JSZip.JSZipObject | null = null;
-  zip.forEach((path, file) => {
-    if (!file.dir && path.includes(p)) targetFile = file;
-  });
+  const targetPath = Object.keys(zip.files).find(
+    (path) => !zip.files[path].dir && path.includes(p)
+  );
+  if (!targetPath) throw new Error('Fant ikke filen i pakken.');
+  const targetFile = zip.file(targetPath);
   if (!targetFile) throw new Error('Fant ikke filen i pakken.');
   const blob = await targetFile.async('blob');
+  const filename = targetPath.split('/').pop() ?? 'document.docx';
   triggerDownload(
     new Blob([blob], {
       type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     }),
-    targetFile.name.split('/').pop()!
+    filename
   );
 }

@@ -7,7 +7,7 @@ export async function parseJsonResponse<T extends Record<string, unknown>>(
   try {
     return JSON.parse(text) as T;
   } catch {
-    return { error: text.slice(0, 500) } as T;
+    return { error: text.slice(0, 500) } as unknown as T;
   }
 }
 
