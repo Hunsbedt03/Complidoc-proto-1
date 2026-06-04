@@ -16,21 +16,12 @@ import {
 } from '@/lib/parseJsonResponse';
 import { createClient } from '@/lib/supabase/client';
 import { formatSupabaseError, supabaseErrorFields } from '@/lib/supabaseError';
+import type { DocumentId } from '@/lib/documents/ids';
+import { getDefaultSelectedDocuments } from '@/lib/documents/registry';
 import type { ProjectFormData } from '@/lib/types';
-
-function CheckMark() {
-  return (
-    <svg width="8" height="6" viewBox="0 0 8 6" fill="none">
-      <path
-        d="M1 3l2 2 4-4"
-        stroke="white"
-        strokeWidth="1.2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
+import {
+  DocumentChecklist,
+} from '@/components/DocumentChecklist';
 
 export function ProjectForm() {
   const router = useRouter();
@@ -38,8 +29,16 @@ export function ProjectForm() {
   const { setResult } = useGeneration();
 
   const [form, setForm] = useState<ProjectFormData>({ ...EMPTY_FORM });
+  const [selectedDocuments, setSelectedDocuments] = useState<DocumentId[]>(() =>
+    getDefaultSelectedDocuments()
+  );
   const [loading, setLoading] = useState(false);
-  const [progress, setProgress] = useState({ stepIndex: 0, label: '', stepText: '' });
+  const [progress, setProgress] = useState({
+    stepIndex: 0,
+    label: '',
+    stepText: '',
+    total: 4,
+  });
 
   function update(field: keyof ProjectFormData, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -48,14 +47,34 @@ export function ProjectForm() {
   async function handleGenerate() {
     setLoading(true);
     try {
-      const result = await generateDocumentPackage(form, (p) =>
-        setProgress({ stepIndex: p.stepIndex, label: p.label, stepText: p.stepText })
+      const formWithDocs: ProjectFormData = {
+        ...form,
+        selectedDocuments,
+      };
+      const result = await generateDocumentPackage(formWithDocs, (p) =>
+        setProgress({
+          stepIndex: p.stepIndex,
+          label: p.label,
+          stepText: p.stepText,
+          total: p.total,
+        })
       );
 
-      setResult(result.zipData, result.title, form);
+      setResult(result.zipData, result.title, formWithDocs, result.documents);
+
+      if (result.failedLabels.length > 0) {
+        console.warn('[samsiq] Delvis generering:', result.failedLabels);
+        alert(
+          'Dokumentpakke delvis generert.\n\nFølgende feilet:\n' +
+            result.failedLabels.slice(0, 6).join('\n') +
+            (result.failedLabels.length > 6
+              ? '\n… og ' + (result.failedLabels.length - 6) + ' til'
+              : '')
+        );
+      }
 
       const savePayload = {
-        ...form,
+        ...formWithDocs,
         machineData: result.machineData,
         zipFilename: result.zipData.filename,
         zipBase64: result.zipData.zip,
@@ -90,18 +109,25 @@ export function ProjectForm() {
           if (!health.ready) {
             await persistLocal({ health });
           } else {
+          const cloudPayload = {
+            ...savePayload,
+            zipBase64: '',
+          };
+          const saveBody = JSON.stringify({
+            bedriftId,
+            payload: cloudPayload,
+          });
           const saveRes = await fetch('/api/projects/save', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              bedriftId,
-              payload: savePayload,
-            }),
+            body: saveBody,
           });
           const saveJson = await parseJsonResponse<{
             error?: unknown;
             setupRequired?: boolean;
             projectId?: string;
+            partialDocumentSave?: boolean;
+            skippedDocumentTypes?: string[];
           }>(saveRes);
           if (!saveRes.ok) {
             const apiErr = formatApiError(saveJson.error) || 'Lagring feilet';
@@ -110,10 +136,31 @@ export function ProjectForm() {
               saveJson.setupRequired === true || saveRes.status === 503;
             throw err;
           }
+          if (saveJson.partialDocumentSave && saveJson.skippedDocumentTypes?.length) {
+            console.warn(
+              '[samsiq] Delvis DB-lagring — full pakke i ZIP:',
+              saveJson.skippedDocumentTypes
+            );
+          }
           await refreshProjects();
           }
         } catch (saveErr) {
           const errMsg = formatSupabaseError(saveErr);
+          // #region agent log
+          fetch('http://127.0.0.1:7899/ingest/bef89494-0ce9-4594-b826-2f6c32aab015', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '66cbbc' },
+            body: JSON.stringify({
+              sessionId: '66cbbc',
+              runId: 'post-fix-2',
+              hypothesisId: 'H-save',
+              location: 'ProjectForm.tsx:handleGenerate',
+              message: 'cloud save failed',
+              data: { errMsg, docCount: savePayload.documents.length },
+              timestamp: Date.now(),
+            }),
+          }).catch(() => {});
+          // #endregion
           const setupFlag =
             (saveErr as { setupRequired?: boolean }).setupRequired === true;
           const errFields = supabaseErrorFields(saveErr);
@@ -147,6 +194,7 @@ export function ProjectForm() {
         label={progress.label || 'Genererer dokumentpakke...'}
         stepText={progress.stepText}
         stepIndex={progress.stepIndex}
+        total={progress.total}
       />
 
       <div className="step-bar">
@@ -322,25 +370,14 @@ export function ProjectForm() {
 
       <div className="form-card">
         <div className="form-card-title">Dokumenter som genereres</div>
-        <div className="doc-check-grid">
-          {[
-            'Risikovurdering (EN ISO 12100)',
-            'Teknisk fil (2006/42/EC)',
-            'EF-Samsvarserklæring (NO+EN)',
-            'QC-sjekkliste',
-          ].map((label) => (
-            <div key={label} className="doc-check-item">
-              <div className="check-box">
-                <CheckMark />
-              </div>
-              {label}
-            </div>
-          ))}
-        </div>
+        <DocumentChecklist
+          form={form}
+          selected={selectedDocuments}
+          onChange={setSelectedDocuments}
+        />
       </div>
 
       <div className="form-bottom">
-        <div className="form-info">4 dokumenter · Estimert tid: 4–5 minutter</div>
         <div>
           <Link href="/app/dashboard" className="btn-cancel">
             Avbryt

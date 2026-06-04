@@ -1,5 +1,5 @@
 import { execSync } from 'child_process';
-import { existsSync, rmSync } from 'fs';
+import { existsSync, readdirSync, rmSync } from 'fs';
 import path from 'path';
 
 const PORTS = [3000, 3001, 3002, 3003];
@@ -38,14 +38,25 @@ if (process.platform === 'win32') {
 const nextDir = path.join(process.cwd(), '.next');
 const middlewareManifest = path.join(nextDir, 'server', 'middleware-manifest.json');
 const routesManifest = path.join(nextDir, 'routes-manifest.json');
+const devCssDir = path.join(nextDir, 'static', 'css');
+
+function devCssMissing() {
+  if (!existsSync(devCssDir)) return true;
+  try {
+    return !readdirSync(devCssDir).some((f) => f.endsWith('.css'));
+  } catch {
+    return true;
+  }
+}
+
 const forceClean = process.env.SAMSIQ_DEV_CLEAN === '1';
 const corrupt =
   existsSync(nextDir) &&
-  (!existsSync(middlewareManifest) || !existsSync(routesManifest));
+  (!existsSync(middlewareManifest) || !existsSync(routesManifest) || devCssMissing());
 
 if (existsSync(nextDir) && (forceClean || corrupt)) {
   rmSync(nextDir, { recursive: true, force: true });
-  console.log('[samsiq] Removed .next (corrupt or forced clean)');
+  console.log('[samsiq] Removed .next (corrupt cache / missing CSS / forced clean)');
 } else if (corrupt) {
   console.log('[samsiq] .next looks corrupt — set SAMSIQ_DEV_CLEAN=1 to reset');
 }

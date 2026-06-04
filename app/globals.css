@@ -149,7 +149,10 @@ footer{padding:32px 40px;border-top:0.5px solid rgba(255,255,255,0.07);display:f
 .form-input::placeholder{color:#4B5563;}
 .doc-check-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
 .doc-check-item{display:flex;align-items:center;gap:8px;font-size:12px;color:#9CA3AF;padding:8px 10px;background:#0D0F12;border-radius:6px;}
-.check-box{width:16px;height:16px;border-radius:4px;background:#1A6FD4;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.check-box{width:16px;height:16px;border-radius:4px;border:1px solid var(--border);background:var(--surface2);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.check-box.on{background:#1A6FD4;border-color:#1A6FD4;}
+.doc-check-item{display:flex;align-items:flex-start;gap:8px;font-size:13px;color:var(--text2);line-height:1.35;}
+.doc-check-section+.doc-check-section{margin-top:4px;}
 .form-bottom{display:flex;align-items:center;justify-content:space-between;padding:16px 0 0;border-top:0.5px solid rgba(255,255,255,0.06);margin-top:8px;}
 .form-info{font-size:12px;color:#4B5563;}
 .btn-cancel{background:transparent;border:0.5px solid rgba(255,255,255,0.1);color:#6B7280;padding:8px 16px;border-radius:6px;font-size:13px;cursor:pointer;margin-right:8px;}

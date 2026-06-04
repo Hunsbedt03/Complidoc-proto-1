@@ -6,13 +6,13 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { listLocalProjects } from '@/lib/localProjects';
 import { formatSupabaseError } from '@/lib/supabaseError';
-import { debugClientLog } from '@/lib/debugClientLog';
 import { getBedriftId, loadProjects } from '@/lib/projects';
 import type { ProsjektSummary, UserProfile } from '@/lib/types';
 import type { User } from '@supabase/supabase-js';
@@ -60,56 +60,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [projects, setProjects] = useState<ProsjektSummary[]>([]);
   const [projectsError, setProjectsError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const loadInFlightRef = useRef(false);
+  const lastLoadedUserIdRef = useRef<string | null>(null);
+  const projectsLoadedForUserRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (projects.length > 0) setProjectsError(null);
+  }, [projects]);
 
   const fetchCloudProjects = useCallback(
     async (currentUser: User): Promise<ProsjektSummary[]> => {
-      try {
-        const cloud = await loadProjects(supabase, currentUser.id);
-        debugClientLog(
-          'AuthProvider.tsx:fetchCloudProjects',
-          'client loadProjects ok',
-          {
-            count: cloud.length,
-            userId: currentUser.id,
-            email: currentUser.email ?? null,
-          },
-          'H-client'
-        );
-        return cloud;
-      } catch (clientErr) {
-        const clientMsg = formatSupabaseError(clientErr);
-        debugClientLog(
-          'AuthProvider.tsx:fetchCloudProjects',
-          'client loadProjects failed, trying API',
-          { error: clientMsg },
-          'H-client'
-        );
-      }
-
-      const res = await fetch('/api/projects', { credentials: 'include', cache: 'no-store' });
-      const json = await res.json().catch(() => ({}));
-      if (res.ok) {
-        const projects = Array.isArray(json.projects) ? json.projects : [];
-        debugClientLog(
-          'AuthProvider.tsx:fetchCloudProjects',
-          'API projects ok',
-          { count: projects.length, status: res.status },
-          'H-API'
-        );
-        return projects;
-      }
-
-      const msg =
-        typeof json.error === 'string'
-          ? json.error
-          : 'Kunne ikke hente prosjekter fra databasen';
-      debugClientLog(
-        'AuthProvider.tsx:fetchCloudProjects',
-        'API projects failed',
-        { status: res.status, error: msg },
-        'H-API'
-      );
-      throw new Error(msg);
+      return loadProjects(supabase, currentUser.id);
     },
     [supabase]
   );
@@ -127,47 +88,68 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loadUserData = useCallback(
     async (currentUser: User | null) => {
+      if (!currentUser) {
+        loadInFlightRef.current = false;
+        lastLoadedUserIdRef.current = null;
+        projectsLoadedForUserRef.current = null;
+        setProfile(null);
+        setBedriftId(null);
+        setProjectsError(null);
+        setProjects(listLocalProjects());
+        return;
+      }
+
+      if (
+        projectsLoadedForUserRef.current === currentUser.id ||
+        (loadInFlightRef.current && lastLoadedUserIdRef.current === currentUser.id)
+      ) {
+        return;
+      }
+
+      loadInFlightRef.current = true;
+      lastLoadedUserIdRef.current = currentUser.id;
+      setProjectsError(null);
+
       try {
-        if (!currentUser) {
-          setProfile(null);
-          setBedriftId(null);
-          setProjectsError(null);
-          setProjects(listLocalProjects());
-          return;
-        }
-
-        const { data: profileData } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', currentUser.id)
-          .maybeSingle();
-
-        setProfile(
-          profileData || {
-            id: currentUser.id,
-            email: currentUser.email || '',
-            full_name: null,
-          }
-        );
-
-        fetch('/api/bootstrap-profile', { method: 'POST' }).catch(() => {});
-
-        const bId = await getBedriftId(supabase, currentUser.id);
-        setBedriftId(bId);
         try {
           const cloud = await fetchCloudProjects(currentUser);
           setProjectsError(null);
           setProjects(mergeWithLocal(cloud));
+          projectsLoadedForUserRef.current = currentUser.id;
         } catch (projectErr) {
           const msg = formatSupabaseError(projectErr);
           console.warn('[samsiq] Sky-prosjekter feilet:', msg);
-          setProjectsError(msg);
-          setProjects((prev) => (prev.length ? prev : mergeWithLocal([])));
+          setProjects((prev) => {
+            const next = prev.length ? prev : mergeWithLocal([]);
+            setProjectsError(next.length ? null : msg);
+            return next;
+          });
         }
-      } catch (err) {
-        console.warn('[samsiq] loadUserData feilet, viser lokale prosjekter:', err);
-        setProjectsError(formatSupabaseError(err));
-        setProjects(listLocalProjects());
+
+        try {
+          const { data: profileData } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', currentUser.id)
+            .maybeSingle();
+
+          setProfile(
+            profileData || {
+              id: currentUser.id,
+              email: currentUser.email || '',
+              full_name: null,
+            }
+          );
+
+          fetch('/api/bootstrap-profile', { method: 'POST' }).catch(() => {});
+
+          const bId = await getBedriftId(supabase, currentUser.id);
+          setBedriftId(bId);
+        } catch (err) {
+          console.warn('[samsiq] Profil/bedrift (ikke kritisk):', formatSupabaseError(err));
+        }
+      } finally {
+        loadInFlightRef.current = false;
       }
     },
     [supabase, mergeWithLocal, fetchCloudProjects]
@@ -188,21 +170,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!currentUser) {
       return;
     }
+    projectsLoadedForUserRef.current = null;
     try {
       const cloud = await fetchCloudProjects(currentUser);
       setProjectsError(null);
       setProjects(mergeWithLocal(cloud));
-      debugClientLog(
-        'AuthProvider.tsx:refreshProjects',
-        'refresh merged',
-        { count: cloud.length },
-        'H-race'
-      );
+      projectsLoadedForUserRef.current = currentUser.id;
     } catch (projectErr) {
       const msg = formatSupabaseError(projectErr);
       console.warn('[samsiq] refreshProjects feilet:', msg);
-      setProjectsError(msg);
-      setProjects((prev) => (prev.length ? prev : mergeWithLocal([])));
+      setProjects((prev) => {
+        const next = prev.length ? prev : mergeWithLocal([]);
+        setProjectsError(next.length ? null : msg);
+        return next;
+      });
     }
   }, [supabase, mergeWithLocal, fetchCloudProjects]);
 
@@ -215,8 +196,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      void loadUserData(session?.user ?? null);
+      const nextUser = session?.user ?? null;
+      setUser(nextUser);
+      const nextId = nextUser?.id ?? null;
+      if (
+        nextId &&
+        (nextId === projectsLoadedForUserRef.current ||
+          (nextId === lastLoadedUserIdRef.current && loadInFlightRef.current))
+      ) {
+        return;
+      }
+      void loadUserData(nextUser);
     });
 
     return () => subscription.unsubscribe();

@@ -3,6 +3,7 @@ const {
   HeadingLevel, AlignmentType, WidthType, BorderStyle, ShadingType
 } = require('docx');
 const JSZip = require('jszip');
+const { getPrompt, DOC_TITLES, VALID_DOC_TYPES } = require('./document-prompts');
 
 // ─── Konstanter ─────────────────────────────────────────────────────────────
 const BORDER    = { style: BorderStyle.SINGLE, size: 1, color: 'CCCCCC' };
@@ -156,7 +157,7 @@ function buildTekniskFil(d, ai) {
   const dato  = new Date().toLocaleDateString('no-NO');
   const docNr = `FS-TECH-${d.serienr.replace(/\s/g, '')}-Rev01`;
   return makeDoc([
-    ...cover('Teknisk Fil', `${d.maskin} · ${d.serienr}`, `${d.produsent} · ${dato}`),
+    ...cover('Teknisk konstruksjonsfil', `${d.maskin} · ${d.serienr}`, `${d.produsent} · ${dato}`),
     blank(),
     infoTable([
       ['Dokumentnummer',     docNr],
@@ -214,6 +215,27 @@ function buildQCsjekkliste(d, ai) {
   ]);
 }
 
+function buildGenericComplianceDoc(d, ai, title, prefix) {
+  const dato  = new Date().toLocaleDateString('no-NO');
+  const docNr = `FS-${prefix}-${d.serienr.replace(/\s/g, '')}-Rev01`;
+  return makeDoc([
+    ...cover(title, `${d.maskin} · ${d.prosjekt}`, `${d.produsent} · ${dato}`),
+    blank(),
+    infoTable([
+      ['Dokumentnummer', docNr],
+      ['Maskin',         d.maskin],
+      ['Serienummer',    d.serienr],
+      ['Prosjekt',       d.prosjekt],
+      ['Produsent',      d.produsent],
+      ['Kunde',          d.kunde],
+      ['Ansvarlig',      d.ingenior],
+      ['Dato',           dato],
+    ]),
+    blank(),
+    ...parseMarkdown(ai),
+  ]);
+}
+
 // ─── Parse maskindata ────────────────────────────────────────────────────────
 function parseMachineData(raw) {
   const get = key => {
@@ -250,227 +272,9 @@ ${machineData}
 
 // ─── AI-generering ───────────────────────────────────────────────────────────
 async function generateText(apiKey, docType, machineData) {
-
   const context = buildContext(machineData);
-
-  const MANGLER_REGEL = `
-VIKTIG REGEL — [MANGLER]-prinsippet:
-- Dersom et felt er "—", tomt, eller ikke oppgitt: skriv [MANGLER: kort beskrivelse av hva som mangler] akkurat der informasjonen ville stått.
-- ALDRI spekker, gjett eller finn opp tekniske verdier, dimensjoner, vekt, spenning, effekt eller andre spesifikke tall.
-- ALDRI anta maskintype, bransje, bruksområde, drivsystem, standarder eller direktiver utover det som er eksplisitt oppgitt i maskindata.
-- ALDRI bruk eksempler fra andre maskiner (f.eks. grindrenser, pumpe, kran) med mindre brukeren selv har oppgitt dette.
-- Dokumentet skal være klart til bruk — [MANGLER]-markørene viser nøyaktig hva ingeniøren må fylle inn.
-- Skriv på norsk (bokmål) med faglig presisjon. Ingen spekulasjon.`;
-
-  const NEUTRALITET = `
-NØYTRALITET:
-- Baser HELE dokumentet utelukkende på maskindata fra brukeren ovenfor.
-- Ikke anta hva maskinen er, hvor den brukes, eller hvilken bransje den tilhører.
-- Velg direktiver, standarder, farer og sjekkpunkter kun ut fra det brukeren faktisk har oppgitt.
-- Hvis opplysningene er utilstrekkelige til å vurdere relevans: bruk [MANGLER: ...], ikke antagelser.`;
-
-  const prompts = {
-
-    risk: `Du er en senior teknisk compliance-ekspert med kunnskap om Maskindirektivet 2006/42/EC og EN ISO 12100:2010.
-
-${MANGLER_REGEL}
-${NEUTRALITET}
-
-${context}
-
-Skriv en komplett risikovurdering basert KUN på informasjonen i maskindata.
-
-Struktur (bruk nøyaktig disse ## overskriftene):
-
-## 1. Omfang og formål
-Beskriv hva risikovurderingen dekker, med utgangspunkt i oppgitt maskin/produkt og prosjekt.
-
-## 2. Maskinbeskrivelse
-Beskriv maskinen utelukkende ut fra oppgitt informasjon. Bruk [MANGLER: ...] for alle ukjente tekniske detaljer.
-
-## 3. Grenser for maskinen
-- Tiltenkt bruk og rimelig forutsigbar feilbruk (kun det som fremgår av maskindata)
-- Romlige grenser (arbeidsrom, installasjonsareal)
-- Tidsmessige grenser (forventet levetid, vedlikeholdsintervaller)
-
-## 4. Fareidentifikasjon og risikovurdering
-Identifiser farer som kan utledes fra oppgitt informasjon — uten å anta maskintype eller bransje. For HVER fare:
-**Fare [nr]: [navn]**
-- Beskrivelse: ...
-- Faregruppe (iht. EN ISO 12100 Annex B): ...
-- Alvorlighetsgrad S (1=lett, 2=alvorlig, 3=svært alvorlig, 4=fatal): S = [verdi]
-- Sannsynlighet P (1=usannsynlig, 4=sannsynlig): P = [verdi]
-- RPN = S × P = [verdi]
-- Tiltak: ...
-- Restrisiko etter tiltak: Akseptabel / Ikke akseptabel
-
-Identifiser minst 8 farer der det er grunnlag i maskindata. Hvis grunnlaget er begrenset, marker usikre punkter med [MANGLER: ...].
-
-## 5. Risikoreduksjonstiltak — sammendrag
-Oppsummer alle tiltak etter prioritet: 1) Innebygd sikkerhet, 2) Verneutstyr, 3) Brukerinformasjon.
-
-## 6. Restrisiko og konklusjon
-Samlet vurdering basert på oppgitt informasjon. Konkluder om CE-merking kan vurderes ut fra tilgjengelige data.
-
-## 7. Revisjonslogg
-| Rev | Dato | Beskrivelse | Utført av |
-|-----|------|-------------|-----------|
-| 01  | [dato] | Første utgave | [MANGLER: ansvarlig ingeniør] |
-
-Kun markdown. Ingen JSON. Ingen kodebokser.`,
-
-    tech: `Du er en senior teknisk compliance-ekspert med kunnskap om Maskindirektivet 2006/42/EC.
-
-${MANGLER_REGEL}
-${NEUTRALITET}
-
-${context}
-
-Skriv en komplett teknisk fil (Technical File) basert KUN på informasjonen i maskindata.
-
-Struktur (bruk nøyaktig disse ## overskriftene):
-
-## 1. Produktidentifikasjon
-Fullstendig produktidentifikasjon basert på oppgitte data. Bruk [MANGLER: ...] for ukjente felt.
-
-## 2. Teknisk beskrivelse og virkemåte
-Beskriv funksjon og virkemåte utelukkende ut fra oppgitt informasjon.
-Tekniske spesifikasjoner: Bruk [MANGLER: spesifikk parameter] for alle verdier som ikke er oppgitt.
-
-## 3. Gjeldende direktiver
-List direktiver som kan begrunnes ut fra oppgitt informasjon:
-- Maskindirektivet 2006/42/EC (for maskiner generelt)
-- Andre direktiver kun hvis oppgitt drivsystem, energikilde eller bruksområde indikerer det — ellers [MANGLER: vurdering av relevante direktiver]
-
-## 4. Harmoniserte standarder
-List standarder som kan begrunnes ut fra oppgitt informasjon. Hvis grunnlaget er utilstrekkelig: [MANGLER: hvilken standard som må vurderes]
-
-## 5. Tegningsliste og dokumentoversikt
-| Dok.nr | Tittel | Type | Rev |
-|--------|--------|------|-----|
-| [MANGLER: tegningsnummer] | [MANGLER: tittel] | [MANGLER: type] | 01 |
-
-Legg kun til rader som kan begrunnes ut fra oppgitt informasjon. Ikke fyll inn typiske tegninger med mindre de følger av maskindata.
-
-## 6. Installasjon og driftsforhold
-Basert på oppgitt installasjonsmiljø og tiltenkt bruk — eller [MANGLER: ...] der data mangler.
-
-## 7. Vedlikeholdskrav
-Vedlikeholdskrav ut fra oppgitt informasjon. Spesifikke intervaller: [MANGLER: vedlikeholdsplan] hvis ikke oppgitt.
-
-## 8. Referansedokumenter
-- Risikovurdering: FS-RISK-[serienr]-Rev01
-- QC-sjekkliste: FS-QC-[serienr]-Rev01
-- EF-Samsvarserklæring: FS-DOC-[serienr]-Rev01
-
-Kun markdown. Ingen JSON. Ingen kodebokser.`,
-
-    doc: `Du er en senior teknisk compliance-ekspert med kunnskap om CE-merking og Maskindirektivet 2006/42/EC.
-
-${MANGLER_REGEL}
-${NEUTRALITET}
-
-${context}
-
-Skriv en komplett EF-samsvarserklæring på NORSK og ENGELSK, basert KUN på maskindata.
-
-Struktur (bruk nøyaktig disse ## overskriftene):
-
-## Norsk versjon — EF-Samsvarserklæring
-
-Vi, [produsent fra maskindata], erklærer under eneansvar at maskinen:
-
-**Beskrivelse:** [fra maskindata — ikke antatt]
-**Serienummer:** [serienummer fra maskindata]
-**Produksjonsår:** [MANGLER: produksjonsår]
-
-er i samsvar med bestemmelsene i følgende EU-direktiver:
-
-**Direktiver:**
-- Maskindirektivet 2006/42/EC
-[Kun direktiver som kan begrunnes ut fra oppgitt informasjon — ellers [MANGLER: vurdering av direktiver]]
-
-**Harmoniserte standarder benyttet:**
-[Kun standarder som kan begrunnes ut fra oppgitt informasjon — ellers [MANGLER: hvilken standard]]
-
-Teknisk fil er utarbeidet og oppbevares av produsenten.
-
----
-
-## English version — EC Declaration of Conformity
-
-We, [manufacturer from machine data], declare under sole responsibility that the machine:
-
-**Description:** [from machine data — not assumed]
-**Serial number:** [serial number from machine data]
-**Year of manufacture:** [MANGLER: year of manufacture]
-
-conforms to the provisions of the following EU Directives:
-
-**Directives:**
-- Machinery Directive 2006/42/EC
-[Only directives supported by the provided information]
-
-**Harmonised standards applied:**
-[Only standards supported by the provided information]
-
-The technical file is established and kept by the manufacturer.
-
----
-
-Kun markdown. Ingen JSON. Ingen kodebokser.`,
-
-    qc: `Du er en senior teknisk compliance-ekspert og kvalitetsingeniør.
-
-${MANGLER_REGEL}
-${NEUTRALITET}
-
-${context}
-
-Skriv en komplett QC-sjekkliste basert KUN på oppgitt informasjon i maskindata.
-
-VIKTIG: Inkluder KUN sjekkseksjoner og punkter som kan begrunnes ut fra det brukeren har oppgitt. Ikke legg til hydraulikk, mekanikk, elektro eller andre temaer med mindre det følger av maskindata.
-
-Struktur — inkluder kun relevante seksjoner:
-
-## Prosjektinformasjon
-- [ ] Prosjektnummer og kundeinfo bekreftet
-- [ ] Serienummer påført maskin
-- [ ] Dokumentpakke komplett (risikovurdering, teknisk fil, samsvarserklæring)
-
-## Mekanisk kontroll
-[Kun hvis relevant ut fra maskindata — minst 6 sjekkpunkter, ellers [MANGLER: mekaniske sjekkpunkter]]
-- [ ] [sjekkpunkt]
-
-## Drivsystem og energiforsyning
-[Kun hvis drivsystem/energikilde er oppgitt — ellers utelat seksjonen eller bruk [MANGLER: ...]]
-- [ ] [sjekkpunkt]
-
-## Sikkerhetssystemer og verneutstyr
-[Kun punkter som kan begrunnes ut fra oppgitt informasjon]
-- [ ] [sjekkpunkt]
-
-## Funksjonskontroll
-[Kun funksjoner beskrevet i maskindata]
-- [ ] [sjekkpunkt]
-
-## Merking og dokumentasjon
-- [ ] CE-merke påført med korrekt format
-- [ ] Produsent og serienummer-plate montert
-- [ ] Bruksanvisning medfølger på norsk (og engelsk der krevet)
-- [ ] Samsvarserklæring signert og medfølger
-- [ ] Teknisk fil arkivert hos produsent
-
-## Godkjenning og signatur
-- Utført av: [MANGLER: navn og stilling]
-- Dato: [MANGLER: dato]
-- Signatur: ___________________
-- Godkjent av: [MANGLER: navn og stilling]
-
-Kun markdown. Ingen JSON. Ingen kodebokser.`
-  };
-
-  const maxTokens = docType === 'tech' ? 4096 : 3500;
+  const prompt = getPrompt(docType, context);
+  const maxTokens = docType === 'tech' || docType === 'technical_file' ? 4096 : 3500;
   let lastError = null;
 
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -484,7 +288,7 @@ Kun markdown. Ingen JSON. Ingen kodebokser.`
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
         max_tokens: maxTokens,
-        messages: [{ role: 'user', content: prompts[docType] }]
+        messages: [{ role: 'user', content: prompt }]
       })
     });
 
@@ -535,7 +339,8 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({
       ok: true,
       version: 'v10-universal',
-      buildTag: 'neutral-prompts-1',
+      buildTag: 'full-doc-package-1',
+      validDocTypes: VALID_DOC_TYPES.length,
       maxDuration: 120,
       bundled: typeof Document !== 'undefined',
       hasApiKey: !!process.env.ANTHROPIC_API_KEY
@@ -552,37 +357,68 @@ module.exports = async function handler(req, res) {
 
   const d = parseMachineData(machineData);
   const safeSerial = d.serienr.replace(/[^a-zA-Z0-9]/g, '_');
-  const validTypes = ['risk', 'tech', 'doc', 'qc'];
+  const legacyAlias = {
+    risk_assessment: 'risk',
+    technical_file: 'tech',
+    declaration_of_conformity: 'doc',
+    qc_checklist: 'qc',
+  };
+  const resolvedType = legacyAlias[docType] || docType;
 
   try {
     if (docType) {
-      if (!validTypes.includes(docType)) {
+      if (!VALID_DOC_TYPES.includes(resolvedType)) {
         return res.status(400).json({ error: 'Ugyldig docType: ' + docType });
       }
 
-      const txt = await generateText(apiKey, docType, machineData);
+      const txt = await generateText(apiKey, resolvedType, machineData);
       let buf;
-      if      (docType === 'risk') buf = await packDoc('risk', () => buildRisikovurdering(d, txt));
-      else if (docType === 'tech') buf = await packDoc('tech', () => buildTekniskFil(d, txt));
-      else if (docType === 'doc')  buf = await packDoc('doc',  () => buildSamsvarserklaring(d, txt));
-      else                         buf = await packDoc('qc',   () => buildQCsjekkliste(d, txt));
+      if (resolvedType === 'risk') {
+        buf = await packDoc('risk', () => buildRisikovurdering(d, txt));
+      } else if (resolvedType === 'tech') {
+        buf = await packDoc('tech', () => buildTekniskFil(d, txt));
+      } else if (resolvedType === 'doc') {
+        buf = await packDoc('doc', () => buildSamsvarserklaring(d, txt));
+      } else if (resolvedType === 'qc') {
+        buf = await packDoc('qc', () => buildQCsjekkliste(d, txt));
+      } else {
+        const title = DOC_TITLES[resolvedType] || resolvedType;
+        const prefix = resolvedType.slice(0, 12).toUpperCase().replace(/[^A-Z0-9]/g, '') || 'DOC';
+        buf = await packDoc(resolvedType, () =>
+          buildGenericComplianceDoc(d, txt, title, prefix)
+        );
+      }
 
-      const names = {
-        risk: `01_Risikovurdering_${safeSerial}.docx`,
-        tech: `02_Teknisk_Fil_${safeSerial}.docx`,
-        doc:  `03_Samsvarserklaring_${safeSerial}.docx`,
-        qc:   `04_QC_Sjekkliste_${safeSerial}.docx`
+      const orderMap = {
+        risk: '01', tech: '02', doc: '03', qc: '04',
+        function_description: '05', bom: '06', calculation_report: '07',
+        harmonized_standards_matrix: '08', fmea: '10', safety_function_analysis: '11',
+        hazard_register: '12', emergency_stop_analysis: '13',
+        user_manual_no: '20', user_manual_en: '21', installation_manual: '22',
+        maintenance_manual: '23', spare_parts_list: '24', troubleshooting_guide: '25',
+        nameplate_design: '30', warning_signs_spec: '31', operator_safety_instructions: '32',
+        quality_control_plan: '40', fabrication_drawing_list: '41', welding_procedures: '42',
+        ndt_protocol: '43', production_traceability_log: '44',
+        ukca_declaration: '50', osha_sdoc: '51', csa_documentation: '52', rcm_declaration: '53',
+        atex_documentation: '60', ped_technical_file: '61', emc_report: '62',
+        low_voltage_checklist: '63', rohs_declaration: '64',
       };
+      const order = orderMap[resolvedType] || '99';
+      const slug = (DOC_TITLES[resolvedType] || resolvedType)
+        .replace(/\s+/g, '_')
+        .replace(/[^a-zA-Z0-9æøåÆØÅ_-]/g, '')
+        .slice(0, 36);
+      const filename = `${order}_${slug}_${safeSerial}.docx`;
 
       return res.status(200).json({
-        docType,
+        docType: docType,
         docx: buf.toString('base64'),
-        filename: names[docType]
+        filename,
       });
     }
 
     return res.status(400).json({
-      error: 'Bruk docType (risk|tech|doc|qc). Full pakke genereres sekvensielt i frontend.'
+      error: 'Bruk docType. Full pakke genereres i frontend med valgte dokumenter.',
     });
 
   } catch (err) {

@@ -1,3 +1,6 @@
+import type { DocumentId } from './documents/ids';
+
+/** Legacy korte id-er (API / eksisterende prosjekter). */
 export type DocType = 'risk' | 'tech' | 'doc' | 'qc';
 
 export type ProjectFormData = {
@@ -14,12 +17,27 @@ export type ProjectFormData = {
   tiltenktbruk: string;
   standarder: string;
   marked: string;
+  selectedDocuments?: DocumentId[];
 };
 
 export type GeneratedDoc = {
-  docType: DocType;
+  documentId: DocumentId;
+  /** API docType (legacy risk|tech eller kanonisk id). */
+  docType: string;
   filename: string;
   docx: string;
+  label?: string;
+};
+
+export type GeneratedDocumentStatus = {
+  id: DocumentId;
+  label: string;
+  status: 'pending' | 'generating' | 'complete' | 'error';
+  fileUrl?: string;
+  revision: number;
+  generatedAt?: string;
+  errorMessage?: string;
+  filename?: string;
 };
 
 export type ZipData = {

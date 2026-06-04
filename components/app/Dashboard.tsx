@@ -8,133 +8,25 @@ import { useGeneration } from '@/components/providers/GenerationProvider';
 import { createClient } from '@/lib/supabase/client';
 import { getLocalProject, listLocalProjects } from '@/lib/localProjects';
 import { rebuildZipFromDocs } from '@/lib/rebuildZip';
-import { debugClientLog } from '@/lib/debugClientLog';
-import { formatSupabaseError } from '@/lib/supabaseError';
-import { formatDate, loadProjectZip, loadProjects } from '@/lib/projects';
+import { formatDate, loadProjectZip } from '@/lib/projects';
 import type { ProsjektSummary } from '@/lib/types';
 
-type DashboardProps = {
-  initialCloudProjects?: ProsjektSummary[];
-  initialLoadError?: string | null;
-};
-
-export function Dashboard({
-  initialCloudProjects = [],
-  initialLoadError = null,
-}: DashboardProps) {
+export function Dashboard() {
   const router = useRouter();
-  const { user, loading, projects, projectsError, hydrateCloudProjects } = useAuth();
+  const { user, loading, projects, projectsError } = useAuth();
   const { setZipFromProject } = useGeneration();
   const supabase = createClient();
 
   const [localProjects, setLocalProjects] = useState<ReturnType<typeof listLocalProjects>>(
     []
   );
-  const [directCloud, setDirectCloud] = useState<ProsjektSummary[]>(initialCloudProjects);
-  const [directLoadError, setDirectLoadError] = useState<string | null>(initialLoadError);
-  const [directLoading, setDirectLoading] = useState(false);
 
   useEffect(() => {
     setLocalProjects(listLocalProjects());
-    if (initialCloudProjects.length) {
-      setDirectCloud(initialCloudProjects);
-      hydrateCloudProjects(initialCloudProjects);
-      debugClientLog(
-        'Dashboard.tsx:hydrate',
-        'SSR hydrate',
-        { ssrCount: initialCloudProjects.length },
-        'H-SSR'
-      );
-    }
-  }, [initialCloudProjects, hydrateCloudProjects]);
-
-  useEffect(() => {
-    if (!user) {
-      setDirectCloud(initialCloudProjects);
-      setDirectLoadError(null);
-      return;
-    }
-
-    let cancelled = false;
-    setDirectLoading(true);
-
-    void (async () => {
-      const {
-        data: { user: verified },
-        error: authErr,
-      } = await supabase.auth.getUser();
-      if (cancelled) return;
-      if (authErr || !verified) {
-        setDirectLoadError(authErr ? formatSupabaseError(authErr) : 'Ikke innlogget');
-        setDirectLoading(false);
-        debugClientLog(
-          'Dashboard.tsx:directLoad',
-          'getUser failed',
-          { error: authErr ? formatSupabaseError(authErr) : 'no user' },
-          'H-session'
-        );
-        return;
-      }
-
-      const probeRes = await fetch('/api/debug/dashboard-probe', {
-        credentials: 'include',
-        cache: 'no-store',
-      });
-      const probe = await probeRes.json().catch(() => ({}));
-      debugClientLog(
-        'Dashboard.tsx:probe',
-        'server cookie probe',
-        {
-          status: probeRes.status,
-          hasUser: probe?.hasUser,
-          count: probe?.count,
-          email: probe?.email ?? null,
-          loadError: probe?.loadError ?? null,
-        },
-        'H-probe'
-      );
-
-      try {
-        const cloud = await loadProjects(supabase, verified.id);
-        if (cancelled) return;
-        setDirectCloud(cloud);
-        setDirectLoadError(null);
-        hydrateCloudProjects(cloud);
-        debugClientLog(
-          'Dashboard.tsx:directLoad',
-          'direct loadProjects ok',
-          {
-            count: cloud.length,
-            email: verified.email ?? null,
-            userId: verified.id,
-            serverCount: typeof probe?.count === 'number' ? probe.count : null,
-          },
-          'H-client'
-        );
-      } catch (err) {
-        if (cancelled) return;
-        const msg = formatSupabaseError(err);
-        setDirectLoadError(msg);
-        debugClientLog(
-          'Dashboard.tsx:directLoad',
-          'direct loadProjects failed',
-          { error: msg, email: verified.email ?? null, serverCount: probe?.count ?? null },
-          'H-client'
-        );
-      } finally {
-        if (!cancelled) setDirectLoading(false);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [user, supabase, initialCloudProjects, hydrateCloudProjects]);
+  }, []);
 
   const displayProjects = useMemo(() => {
     const byId = new Map<string, ProsjektSummary>();
-    for (const p of initialCloudProjects) byId.set(p.id, p);
-    for (const p of directCloud) byId.set(p.id, p);
     for (const p of projects) byId.set(p.id, p);
     for (const lp of localProjects) {
       if (!byId.has(lp.id)) byId.set(lp.id, lp);
@@ -142,9 +34,10 @@ export function Dashboard({
     return [...byId.values()].sort(
       (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );
-  }, [projects, initialCloudProjects, directCloud, localProjects]);
+  }, [projects, localProjects]);
 
-  const showLoadError = projectsError || directLoadError || initialLoadError;
+  const showLoadError =
+    !loading && displayProjects.length === 0 ? projectsError : null;
 
   async function openProject(projectId: string) {
     const local = getLocalProject(projectId);
@@ -155,12 +48,9 @@ export function Dashboard({
       return;
     }
 
-    const {
-      data: { user: currentUser },
-    } = await supabase.auth.getUser();
-    if (!currentUser) return;
+    if (!user) return;
 
-    const loaded = await loadProjectZip(supabase, currentUser.id, projectId);
+    const loaded = await loadProjectZip(supabase, user.id, projectId);
     if (!loaded) {
       alert('Fant ikke prosjektet.');
       return;
@@ -172,33 +62,7 @@ export function Dashboard({
 
   const count = displayProjects.length;
 
-  useEffect(() => {
-    if (loading) return;
-    debugClientLog(
-      'Dashboard.tsx:display',
-      'display project count',
-      {
-        count,
-        ssr: initialCloudProjects.length,
-        direct: directCloud.length,
-        auth: projects.length,
-        local: localProjects.length,
-        hasUser: !!user,
-      },
-      'H-merge'
-    );
-  }, [
-    loading,
-    directLoading,
-    count,
-    initialCloudProjects.length,
-    directCloud.length,
-    projects.length,
-    localProjects.length,
-    user,
-  ]);
-
-  if ((loading || directLoading) && !displayProjects.length) {
+  if (loading && !displayProjects.length) {
     return (
       <p style={{ color: '#9CA3AF', fontSize: 14 }}>Laster prosjekter…</p>
     );
@@ -206,7 +70,7 @@ export function Dashboard({
 
   return (
     <>
-      {!user && !initialCloudProjects.length && (
+      {!user && !displayProjects.length && (
         <p style={{ color: '#9CA3AF', fontSize: 14, marginBottom: 16 }}>
           <Link href="/login?redirect=/app/dashboard" style={{ color: '#85B7EB' }}>
             Logg inn

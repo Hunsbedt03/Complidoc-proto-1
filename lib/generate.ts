@@ -1,6 +1,9 @@
 import JSZip from 'jszip';
-import { DOC_STEPS } from './constants';
-import type { DocType, GeneratedDoc, ProjectFormData, ZipData } from './types';
+import type { DocumentId } from './documents/ids';
+import { CORE_DOCUMENT_IDS } from './documents/ids';
+import { getDocumentDefinition, resolveApiDocType } from './documents/registry';
+import { getDefaultSelectedDocuments } from './documents/registry';
+import type { GeneratedDoc, ProjectFormData, ZipData } from './types';
 
 export function buildMachineData(form: ProjectFormData): string {
   return `Maskin: ${form.maskin}
@@ -26,13 +29,29 @@ export function validateForm(form: ProjectFormData): string | null {
   return null;
 }
 
-async function postGenerate(machineData: string, docType: DocType): Promise<Response> {
+function normalizeSelectedDocuments(form: ProjectFormData): DocumentId[] {
+  const raw = form.selectedDocuments?.length
+    ? form.selectedDocuments
+    : getDefaultSelectedDocuments();
+  const set = new Set<DocumentId>(CORE_DOCUMENT_IDS);
+  for (const id of raw) set.add(id);
+  return [...set].sort((a, b) => {
+    const oa = getDocumentDefinition(a)?.zipOrder ?? 99;
+    const ob = getDocumentDefinition(b)?.zipOrder ?? 99;
+    return oa - ob;
+  });
+}
+
+async function postGenerate(
+  machineData: string,
+  documentId: DocumentId
+): Promise<Response> {
   let lastRes: Response | null = null;
   for (let attempt = 0; attempt < 2; attempt++) {
     lastRes = await fetch('/api/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ machineData, docType }),
+      body: JSON.stringify({ machineData, docType: documentId }),
     });
     if (lastRes.ok || (lastRes.status !== 500 && lastRes.status !== 529) || attempt === 1) {
       return lastRes;
@@ -42,80 +61,148 @@ async function postGenerate(machineData: string, docType: DocType): Promise<Resp
   return lastRes!;
 }
 
+async function generateOne(
+  machineData: string,
+  documentId: DocumentId
+): Promise<GeneratedDoc> {
+  const def = getDocumentDefinition(documentId);
+  const res = await postGenerate(machineData, documentId);
+
+  if (!res.ok) {
+    const txt = await res.text();
+    let errMsg = txt;
+    try {
+      const j = JSON.parse(txt);
+      if (j.error) errMsg = j.error;
+    } catch {
+      /* ignore */
+    }
+    if (res.status === 504) {
+      throw new Error('Timeout ved ' + documentId + '. Prøv igjen om litt.');
+    }
+    throw new Error(
+      'Feil (' + res.status + ') for ' + documentId + ': ' + errMsg.slice(0, 300)
+    );
+  }
+
+  const text = await res.text();
+  let data: { error?: string; docx?: string; filename?: string; docType?: string } = {};
+  if (text.trim()) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      throw new Error('Ugyldig svar for ' + documentId + ': ' + text.slice(0, 200));
+    }
+  }
+  if (data.error) throw new Error('Feil ved ' + documentId + ': ' + data.error);
+  if (!data.docx || !data.filename) throw new Error('Uventet svar for ' + documentId);
+
+  return {
+    documentId,
+    docType: data.docType ?? resolveApiDocType(documentId),
+    filename: data.filename,
+    docx: data.docx,
+    label: def?.label,
+  };
+}
+
 export type GenerateProgress = {
   stepIndex: number;
   label: string;
   stepText: string;
+  total: number;
 };
 
 export async function generateDocumentPackage(
   form: ProjectFormData,
   onProgress: (p: GenerateProgress) => void
-): Promise<{ zipData: ZipData; documents: GeneratedDoc[]; machineData: string; title: string }> {
+): Promise<{
+  zipData: ZipData;
+  documents: GeneratedDoc[];
+  machineData: string;
+  title: string;
+  failedLabels: string[];
+}> {
   const validationError = validateForm(form);
   if (validationError) throw new Error(validationError);
 
   const machineData = buildMachineData(form);
+  const selected = normalizeSelectedDocuments(form);
+  const total = selected.length;
   const safeSerial = (form.serienr || form.maskin).replace(/[^a-zA-Z0-9]/g, '_');
   const zipFolderName = 'Samsiq_' + safeSerial;
   const zip = new JSZip();
   const folder = zip.folder(zipFolderName)!;
   const zipFilename =
     'Samsiq_' + form.maskin.replace(/[^a-zA-Z0-9]/g, '_') + '_' + safeSerial + '.zip';
-  const generatedDocs: GeneratedDoc[] = [];
 
-  for (let i = 0; i < DOC_STEPS.length; i++) {
-    const step = DOC_STEPS[i];
-    onProgress({
-      stepIndex: i,
-      label: step.label,
-      stepText: 'Dokument ' + (i + 1) + ' av 4',
-    });
+  let completed = 0;
+  onProgress({
+    stepIndex: 0,
+    label: 'Genererer ' + total + ' dokumenter parallelt...',
+    stepText: '0 av ' + total + ' ferdig',
+    total,
+  });
 
-    const res = await postGenerate(machineData, step.docType);
-
-    if (!res.ok) {
-      const txt = await res.text();
-      let errMsg = txt;
-      try {
-        const j = JSON.parse(txt);
-        if (j.error) errMsg = j.error;
-      } catch {
-        /* ignore */
-      }
-      if (res.status === 504) {
-        throw new Error('Timeout ved ' + step.docType + '. Prøv igjen om litt.');
-      }
-      throw new Error('Feil (' + res.status + ') for ' + step.docType + ': ' + errMsg.slice(0, 300));
-    }
-
-    const text = await res.text();
-    let data: { error?: string; docx?: string; filename?: string } = {};
-    if (text.trim()) {
-      try {
-        data = JSON.parse(text);
-      } catch {
-        throw new Error('Ugyldig svar for ' + step.docType + ': ' + text.slice(0, 200));
-      }
-    }
-    if (data.error) throw new Error('Feil ved ' + step.docType + ': ' + data.error);
-    if (!data.docx || !data.filename) throw new Error('Uventet svar for ' + step.docType);
-
-    const bytes = atob(data.docx);
-    const arr = new Uint8Array(bytes.length);
-    for (let b = 0; b < bytes.length; b++) arr[b] = bytes.charCodeAt(b);
-    folder.file(data.filename, arr);
-    generatedDocs.push({ docType: step.docType, filename: data.filename, docx: data.docx });
+  const concurrency = 2;
+  const results: PromiseSettledResult<GeneratedDoc>[] = [];
+  for (let offset = 0; offset < selected.length; offset += concurrency) {
+    const batch = selected.slice(offset, offset + concurrency);
+    const batchResults = await Promise.allSettled(
+      batch.map(async (documentId) => {
+        const doc = await generateOne(machineData, documentId);
+        completed += 1;
+        onProgress({
+          stepIndex: completed,
+          label: 'Genererer dokumentpakke...',
+          stepText: completed + ' av ' + total + ' ferdig',
+          total,
+        });
+        return doc;
+      })
+    );
+    results.push(...batchResults);
   }
 
-  onProgress({ stepIndex: -1, label: 'Pakker ZIP...', stepText: '' });
+  const generatedDocs: GeneratedDoc[] = [];
+  const errors: string[] = [];
+
+  for (let i = 0; i < results.length; i++) {
+    const r = results[i];
+    const id = selected[i];
+    if (r.status === 'fulfilled') {
+      const doc = r.value;
+      const bytes = atob(doc.docx);
+      const arr = new Uint8Array(bytes.length);
+      for (let b = 0; b < bytes.length; b++) arr[b] = bytes.charCodeAt(b);
+      folder.file(doc.filename, arr);
+      generatedDocs.push(doc);
+    } else {
+      const msg =
+        r.reason instanceof Error ? r.reason.message : String(r.reason);
+      errors.push((getDocumentDefinition(id)?.label ?? id) + ': ' + msg);
+    }
+  }
+
+  if (generatedDocs.length === 0) {
+    throw new Error(errors.join('\n') || 'Ingen dokumenter ble generert.');
+  }
+
+  if (errors.length > 0) {
+    console.warn('[samsiq] Delvis generering:', errors);
+  }
+
+  onProgress({ stepIndex: -1, label: 'Pakker ZIP...', stepText: '', total });
 
   const zipB64 = await zip.generateAsync({ type: 'base64', compression: 'DEFLATE' });
+
+  const failedLabels = errors;
 
   return {
     zipData: { zip: zipB64, filename: zipFilename },
     documents: generatedDocs,
     machineData,
     title: form.maskin + ' · ' + form.prosjekt,
+    failedLabels,
   };
 }

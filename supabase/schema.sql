@@ -67,7 +67,7 @@ create table if not exists public.dokumenter (
   id uuid primary key default gen_random_uuid(),
   prosjekt_id uuid not null references public.prosjekter(id) on delete cascade,
   user_id uuid not null references public.users(id) on delete cascade,
-  doc_type text not null check (doc_type in ('risk', 'tech', 'doc', 'qc')),
+  doc_type text not null check (char_length(doc_type) >= 1 and char_length(doc_type) <= 64),
   filename text not null,
   docx_base64 text not null,
   created_at timestamptz not null default now()

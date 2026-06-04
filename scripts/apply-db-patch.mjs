@@ -12,7 +12,9 @@ if (!password) {
 }
 
 const projectRef = 'gzbpsiemdavaawqgkqtw';
-const sql = readFileSync('supabase/patch-ensure-user-profile.sql', 'utf8');
+const profileSql = readFileSync('supabase/patch-ensure-user-profile.sql', 'utf8');
+const docTypeSql = readFileSync('supabase/patch-doc-type-expand.sql', 'utf8');
+const sql = profileSql + '\n' + docTypeSql;
 
 const connectionString =
   process.env.SUPABASE_DB_URL ||

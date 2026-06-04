@@ -38,6 +38,10 @@ export function isSupabaseSetupError(message: string): boolean {
     message.includes('Database mangler oppsett') ||
     m.includes('row-level security') ||
     message.includes('23503') ||
+    message.includes('23514') ||
+    message.includes('doc_type_check') ||
+    message.includes('dokumenter_doc_type') ||
+    message.includes('patch-doc-type-expand') ||
     m.includes('foreign key')
   );
 }

@@ -5,10 +5,14 @@ type Props = {
   label: string;
   stepText: string;
   stepIndex: number;
+  total?: number;
 };
 
-export function LoadingOverlay({ active, label, stepText, stepIndex }: Props) {
+export function LoadingOverlay({ active, label, stepText, stepIndex, total = 4 }: Props) {
   if (!active) return null;
+
+  const dotCount = Math.min(Math.max(total, 1), 12);
+  const activeDot = stepIndex < 0 ? dotCount - 1 : Math.min(stepIndex, dotCount - 1);
 
   return (
     <div className="loading-overlay active">
@@ -16,8 +20,11 @@ export function LoadingOverlay({ active, label, stepText, stepIndex }: Props) {
       <div className="loading-text">{label}</div>
       <div className="loading-step">{stepText}</div>
       <div className="loading-progress">
-        {[0, 1, 2, 3].map((i) => (
-          <div key={i} className={'loading-dot' + (i === stepIndex ? ' active' : '')} />
+        {Array.from({ length: dotCount }, (_, i) => (
+          <div
+            key={i}
+            className={'loading-dot' + (i === activeDot ? ' active' : '')}
+          />
         ))}
       </div>
     </div>
