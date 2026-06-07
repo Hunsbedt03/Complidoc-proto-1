@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
+import { checkSubscriptionActive } from '@/lib/auth/subscription';
 
 export const maxDuration = 120;
 
@@ -56,6 +58,21 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (user) {
+    const subCheck = await checkSubscriptionActive(user.id);
+    if (!subCheck.active) {
+      return NextResponse.json(
+        { error: subCheck.reason ?? 'Ingen aktivt abonnement' },
+        { status: 403 }
+      );
+    }
+  }
+
   const body = await request.json();
   return runHandler('POST', body, Object.fromEntries(request.headers.entries()));
 }

@@ -160,7 +160,7 @@ export function LandingPage() {
               </div>
               5 dokumentpakker/mnd
             </div>
-            <Link href="/login?redirect=/app/new" className="price-btn btn-outline">
+            <Link href="/priser" className="price-btn btn-outline">
               Kom i gang
             </Link>
           </div>
@@ -169,11 +169,11 @@ export function LandingPage() {
             <div className="price-name">Pro</div>
             <div className="price-desc">For voksende bedrifter</div>
             <div>
-              <span className="price-amount">3 990</span>
+              <span className="price-amount">2 490</span>
               <span className="price-period"> kr/mnd</span>
             </div>
             <div className="price-divider" />
-            <Link href="/login?redirect=/app/new" className="price-btn btn-filled">
+            <Link href="/priser" className="price-btn btn-filled">
               Start gratis prøveperiode
             </Link>
           </div>

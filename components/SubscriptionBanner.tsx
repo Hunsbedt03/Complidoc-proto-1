@@ -1,0 +1,104 @@
+'use client';
+
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+
+export type SubscriptionBannerData = {
+  enforced: boolean;
+  status: string;
+  plan: string;
+  used: number;
+  limit: number;
+  trialEnd: string | null;
+  periodEnd: string | null;
+  hasStripeCustomer: boolean;
+};
+
+type Props = {
+  data: SubscriptionBannerData | null;
+  loading?: boolean;
+};
+
+function daysUntil(iso: string | null): number | null {
+  if (!iso) return null;
+  const ms = new Date(iso).getTime() - Date.now();
+  return Math.max(0, Math.ceil(ms / 86400000));
+}
+
+async function openPortal(): Promise<void> {
+  const res = await fetch('/api/stripe/portal', { method: 'POST' });
+  const json = (await res.json()) as { url?: string; error?: string };
+  if (json.url) {
+    window.location.href = json.url;
+    return;
+  }
+  alert(json.error ?? 'Kunne ikke åpne kundeportal');
+}
+
+export function SubscriptionBanner({ data, loading }: Props) {
+  const router = useRouter();
+
+  if (loading || !data?.enforced) return null;
+
+  if (data.status === 'trialing') {
+    const days = daysUntil(data.trialEnd);
+    return (
+      <div className="sub-banner sub-banner--trial">
+        <span>
+          Prøveperiode — {days ?? '?'} dager igjen
+        </span>
+        <button type="button" className="btn-dl" onClick={() => void openPortal()}>
+          Legg til betalingskort
+        </button>
+      </div>
+    );
+  }
+
+  if (
+    data.plan === 'starter' &&
+    data.limit > 0 &&
+    data.used >= data.limit - 1 &&
+    data.used < data.limit
+  ) {
+    return (
+      <div className="sub-banner sub-banner--warning">
+        <span>
+          {data.used}/{data.limit} dokumentpakker brukt denne måneden
+        </span>
+        <button
+          type="button"
+          className="btn-dl"
+          onClick={() => router.push('/priser')}
+        >
+          Oppgrader til Pro
+        </button>
+      </div>
+    );
+  }
+
+  if (data.status === 'past_due') {
+    return (
+      <div className="sub-banner sub-banner--error">
+        <span>
+          Betaling mislyktes — oppdater betalingsinfo for å fortsette
+        </span>
+        <button type="button" className="btn-dl" onClick={() => void openPortal()}>
+          Oppdater kort
+        </button>
+      </div>
+    );
+  }
+
+  if (data.status === 'inactive' || data.status === 'canceled') {
+    return (
+      <div className="sub-banner sub-banner--error">
+        <span>Ingen aktivt abonnement — velg en plan for å generere dokumentpakker</span>
+        <Link href="/priser" className="btn-dl">
+          Se priser
+        </Link>
+      </div>
+    );
+  }
+
+  return null;
+}

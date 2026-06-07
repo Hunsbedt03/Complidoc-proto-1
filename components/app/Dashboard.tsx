@@ -1,9 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { CompletenessBar } from '@/components/CompletenessIndicator';
+import {
+  SubscriptionBanner,
+  type SubscriptionBannerData,
+} from '@/components/SubscriptionBanner';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useGeneration } from '@/components/providers/GenerationProvider';
 import { createClient } from '@/lib/supabase/client';
@@ -25,6 +29,8 @@ function workflowBadgeClass(status?: ProjectStatus): string {
 
 export function Dashboard() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const paymentSuccess = searchParams.get('payment') === 'success';
   const { user, loading, projects, projectsError } = useAuth();
   const { setZipFromProject } = useGeneration();
   const supabase = createClient();
@@ -32,10 +38,27 @@ export function Dashboard() {
   const [localProjects, setLocalProjects] = useState<ReturnType<typeof listLocalProjects>>(
     []
   );
+  const [subscription, setSubscription] = useState<SubscriptionBannerData | null>(
+    null
+  );
+  const [subscriptionLoading, setSubscriptionLoading] = useState(false);
 
   useEffect(() => {
     setLocalProjects(listLocalProjects());
   }, []);
+
+  useEffect(() => {
+    if (!user) {
+      setSubscription(null);
+      return;
+    }
+    setSubscriptionLoading(true);
+    void fetch('/api/subscription/status')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json) => setSubscription(json as SubscriptionBannerData | null))
+      .catch(() => setSubscription(null))
+      .finally(() => setSubscriptionLoading(false));
+  }, [user]);
 
   const displayProjects = useMemo(() => {
     const byId = new Map<string, ProsjektSummary>();
@@ -109,6 +132,24 @@ export function Dashboard() {
 
   return (
     <>
+      <SubscriptionBanner data={subscription} loading={subscriptionLoading} />
+
+      {paymentSuccess ? (
+        <p
+          style={{
+            color: '#9FD66A',
+            fontSize: 13,
+            marginBottom: 16,
+            padding: '10px 12px',
+            background: 'rgba(97,153,34,0.1)',
+            borderRadius: 8,
+            border: '0.5px solid rgba(97,153,34,0.25)',
+          }}
+        >
+          Abonnement aktivert — velkommen til Samsiq!
+        </p>
+      ) : null}
+
       {!user && !displayProjects.length && (
         <p style={{ color: '#9CA3AF', fontSize: 14, marginBottom: 16 }}>
           <Link href="/login?redirect=/app/dashboard" style={{ color: '#85B7EB' }}>

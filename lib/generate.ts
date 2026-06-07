@@ -124,6 +124,32 @@ export type GenerateProgress = {
   total: number;
 };
 
+async function assertPackageAllowed(): Promise<void> {
+  try {
+    const res = await fetch('/api/subscription/check');
+    if (!res.ok) return;
+    const json = (await res.json()) as {
+      enforced?: boolean;
+      allowed?: boolean;
+      reason?: string;
+    };
+    if (json.enforced && json.allowed === false) {
+      throw new Error(json.reason ?? 'Dokumentpakke-grense nådd');
+    }
+  } catch (err) {
+    if (err instanceof Error && err.message.includes('grense')) throw err;
+    /* ikke-innlogget eller stripe av — fortsett */
+  }
+}
+
+async function recordPackageUsage(): Promise<void> {
+  try {
+    await fetch('/api/subscription/increment', { method: 'POST' });
+  } catch {
+    /* best-effort */
+  }
+}
+
 export async function generateDocumentPackage(
   form: ProjectFormData,
   onProgress: (p: GenerateProgress) => void
@@ -136,6 +162,8 @@ export async function generateDocumentPackage(
 }> {
   const validationError = validateForm(form);
   if (validationError) throw new Error(validationError);
+
+  await assertPackageAllowed();
 
   const machineData = buildMachineData(form);
   const selected = getGeneratableIds(normalizeSelectedDocuments(form));
@@ -208,6 +236,8 @@ export async function generateDocumentPackage(
   const zipB64 = await zip.generateAsync({ type: 'base64', compression: 'DEFLATE' });
 
   const failedLabels = errors;
+
+  await recordPackageUsage();
 
   return {
     zipData: { zip: zipB64, filename: zipFilename },

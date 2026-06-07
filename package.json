@@ -14,6 +14,7 @@
     "db:patch": "node scripts/apply-db-patch.mjs"
   },
   "dependencies": {
+    "@stripe/stripe-js": "^9.7.0",
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.49.8",
     "@tiptap/extension-placeholder": "^3.25.0",
@@ -31,7 +32,8 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "readable-stream": "^4.7.0",
-    "setimmediate": "^1.0.5"
+    "setimmediate": "^1.0.5",
+    "stripe": "^22.2.0"
   },
   "devDependencies": {
     "@types/node": "^22.15.0",

@@ -62,6 +62,13 @@ export type UserProfile = {
   id: string;
   email: string;
   full_name: string | null;
+  stripe_customer_id?: string | null;
+  stripe_subscription_id?: string | null;
+  subscription_status?: string | null;
+  subscription_plan?: string | null;
+  subscription_period_end?: string | null;
+  trial_end?: string | null;
+  projects_used_this_month?: number | null;
 };
 
 export type UploadSlot = {

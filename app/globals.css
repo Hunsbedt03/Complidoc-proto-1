@@ -53,6 +53,22 @@ h2{font-size:30px;font-weight:600;letter-spacing:-0.6px;color:#F1F3F8;margin-bot
 
 /* PRICING */
 .pricing-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:40px;}
+.pricing-grid--two{grid-template-columns:repeat(2,1fr);max-width:720px;margin:24px auto 0;}
+.pricing-page{max-width:900px;margin:0 auto;padding:48px 24px 80px;}
+.pricing-page-header{text-align:center;margin-bottom:32px;}
+.pricing-page-header h1{font-size:28px;margin:12px 0 8px;color:var(--text1);}
+.pricing-page-lead{color:var(--text2);font-size:14px;margin:0;}
+.pricing-back{color:var(--text3);font-size:13px;text-decoration:none;}
+.pricing-cancelled{color:#FCA5A5;font-size:13px;margin-top:12px;}
+.billing-toggle{display:flex;justify-content:center;gap:8px;margin-bottom:8px;}
+.billing-toggle-btn{font-size:13px;padding:8px 16px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.12);background:transparent;color:var(--text2);cursor:pointer;display:inline-flex;align-items:center;gap:8px;}
+.billing-toggle-btn.on{background:rgba(26,111,212,0.2);color:#85B7EB;border-color:rgba(26,111,212,0.35);}
+.billing-save-badge{font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(97,153,34,0.25);color:#9FD66A;}
+.price-trial-note{font-size:11px;color:var(--text3);text-align:center;margin:6px 0 0;}
+.sub-banner{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 14px;border-radius:8px;margin-bottom:16px;font-size:13px;}
+.sub-banner--trial{background:rgba(26,111,212,0.12);border:0.5px solid rgba(26,111,212,0.3);color:#85B7EB;}
+.sub-banner--warning{background:rgba(239,159,39,0.1);border:0.5px solid rgba(239,159,39,0.3);color:#F5C878;}
+.sub-banner--error{background:rgba(239,68,68,0.1);border:0.5px solid rgba(239,68,68,0.3);color:#FCA5A5;}
 .price-card{background:#111318;border:0.5px solid rgba(255,255,255,0.08);border-radius:12px;padding:24px;}
 .price-card.featured{border:1.5px solid #1A6FD4;}
 .price-badge{font-size:11px;background:rgba(26,111,212,0.2);color:#85B7EB;padding:3px 10px;border-radius:12px;font-weight:500;display:inline-block;margin-bottom:16px;}
