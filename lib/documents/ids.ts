@@ -34,7 +34,22 @@ export type DocumentId =
   | 'ped_technical_file'
   | 'emc_report'
   | 'low_voltage_checklist'
-  | 'rohs_declaration';
+  | 'rohs_declaration'
+  | 'cad_drawings'
+  | 'material_certificates'
+  | 'lab_test_reports'
+  | 'weld_certificates'
+  | 'notified_body_cert'
+  | 'fat_report'
+  | 'component_datasheets'
+  | 'fem_analysis'
+  | 'test_protocol'
+  | 'fat_checklist'
+  | 'inspection_report'
+  | 'noise_vibration_sheet'
+  | 'electrical_diagrams'
+  | 'load_test_report'
+  | 'noise_declaration';
 
 /** Legacy API / DB short ids (unchanged for existing projects). */
 export type LegacyDocType = 'risk' | 'tech' | 'doc' | 'qc';
@@ -79,4 +94,22 @@ export function toStorageDocType(id: string): string {
 
 export function storageDocType(doc: { documentId?: DocumentId; docType: string }): string {
   return toStorageDocType(doc.documentId ?? doc.docType);
+}
+
+/** Sikrer documentId på genererte docs (legacy lagret kun docType risk|tech|doc|qc). */
+export function normalizeGeneratedDoc<T extends { documentId?: string; docType: string }>(
+  doc: T
+): T & { documentId: DocumentId } {
+  const documentId = normalizeDocumentId(doc.documentId ?? doc.docType);
+  return {
+    ...doc,
+    documentId,
+    docType: doc.docType || documentId,
+  };
+}
+
+export function normalizeGeneratedDocs<T extends { documentId?: string; docType: string }>(
+  docs: T[]
+): (T & { documentId: DocumentId })[] {
+  return docs.map(normalizeGeneratedDoc);
 }

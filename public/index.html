@@ -642,6 +642,20 @@ function setDot(idx) {
   });
 }
 
+function formatApiErr(err) {
+  if (window.SamsiqAuth && window.SamsiqAuth.formatSaveErr) {
+    return window.SamsiqAuth.formatSaveErr(err);
+  }
+  if (!err) return 'Ukjent feil';
+  if (typeof err === 'string') return err;
+  if (typeof err.message === 'string' && err.message) return err.message;
+  try {
+    return JSON.stringify(err);
+  } catch (_) {
+    return 'Ukjent feil';
+  }
+}
+
 async function generateDocs() {
   const btn = document.getElementById('btn-generate');
   if (btn && btn.disabled) return;
@@ -709,18 +723,21 @@ Beskrivelse: ${beskrivelse || 'Ikke spesifisert'}`;
         let errMsg = txt;
         try {
           const j = JSON.parse(txt);
-          if (j.error) errMsg = j.error;
+          if (j.error) errMsg = formatApiErr(j.error);
         } catch (_) {}
         if (res.status === 504) {
           alert('Timeout ved ' + docSteps[i].docType + '. Prøv igjen om litt.');
         } else {
-          alert('Feil (' + res.status + ') for ' + docSteps[i].docType + ': ' + errMsg.slice(0, 300));
+          alert('Feil (' + res.status + ') for ' + docSteps[i].docType + ': ' + String(errMsg).slice(0, 300));
         }
         return;
       }
 
       const data = await res.json();
-      if (data.error) { alert('Feil ved ' + docSteps[i].docType + ': ' + data.error); return; }
+      if (data.error) {
+        alert('Feil ved ' + docSteps[i].docType + ': ' + formatApiErr(data.error));
+        return;
+      }
       if (!data.docx || !data.filename) { alert('Uventet svar for ' + docSteps[i].docType); return; }
 
       const bytes = atob(data.docx);

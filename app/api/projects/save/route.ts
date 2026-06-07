@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { debugSessionLogServer } from '@/lib/debugSessionLog.server';
 import { saveGeneratedProject, ensureUserProfile } from '@/lib/projects-save';
 import { formatSupabaseError } from '@/lib/supabaseError';
 import { upsertUserProfileAdmin } from '@/lib/upsertUserProfileAdmin';
@@ -18,22 +17,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Ikke innlogget' }, { status: 401 });
     }
 
-    const rawBody = await request.text();
-    const body = JSON.parse(rawBody) as {
+    const body = (await request.json()) as {
       bedriftId: string | null;
       payload: SaveProjectPayload;
     };
-
-    debugSessionLogServer({
-      hypothesisId: 'H-payload',
-      runId: 'post-fix-4',
-      location: 'api/projects/save/route.ts',
-      message: 'save request size',
-      data: {
-        bytes: rawBody.length,
-        docCount: body.payload.documents?.length ?? 0,
-      },
-    });
 
     const usedAdmin = await upsertUserProfileAdmin(user);
     if (!usedAdmin) {
@@ -48,14 +35,6 @@ export async function POST(request: Request) {
       { skipProfileEnsure: true }
     );
 
-    debugSessionLogServer({
-      hypothesisId: 'H-save',
-      runId: 'post-fix-4',
-      location: 'api/projects/save/route.ts',
-      message: 'save ok',
-      data: saveResult,
-    });
-
     const { projectId, skippedDocumentTypes } = saveResult;
 
     return NextResponse.json({
@@ -65,13 +44,6 @@ export async function POST(request: Request) {
     });
   } catch (err) {
     const message = formatSupabaseError(err);
-    debugSessionLogServer({
-      hypothesisId: 'H-save',
-      runId: 'post-fix-4',
-      location: 'api/projects/save/route.ts',
-      message: 'save failed',
-      data: { error: message },
-    });
     const needsSetup =
       message.includes('patch-ensure-user-profile') ||
       message.includes('42501') ||

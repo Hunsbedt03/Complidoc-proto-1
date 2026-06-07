@@ -1,8 +1,10 @@
 import JSZip from 'jszip';
 import type { DocumentId } from './documents/ids';
 import { CORE_DOCUMENT_IDS } from './documents/ids';
+import { getGeneratableIds } from './documents/catalog';
 import { getDocumentDefinition, resolveApiDocType } from './documents/registry';
 import { getDefaultSelectedDocuments } from './documents/registry';
+import { formatApiError } from './parseJsonResponse';
 import type { GeneratedDoc, ProjectFormData, ZipData } from './types';
 
 export function buildMachineData(form: ProjectFormData): string {
@@ -72,8 +74,8 @@ async function generateOne(
     const txt = await res.text();
     let errMsg = txt;
     try {
-      const j = JSON.parse(txt);
-      if (j.error) errMsg = j.error;
+      const j = JSON.parse(txt) as { error?: unknown };
+      if (j.error) errMsg = formatApiError(j.error) || txt;
     } catch {
       /* ignore */
     }
@@ -86,7 +88,12 @@ async function generateOne(
   }
 
   const text = await res.text();
-  let data: { error?: string; docx?: string; filename?: string; docType?: string } = {};
+  let data: {
+    error?: unknown;
+    docx?: string;
+    filename?: string;
+    docType?: string;
+  } = {};
   if (text.trim()) {
     try {
       data = JSON.parse(text);
@@ -94,7 +101,11 @@ async function generateOne(
       throw new Error('Ugyldig svar for ' + documentId + ': ' + text.slice(0, 200));
     }
   }
-  if (data.error) throw new Error('Feil ved ' + documentId + ': ' + data.error);
+  if (data.error) {
+    throw new Error(
+      'Feil ved ' + documentId + ': ' + formatApiError(data.error)
+    );
+  }
   if (!data.docx || !data.filename) throw new Error('Uventet svar for ' + documentId);
 
   return {
@@ -127,7 +138,7 @@ export async function generateDocumentPackage(
   if (validationError) throw new Error(validationError);
 
   const machineData = buildMachineData(form);
-  const selected = normalizeSelectedDocuments(form);
+  const selected = getGeneratableIds(normalizeSelectedDocuments(form));
   const total = selected.length;
   const safeSerial = (form.serienr || form.maskin).replace(/[^a-zA-Z0-9]/g, '_');
   const zipFolderName = 'Samsiq_' + safeSerial;

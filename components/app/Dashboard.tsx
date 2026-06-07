@@ -3,13 +3,25 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
+import { CompletenessBar } from '@/components/CompletenessIndicator';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useGeneration } from '@/components/providers/GenerationProvider';
 import { createClient } from '@/lib/supabase/client';
-import { getLocalProject, listLocalProjects } from '@/lib/localProjects';
+import {
+  getLocalProject,
+  listLocalProjects,
+  resolveStoredDocuments,
+} from '@/lib/localProjects';
 import { rebuildZipFromDocs } from '@/lib/rebuildZip';
-import { formatDate, loadProjectZip } from '@/lib/projects';
+import { formatDate, loadProjectSession } from '@/lib/projects';
+import { PROJECT_STATUS_LABELS, type ProjectStatus } from '@/lib/projectStatus';
 import type { ProsjektSummary } from '@/lib/types';
+
+function workflowBadgeClass(status?: ProjectStatus): string {
+  if (status === 'locked') return 'badge-done';
+  if (status === 'review') return 'badge-review';
+  return 'badge-prog';
+}
 
 export function Dashboard() {
   const router = useRouter();
@@ -42,21 +54,48 @@ export function Dashboard() {
   async function openProject(projectId: string) {
     const local = getLocalProject(projectId);
     if (local) {
-      const zip = await rebuildZipFromDocs(local.payload.documents, local.payload.zipFilename);
-      setZipFromProject(zip, local.payload.prosjekt);
+      const documents = resolveStoredDocuments(local.payload);
+      const zip =
+        local.payload.zipBase64?.length
+          ? {
+              zip: local.payload.zipBase64,
+              filename: local.payload.zipFilename || 'Samsiq.zip',
+            }
+          : await rebuildZipFromDocs(
+              documents,
+              local.payload.zipFilename || 'Samsiq.zip'
+            );
+
+      setZipFromProject(zip, local.payload.prosjekt, {
+        form: local.payload,
+        documents,
+        projectId: local.id,
+        status: local.payload.workflowStatus ?? 'draft',
+        uploads: local.payload.uploads ?? [],
+      });
       router.push('/app/output');
       return;
     }
 
     if (!user) return;
 
-    const loaded = await loadProjectZip(supabase, user.id, projectId);
+    const loaded = await loadProjectSession(supabase, user.id, projectId);
     if (!loaded) {
       alert('Fant ikke prosjektet.');
       return;
     }
 
-    setZipFromProject({ zip: loaded.zip, filename: loaded.filename }, loaded.title);
+    setZipFromProject(
+      { zip: loaded.zip, filename: loaded.filename },
+      loaded.title,
+      {
+        form: loaded.form,
+        documents: loaded.documents,
+        projectId: loaded.projectId,
+        status: loaded.workflowStatus,
+        uploads: loaded.uploads,
+      }
+    );
     router.push('/app/output');
   }
 
@@ -140,8 +179,8 @@ export function Dashboard() {
                   borderRadius: 8,
                 }}
               >
-                Ingen prosjekter funnet for innlogget bruker ({user.email}). Opprett et nytt
-                prosjekt eller sjekk at du er logget inn med riktig konto.
+                Ingen prosjekter funnet for innlogget bruker ({user.email}). Opprett et
+                nytt prosjekt eller sjekk at du er logget inn med riktig konto.
               </p>
             )}
             <Link href="/app/new" className="proj-card">
@@ -154,25 +193,37 @@ export function Dashboard() {
             </Link>
           </>
         )}
-        {displayProjects.map((p) => (
-          <button
-            key={p.id}
-            type="button"
-            className="proj-card"
-            onClick={() => openProject(p.id)}
-          >
-            <div className="proj-icon">📄</div>
-            <div>
-              <div className="proj-name">{p.navn}</div>
-              <div className="proj-meta">
-                {(p.produsent || '—') + ' · ' + formatDate(p.created_at)}
+        {displayProjects.map((p) => {
+          const ws = p.workflowStatus;
+          const badgeClass = ws
+            ? workflowBadgeClass(ws)
+            : p.status === 'Godkjent' || p.status === 'fullført'
+              ? 'badge-done'
+              : 'badge-prog';
+          const badgeText = ws
+            ? PROJECT_STATUS_LABELS[ws]
+            : p.status;
+          return (
+            <button
+              key={p.id}
+              type="button"
+              className="proj-card"
+              onClick={() => openProject(p.id)}
+            >
+              <div className="proj-icon">📄</div>
+              <div className="proj-card-body">
+                <div className="proj-name">{p.navn}</div>
+                <div className="proj-meta">
+                  {(p.produsent || '—') + ' · ' + formatDate(p.created_at)}
+                </div>
+                {typeof p.completenessPercent === 'number' ? (
+                  <CompletenessBar percent={p.completenessPercent} />
+                ) : null}
               </div>
-            </div>
-            <span className={'badge ' + (p.status === 'fullført' ? 'badge-done' : 'badge-prog')}>
-              {p.status}
-            </span>
-          </button>
-        ))}
+              <span className={'badge ' + badgeClass}>{badgeText}</span>
+            </button>
+          );
+        })}
         {displayProjects.length > 0 && (
           <Link href="/app/new" className="proj-card">
             <div className="proj-icon">+</div>

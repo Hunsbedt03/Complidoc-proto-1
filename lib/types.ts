@@ -1,4 +1,5 @@
 import type { DocumentId } from './documents/ids';
+import type { ProjectStatus } from './projectStatus';
 
 /** Legacy korte id-er (API / eksisterende prosjekter). */
 export type DocType = 'risk' | 'tech' | 'doc' | 'qc';
@@ -49,7 +50,10 @@ export type ProsjektSummary = {
   id: string;
   navn: string;
   produsent: string | null;
+  /** Legacy tekst eller workflow-status */
   status: string;
+  workflowStatus?: ProjectStatus;
+  completenessPercent?: number;
   created_at: string;
   zip_filename: string | null;
 };
@@ -60,9 +64,27 @@ export type UserProfile = {
   full_name: string | null;
 };
 
+export type UploadSlot = {
+  documentId: string;
+  status: 'missing' | 'uploading' | 'uploaded' | 'error' | 'pending_review';
+  fileName?: string;
+  uploadedAt?: string;
+  fileSize?: number;
+  filePath?: string;
+  storageRecordId?: string;
+  fileBase64?: string;
+  mimeType?: string;
+  errorMessage?: string;
+};
+
 export type SaveProjectPayload = ProjectFormData & {
   machineData: string;
   zipFilename: string;
   zipBase64: string;
   documents: GeneratedDoc[];
+  selectedHybrid?: DocumentId[];
+  uploads?: UploadSlot[];
+  workflowStatus?: ProjectStatus;
+  completenessPercent?: number;
+  localProjectId?: string;
 };

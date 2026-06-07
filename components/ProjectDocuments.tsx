@@ -1,9 +1,20 @@
 'use client';
 
+import { useState } from 'react';
+import { DocumentEditor } from '@/components/DocumentEditor';
+import { DocumentRevisionHistory } from '@/components/DocumentRevisionHistory';
 import { getDocumentDefinition } from '@/lib/documents/registry';
+import { getCatalogDocument } from '@/lib/documents/catalog';
+import { generateManglerTxt } from '@/lib/documents/manglerTxt';
 import { DOC_PREFIX_MAP } from '@/lib/constants';
-import { downloadDocFromZip, downloadZip } from '@/lib/download';
-import type { GeneratedDoc, ZipData } from '@/lib/types';
+import { downloadDocFromZip } from '@/lib/download';
+import { downloadZipWithExtras } from '@/lib/downloadPackage';
+import { usePackageCompleteness } from '@/lib/usePackageCompleteness';
+import { useGeneration } from '@/components/providers/GenerationProvider';
+import type { DocumentId } from '@/lib/documents/ids';
+import type { GeneratedDoc, ProjectFormData, UploadSlot, ZipData } from '@/lib/types';
+import type { ProjectStatus } from '@/lib/projectStatus';
+import { getDocumentRevisions } from '@/lib/revisions';
 
 const DOC_COLORS = [
   'rgba(226,75,74,0.15)',
@@ -17,9 +28,42 @@ const DOC_COLORS = [
 type Props = {
   zipData: ZipData;
   documents: GeneratedDoc[];
+  form: ProjectFormData;
+  uploads: UploadSlot[];
+  projectStatus: ProjectStatus;
 };
 
-export function ProjectDocuments({ zipData, documents }: Props) {
+export function ProjectDocuments({
+  zipData,
+  documents,
+  form,
+  uploads,
+  projectStatus,
+}: Props) {
+  const completeness = usePackageCompleteness(form, documents, uploads);
+  const {
+    projectId,
+    documentContents,
+    saveDocumentEdit,
+    setDocumentContent,
+  } = useGeneration();
+  const [expandedId, setExpandedId] = useState<DocumentId | null>(null);
+  const [docTab, setDocTab] = useState<'content' | 'history'>('content');
+
+  const missingCount = completeness.missingRequired.length;
+  const isComplete = completeness.isComplete;
+
+  async function handleZipDownload() {
+    const manglerTxt = generateManglerTxt(
+      completeness.missingRequiredDocs,
+      form.prosjekt || form.maskin
+    );
+    await downloadZipWithExtras(zipData, {
+      manglerTxt: isComplete ? undefined : manglerTxt,
+      utkast: !isComplete,
+    });
+  }
+
   async function handleDocDownload(doc: GeneratedDoc) {
     const prefix =
       DOC_PREFIX_MAP[doc.documentId] ??
@@ -36,17 +80,48 @@ export function ProjectDocuments({ zipData, documents }: Props) {
     }
   }
 
+  const editable = projectStatus !== 'locked';
+
   return (
     <>
-      <div className="section-label" style={{ marginBottom: 10 }}>
+      <div className="download-actions">
+        <button
+          type="button"
+          className="btn-generate"
+          style={{ width: '100%' }}
+          onClick={() => void handleZipDownload()}
+        >
+          {isComplete
+            ? 'Last ned komplett pakke (ZIP)'
+            : 'Last ned utkast (ZIP)'}
+        </button>
+        {!isComplete ? (
+          <p className="download-sublabel">
+            Mangler {missingCount} dokument{missingCount === 1 ? '' : 'er'} —{' '}
+            MANGLER.txt legges ved i ZIP
+          </p>
+        ) : null}
+      </div>
+
+      <div className="section-label" style={{ marginBottom: 10, marginTop: 20 }}>
         Genererte dokumenter ({documents.length})
       </div>
       <div className="doc-grid">
         {documents.map((doc, i) => {
           const def = getDocumentDefinition(doc.documentId);
+          const catalog = getCatalogDocument(doc.documentId);
           const name = doc.label ?? def?.label ?? doc.documentId;
+          const canEdit =
+            editable &&
+            (catalog?.sourceType === 'ai_generated' ||
+              catalog?.sourceType === 'hybrid');
+          const rev = projectId
+            ? getDocumentRevisions(projectId, doc.documentId)[0]?.revision ?? 1
+            : 1;
+          const expanded = expandedId === doc.documentId;
+
           return (
-            <div key={doc.documentId + doc.filename} className="doc-card">
+            <div key={doc.documentId + doc.filename} className="doc-card doc-card--wide">
               <div className="doc-card-header">
                 <div
                   className="doc-card-icon"
@@ -55,7 +130,7 @@ export function ProjectDocuments({ zipData, documents }: Props) {
                 <div>
                   <div className="doc-card-name">{name}</div>
                   <div className="doc-card-sub">
-                    Rev.01 · {new Date().toLocaleDateString('no-NO')}
+                    v{rev} · {new Date().toLocaleDateString('no-NO')}
                   </div>
                 </div>
               </div>
@@ -66,29 +141,94 @@ export function ProjectDocuments({ zipData, documents }: Props) {
                   className="btn-dl"
                   onClick={() => handleDocDownload(doc)}
                 >
-                  Last ned .docx
+                  Last ned
                 </button>
+                {canEdit ? (
+                  <button
+                    type="button"
+                    className="btn-cancel"
+                    onClick={() => {
+                      setExpandedId(expanded ? null : doc.documentId);
+                      setDocTab('content');
+                    }}
+                  >
+                    {expanded ? 'Lukk' : 'Åpne / rediger'}
+                  </button>
+                ) : null}
               </div>
+
+              {expanded && projectId && canEdit ? (
+                <div className="doc-card-expanded">
+                  <div className="doc-tabs">
+                    <button
+                      type="button"
+                      className={'doc-tab' + (docTab === 'content' ? ' on' : '')}
+                      onClick={() => setDocTab('content')}
+                    >
+                      Innhold
+                    </button>
+                    <button
+                      type="button"
+                      className={'doc-tab' + (docTab === 'history' ? ' on' : '')}
+                      onClick={() => setDocTab('history')}
+                    >
+                      Historikk
+                    </button>
+                  </div>
+                  {docTab === 'content' ? (
+                    <DocumentEditor
+                      documentLabel={name}
+                      initialContent={
+                        documentContents[doc.documentId] ??
+                        `<p>${name}</p>`
+                      }
+                      projectStatus={projectStatus}
+                      onSave={(content, json, note) =>
+                        saveDocumentEdit(
+                          doc.documentId,
+                          content,
+                          json,
+                          note,
+                          form.ingenior
+                        )
+                      }
+                      onCancel={() => setExpandedId(null)}
+                    />
+                  ) : (
+                    <DocumentRevisionHistory
+                      projectId={projectId}
+                      documentId={doc.documentId}
+                      projectStatus={projectStatus}
+                      onView={(r) => {
+                        if (r.content) {
+                          setDocumentContent(
+                            doc.documentId,
+                            r.content.startsWith('<')
+                              ? r.content
+                              : `<p>${r.content}</p>`
+                          );
+                          setExpandedId(doc.documentId);
+                          setDocTab('content');
+                        }
+                      }}
+                      onRestore={(r) => {
+                        saveDocumentEdit(
+                          doc.documentId,
+                          r.content,
+                          r.contentJson ?? '',
+                          `Gjenopprettet fra v${r.revision}`,
+                          form.ingenior
+                        );
+                        setDocTab('content');
+                      }}
+                    />
+                  )}
+                </div>
+              ) : null}
             </div>
           );
         })}
       </div>
-      <div style={{ marginTop: 16 }}>
-        <button
-          type="button"
-          className="btn-generate"
-          style={{ width: '100%' }}
-          onClick={() => downloadZip(zipData)}
-        >
-          Last ned alle som ZIP
-        </button>
-      </div>
-      <p
-        className="form-info"
-        style={{ marginTop: 12, fontSize: 11 }}
-      >
-        Revisjonshistorikk (v2+), prosjektlås og arkivmetadata kommer i neste sprint.
-      </p>
     </>
   );
 }

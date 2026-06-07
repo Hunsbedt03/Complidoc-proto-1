@@ -1,11 +1,15 @@
 import type { DocumentId } from './ids';
 import { CORE_DOCUMENT_IDS } from './ids';
+import { getCatalogDocument } from './catalog';
 
 export type ProjectInput = {
   drivsystem?: string;
   installasjonsmiljo?: string;
   marked?: string;
   styring?: string;
+  maskin?: string;
+  beskrivelse?: string;
+  tiltenktbruk?: string;
 };
 
 function lc(s: string | undefined): string {
@@ -21,9 +25,8 @@ export function suggestDocuments(projectData: ProjectInput): DocumentId[] {
   const market = lc(projectData.marked);
 
   if (drive.includes('v') || drive.includes('kw') || drive.includes('elektr')) {
-    suggested.add('emc_report');
-    suggested.add('low_voltage_checklist');
-    suggested.add('rohs_declaration');
+    suggested.add('lab_test_reports');
+    suggested.add('user_manual_en');
   }
 
   if (
@@ -73,5 +76,8 @@ export function suggestDocuments(projectData: ProjectInput): DocumentId[] {
     suggested.add('ped_technical_file');
   }
 
-  return [...suggested];
+  return [...suggested].filter((id) => {
+    const def = getCatalogDocument(id);
+    return def?.sourceType === 'ai_generated';
+  });
 }

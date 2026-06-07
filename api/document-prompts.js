@@ -62,6 +62,10 @@ const GENERIC_SPECS = {
   emc_report: ['EMC', 'EMC-testrapport', '## Tester\n## Konklusjon'],
   low_voltage_checklist: ['LVD', 'LVD-sjekkliste', 'Elektrisk sikkerhet sjekkliste'],
   rohs_declaration: ['RoHS', 'RoHS-erklæring', '## Deklarasjon'],
+  test_protocol: ['testleder', 'Testprotokoll', '## Testobjekt\n## Målepunkt\n## Resultat (utfylles)'],
+  fat_checklist: ['FAT-leder', 'FAT-protokoll', '## Sjekkliste\n## Aksept/signatur'],
+  inspection_report: ['inspektør', 'Inspeksjonsrapport', '## Omfang\n## Funn\n## Konklusjon'],
+  noise_vibration_sheet: ['akustikk', 'Støy/vibrasjon', '## Måleoppsett\n## Resultater'],
 };
 
 function buildLegacyPrompts(context) {
@@ -192,6 +196,10 @@ const DOC_TITLES = {
   emc_report: 'EMC-testrapport',
   low_voltage_checklist: 'LVD-sjekkliste',
   rohs_declaration: 'RoHS-erklæring',
+  test_protocol: 'Testprotokoll',
+  fat_checklist: 'FAT-protokoll',
+  inspection_report: 'Inspeksjonsrapport',
+  noise_vibration_sheet: 'Støy/vibrasjon',
 };
 
 const VALID_DOC_TYPES = [

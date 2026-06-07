@@ -17,6 +17,7 @@ import {
 import { createClient } from '@/lib/supabase/client';
 import { formatSupabaseError, supabaseErrorFields } from '@/lib/supabaseError';
 import type { DocumentId } from '@/lib/documents/ids';
+import { getCatalogDocument } from '@/lib/documents/catalog';
 import { getDefaultSelectedDocuments } from '@/lib/documents/registry';
 import type { ProjectFormData } from '@/lib/types';
 import {
@@ -26,7 +27,7 @@ import {
 export function ProjectForm() {
   const router = useRouter();
   const { user, bedriftId, refreshProjects } = useAuth();
-  const { setResult } = useGeneration();
+  const { setResult, syncProjectId } = useGeneration();
 
   const [form, setForm] = useState<ProjectFormData>({ ...EMPTY_FORM });
   const [selectedDocuments, setSelectedDocuments] = useState<DocumentId[]>(() =>
@@ -60,7 +61,12 @@ export function ProjectForm() {
         })
       );
 
-      setResult(result.zipData, result.title, formWithDocs, result.documents);
+      const localProjectId = setResult(
+        result.zipData,
+        result.title,
+        formWithDocs,
+        result.documents
+      );
 
       if (result.failedLabels.length > 0) {
         console.warn('[samsiq] Delvis generering:', result.failedLabels);
@@ -73,12 +79,19 @@ export function ProjectForm() {
         );
       }
 
+      const selectedHybrid = selectedDocuments.filter(
+        (id) => getCatalogDocument(id)?.sourceType === 'hybrid'
+      );
       const savePayload = {
         ...formWithDocs,
         machineData: result.machineData,
         zipFilename: result.zipData.filename,
         zipBase64: result.zipData.zip,
         documents: result.documents,
+        selectedHybrid,
+        uploads: [],
+        workflowStatus: 'draft' as const,
+        localProjectId,
       };
 
       const supabase = createClient();
@@ -142,25 +155,17 @@ export function ProjectForm() {
               saveJson.skippedDocumentTypes
             );
           }
+          if (saveJson.projectId) {
+            syncProjectId(saveJson.projectId);
+            saveProjectLocally({
+              ...savePayload,
+              localProjectId: saveJson.projectId,
+            });
+          }
           await refreshProjects();
           }
         } catch (saveErr) {
           const errMsg = formatSupabaseError(saveErr);
-          // #region agent log
-          fetch('http://127.0.0.1:7899/ingest/bef89494-0ce9-4594-b826-2f6c32aab015', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '66cbbc' },
-            body: JSON.stringify({
-              sessionId: '66cbbc',
-              runId: 'post-fix-2',
-              hypothesisId: 'H-save',
-              location: 'ProjectForm.tsx:handleGenerate',
-              message: 'cloud save failed',
-              data: { errMsg, docCount: savePayload.documents.length },
-              timestamp: Date.now(),
-            }),
-          }).catch(() => {});
-          // #endregion
           const setupFlag =
             (saveErr as { setupRequired?: boolean }).setupRequired === true;
           const errFields = supabaseErrorFields(saveErr);
@@ -181,7 +186,11 @@ export function ProjectForm() {
 
       router.push('/app/output');
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Generering feilet');
+      alert(
+        err instanceof Error
+          ? formatSupabaseError(err)
+          : formatSupabaseError(err) || 'Generering feilet'
+      );
     } finally {
       setLoading(false);
     }
@@ -369,7 +378,11 @@ export function ProjectForm() {
       </div>
 
       <div className="form-card">
-        <div className="form-card-title">Dokumenter som genereres</div>
+        <div className="form-card-title">Dokumentpakke</div>
+        <p className="form-card-hint">
+          Velg AI-dokumenter og maler. Opplastinger gjøres i prosjektoversikten etter
+          generering.
+        </p>
         <DocumentChecklist
           form={form}
           selected={selectedDocuments}

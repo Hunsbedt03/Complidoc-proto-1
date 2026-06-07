@@ -2,25 +2,63 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from 'react';
-import type { GeneratedDoc, ProjectFormData, ZipData } from '@/lib/types';
+import {
+  clearGenerationSession,
+  persistGenerationSession,
+} from '@/lib/generationSession';
+import type { DocumentId } from '@/lib/documents/ids';
+import { normalizeGeneratedDocs } from '@/lib/documents/ids';
+import { getCatalogDocument } from '@/lib/documents/catalog';
+import { updateLocalProjectWorkflow } from '@/lib/localProjects';
+import { appendRevision, seedInitialRevisions } from '@/lib/revisions';
+import type { ProjectStatus } from '@/lib/projectStatus';
+import type { GeneratedDoc, ProjectFormData, UploadSlot, ZipData } from '@/lib/types';
 
 type GenerationContextValue = {
+  projectId: string | null;
+  projectStatus: ProjectStatus;
   zipData: ZipData | null;
   outputTitle: string;
   lastForm: ProjectFormData | null;
   generatedDocuments: GeneratedDoc[];
+  documentContents: Record<string, string>;
+  uploads: UploadSlot[];
   setResult: (
     zip: ZipData,
     title: string,
     form: ProjectFormData,
     documents: GeneratedDoc[]
+  ) => string;
+  setUpload: (slot: UploadSlot) => void;
+  syncProjectId: (id: string) => void;
+  setProjectStatus: (status: ProjectStatus) => void;
+  lockProject: (engineerName: string) => void;
+  saveDocumentEdit: (
+    documentId: DocumentId,
+    content: string,
+    contentJson: string,
+    changeNote: string,
+    editorName: string
   ) => void;
-  setZipFromProject: (zip: ZipData, title: string) => void;
+  setDocumentContent: (documentId: DocumentId, content: string) => void;
+  setZipFromProject: (
+    zip: ZipData,
+    title: string,
+    meta?: {
+      form?: ProjectFormData;
+      documents?: GeneratedDoc[];
+      projectId?: string;
+      status?: ProjectStatus;
+      uploads?: UploadSlot[];
+    }
+  ) => void;
   clear: () => void;
 };
 
@@ -33,40 +71,194 @@ export function useGeneration() {
 }
 
 export function GenerationProvider({ children }: { children: ReactNode }) {
+  const [projectId, setProjectId] = useState<string | null>(null);
+  const [projectStatus, setProjectStatus] = useState<ProjectStatus>('draft');
   const [zipData, setZipData] = useState<ZipData | null>(null);
   const [outputTitle, setOutputTitle] = useState('');
   const [lastForm, setLastForm] = useState<ProjectFormData | null>(null);
   const [generatedDocuments, setGeneratedDocuments] = useState<GeneratedDoc[]>([]);
+  const [documentContents, setDocumentContents] = useState<Record<string, string>>({});
+  const [uploads, setUploads] = useState<UploadSlot[]>([]);
+
+  useEffect(() => {
+    if (projectId && zipData) {
+      persistGenerationSession({
+        projectId,
+        outputTitle: outputTitle || 'Prosjekt',
+        projectStatus,
+      });
+    }
+  }, [projectId, zipData, outputTitle, projectStatus]);
+
+  const syncProjectId = useCallback((id: string) => {
+    setProjectId(id);
+  }, []);
+
+  const setUpload = useCallback(
+    (slot: UploadSlot) => {
+      if (projectStatus === 'locked') return;
+      setUploads((prev) => {
+        const rest = prev.filter((u) => u.documentId !== slot.documentId);
+        const next = [...rest, slot];
+        if (projectId) {
+          updateLocalProjectWorkflow(projectId, projectStatus, next);
+        }
+        return next;
+      });
+      if (projectId && slot.status === 'uploaded') {
+        appendRevision({
+          projectId,
+          documentId: slot.documentId,
+          content: slot.fileName ?? '',
+          changeType: 'file_upload',
+          changeNote: `Lastet opp ${slot.fileName ?? 'fil'}`,
+          changedBy: 'user',
+          changedByName: lastForm?.ingenior || 'Bruker',
+          source: 'file_upload',
+        });
+      }
+    },
+    [projectId, projectStatus, lastForm?.ingenior]
+  );
+
+  const lockProject = useCallback(
+    (engineerName: string) => {
+      if (!projectId) return;
+      setProjectStatus('locked');
+      updateLocalProjectWorkflow(projectId, 'locked', uploads);
+      appendRevision({
+        projectId,
+        documentId: 'risk_assessment',
+        content: '',
+        changeType: 'locked',
+        changeNote: `Prosjektpakke låst av ${engineerName || 'ingeniør'}`,
+        changedBy: 'user',
+        changedByName: engineerName || 'Ingeniør',
+        source: 'user_edited',
+      });
+    },
+    [projectId, uploads]
+  );
+
+  const setDocumentContent = useCallback((documentId: DocumentId, content: string) => {
+    setDocumentContents((prev) => ({ ...prev, [documentId]: content }));
+  }, []);
+
+  const saveDocumentEdit = useCallback(
+    (
+      documentId: DocumentId,
+      content: string,
+      contentJson: string,
+      changeNote: string,
+      editorName: string
+    ) => {
+      if (!projectId || projectStatus === 'locked') return;
+      setDocumentContents((prev) => ({ ...prev, [documentId]: content }));
+      appendRevision({
+        projectId,
+        documentId,
+        content,
+        contentJson,
+        changeType: 'user_edit',
+        changeNote,
+        changedBy: 'user',
+        changedByName: editorName || 'Ingeniør',
+        source: 'user_edited',
+      });
+    },
+    [projectId, projectStatus]
+  );
 
   const value = useMemo(
     () => ({
+      projectId,
+      projectStatus,
       zipData,
       outputTitle,
       lastForm,
       generatedDocuments,
+      documentContents,
+      uploads,
       setResult: (
         zip: ZipData,
         title: string,
         form: ProjectFormData,
         documents: GeneratedDoc[]
       ) => {
+        const id = crypto.randomUUID();
+        setProjectId(id);
+        setProjectStatus('draft');
         setZipData(zip);
         setOutputTitle(title);
         setLastForm(form);
-        setGeneratedDocuments(documents);
+        setGeneratedDocuments(normalizeGeneratedDocs(documents));
+        setUploads([]);
+        const contents: Record<string, string> = {};
+        for (const doc of documents) {
+          const def = getCatalogDocument(doc.documentId);
+          contents[doc.documentId] =
+            `<h2>${def?.label ?? doc.documentId}</h2><p>AI-generert dokument. Rediger for å tilpasse før endelig låsing.</p>`;
+        }
+        setDocumentContents(contents);
+        seedInitialRevisions(
+          id,
+          documents.map((d) => d.documentId),
+          form.ingenior || 'Samsiq'
+        );
+        return id;
       },
-      setZipFromProject: (zip: ZipData, title: string) => {
+      setUpload,
+      syncProjectId,
+      setProjectStatus,
+      lockProject,
+      saveDocumentEdit,
+      setDocumentContent,
+      setZipFromProject: (
+        zip: ZipData,
+        title: string,
+        meta?: {
+          form?: ProjectFormData;
+          documents?: GeneratedDoc[];
+          projectId?: string;
+          status?: ProjectStatus;
+          uploads?: UploadSlot[];
+        }
+      ) => {
         setZipData(zip);
         setOutputTitle(title);
+        if (meta?.form) setLastForm(meta.form);
+        if (meta?.documents) setGeneratedDocuments(normalizeGeneratedDocs(meta.documents));
+        if (meta?.projectId) setProjectId(meta.projectId);
+        if (meta?.status) setProjectStatus(meta.status);
+        if (meta?.uploads) setUploads(meta.uploads);
       },
       clear: () => {
+        clearGenerationSession();
+        setProjectId(null);
+        setProjectStatus('draft');
         setZipData(null);
         setOutputTitle('');
         setLastForm(null);
         setGeneratedDocuments([]);
+        setDocumentContents({});
+        setUploads([]);
       },
     }),
-    [zipData, outputTitle, lastForm, generatedDocuments]
+    [
+      projectId,
+      projectStatus,
+      zipData,
+      outputTitle,
+      lastForm,
+      generatedDocuments,
+      documentContents,
+      uploads,
+      setUpload,
+      syncProjectId,
+      lockProject,
+      saveDocumentEdit,
+      setDocumentContent,
+    ]
   );
 
   return (
