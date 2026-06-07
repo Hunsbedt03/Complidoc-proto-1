@@ -1,16 +1,11 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import {
-  fetchUserSubscription,
-  isSubscriptionEnforced,
-} from '@/lib/auth/subscription';
+import { isSubscriptionEnforced } from '@/lib/auth/subscription';
 import { syncUserSubscriptionFromStripe } from '@/lib/stripe/syncSubscription';
 import { buildSubscriptionStatusResponse } from '@/lib/stripe/subscriptionStatusResponse';
 import { formatSupabaseError } from '@/lib/supabaseError';
 
-const ACTIVE = new Set(['active', 'trialing']);
-
-export async function GET(request: Request) {
+export async function POST() {
   try {
     const supabase = await createClient();
     const {
@@ -24,27 +19,13 @@ export async function GET(request: Request) {
 
     if (!isSubscriptionEnforced()) {
       return NextResponse.json(
-        buildSubscriptionStatusResponse(null, false)
+        buildSubscriptionStatusResponse(null, false, true)
       );
     }
 
-    const { searchParams } = new URL(request.url);
-    const shouldSync =
-      searchParams.get('sync') === '1' ||
-      searchParams.get('sync') === 'true';
-
-    let profile = await fetchUserSubscription(supabase, user.id);
-    const status = profile?.subscription_status ?? 'inactive';
-
-    if (shouldSync && !ACTIVE.has(status)) {
-      profile = await syncUserSubscriptionFromStripe(user.id, user.email);
-      return NextResponse.json(
-        buildSubscriptionStatusResponse(profile, true, true)
-      );
-    }
-
+    const profile = await syncUserSubscriptionFromStripe(user.id, user.email);
     return NextResponse.json(
-      buildSubscriptionStatusResponse(profile, true)
+      buildSubscriptionStatusResponse(profile, true, true)
     );
   } catch (err) {
     return NextResponse.json({ error: formatSupabaseError(err) }, { status: 500 });

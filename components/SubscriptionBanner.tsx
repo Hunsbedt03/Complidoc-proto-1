@@ -17,6 +17,8 @@ export type SubscriptionBannerData = {
 type Props = {
   data: SubscriptionBannerData | null;
   loading?: boolean;
+  /** Etter checkout — skjul «ingen abonnement» mens Stripe synkes */
+  pendingActivation?: boolean;
 };
 
 function daysUntil(iso: string | null): number | null {
@@ -35,8 +37,18 @@ async function openPortal(): Promise<void> {
   alert(json.error ?? 'Kunne ikke åpne kundeportal');
 }
 
-export function SubscriptionBanner({ data, loading }: Props) {
+const ACTIVE = new Set(['active', 'trialing']);
+
+export function SubscriptionBanner({ data, loading, pendingActivation }: Props) {
   const router = useRouter();
+
+  if (pendingActivation) {
+    return (
+      <div className="sub-banner sub-banner--trial">
+        <span>Aktiverer abonnement…</span>
+      </div>
+    );
+  }
 
   if (loading || !data?.enforced) return null;
 
@@ -44,14 +56,16 @@ export function SubscriptionBanner({ data, loading }: Props) {
     const days = daysUntil(data.trialEnd);
     return (
       <div className="sub-banner sub-banner--trial">
-        <span>
-          Prøveperiode — {days ?? '?'} dager igjen
-        </span>
+        <span>Prøveperiode — {days ?? '?'} dager igjen</span>
         <button type="button" className="btn-dl" onClick={() => void openPortal()}>
           Legg til betalingskort
         </button>
       </div>
     );
+  }
+
+  if (data.status === 'active') {
+    return null;
   }
 
   if (
@@ -101,4 +115,8 @@ export function SubscriptionBanner({ data, loading }: Props) {
   }
 
   return null;
+}
+
+export function isSubscriptionActive(data: SubscriptionBannerData | null): boolean {
+  return !!data && ACTIVE.has(data.status);
 }

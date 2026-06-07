@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { CompletenessBar } from '@/components/CompletenessIndicator';
 import {
   SubscriptionBanner,
+  isSubscriptionActive,
   type SubscriptionBannerData,
 } from '@/components/SubscriptionBanner';
 import { useAuth } from '@/components/providers/AuthProvider';
@@ -42,6 +43,8 @@ export function Dashboard() {
     null
   );
   const [subscriptionLoading, setSubscriptionLoading] = useState(false);
+  const [pendingActivation, setPendingActivation] = useState(paymentSuccess);
+  const [activationConfirmed, setActivationConfirmed] = useState(false);
 
   useEffect(() => {
     setLocalProjects(listLocalProjects());
@@ -50,15 +53,72 @@ export function Dashboard() {
   useEffect(() => {
     if (!user) {
       setSubscription(null);
+      setPendingActivation(false);
       return;
     }
-    setSubscriptionLoading(true);
-    void fetch('/api/subscription/status')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((json) => setSubscription(json as SubscriptionBannerData | null))
-      .catch(() => setSubscription(null))
-      .finally(() => setSubscriptionLoading(false));
-  }, [user]);
+
+    let cancelled = false;
+
+    async function loadStatus(
+      syncFromStripe: boolean
+    ): Promise<SubscriptionBannerData | null> {
+      setSubscriptionLoading(true);
+      try {
+        const url = syncFromStripe
+          ? '/api/subscription/sync'
+          : '/api/subscription/status';
+        const res = await fetch(url, {
+          method: syncFromStripe ? 'POST' : 'GET',
+        });
+        if (!res.ok || cancelled) return null;
+        const json = (await res.json()) as SubscriptionBannerData;
+        if (cancelled) return null;
+        setSubscription(json);
+        return json;
+      } catch {
+        if (!cancelled) setSubscription(null);
+        return null;
+      } finally {
+        if (!cancelled) setSubscriptionLoading(false);
+      }
+    }
+
+    function onActivated() {
+      setActivationConfirmed(true);
+      setPendingActivation(false);
+      if (paymentSuccess) {
+        router.replace('/app/dashboard');
+      }
+    }
+
+    if (paymentSuccess) {
+      setPendingActivation(true);
+      void (async () => {
+        for (let attempt = 0; attempt < 8; attempt++) {
+          if (cancelled) return;
+          const json = await loadStatus(true);
+          if (json && isSubscriptionActive(json)) {
+            onActivated();
+            return;
+          }
+          await new Promise((r) => setTimeout(r, 1000));
+        }
+        if (!cancelled) {
+          setPendingActivation(false);
+          const json = await loadStatus(false);
+          if (json && isSubscriptionActive(json)) {
+            onActivated();
+          }
+        }
+      })();
+    } else {
+      void loadStatus(false);
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user, paymentSuccess, router]);
 
   const displayProjects = useMemo(() => {
     const byId = new Map<string, ProsjektSummary>();
@@ -132,9 +192,13 @@ export function Dashboard() {
 
   return (
     <>
-      <SubscriptionBanner data={subscription} loading={subscriptionLoading} />
+      <SubscriptionBanner
+        data={subscription}
+        loading={subscriptionLoading}
+        pendingActivation={pendingActivation}
+      />
 
-      {paymentSuccess ? (
+      {activationConfirmed && !pendingActivation ? (
         <p
           style={{
             color: '#9FD66A',
