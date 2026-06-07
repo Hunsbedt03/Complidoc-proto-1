@@ -20,6 +20,7 @@ import { buildMachineData, generateSingleDocument } from '@/lib/generate';
 import { updateLocalProjectWorkflow } from '@/lib/localProjects';
 import { rebuildZipFromDocs } from '@/lib/rebuildZip';
 import { appendRevision, seedInitialRevisions } from '@/lib/revisions';
+import { saveDocumentRevision } from '@/lib/revisions/saveRevision';
 import type { ProjectStatus } from '@/lib/projectStatus';
 import type { GeneratedDoc, ProjectFormData, UploadSlot, ZipData } from '@/lib/types';
 
@@ -48,7 +49,7 @@ type GenerationContextValue = {
     contentJson: string,
     changeNote: string,
     editorName: string
-  ) => void;
+  ) => Promise<void>;
   setDocumentContent: (documentId: DocumentId, content: string) => void;
   regenerateDocument: (documentId: DocumentId) => Promise<void>;
   setZipFromProject: (
@@ -161,15 +162,16 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
       setZipData(newZip);
       const html = `<h2>${def?.label ?? documentId}</h2><p>AI-regenerert ${new Date().toLocaleDateString('no-NO')}. Rediger for å tilpasse før endelig låsing.</p>`;
       setDocumentContents((prev) => ({ ...prev, [documentId]: html }));
-      appendRevision({
+      await saveDocumentRevision({
         projectId,
         documentId,
         content: html,
+        contentJson: JSON.stringify({ type: 'doc', content: [] }),
         changeType: 'ai_regeneration',
         changeNote: `Regenerert av bruker ${new Date().toLocaleDateString('no-NO')}`,
-        changedBy: 'samsiq-ai',
         changedByName: lastForm.ingenior || 'Samsiq AI',
         source: 'ai_regenerated',
+        changedBy: 'samsiq-ai',
       });
     },
     [
@@ -182,7 +184,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
   );
 
   const saveDocumentEdit = useCallback(
-    (
+    async (
       documentId: DocumentId,
       content: string,
       contentJson: string,
@@ -191,16 +193,16 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
     ) => {
       if (!projectId || projectStatus === 'locked') return;
       setDocumentContents((prev) => ({ ...prev, [documentId]: content }));
-      appendRevision({
+      await saveDocumentRevision({
         projectId,
         documentId,
         content,
         contentJson,
         changeType: 'user_edit',
         changeNote,
-        changedBy: 'user',
         changedByName: editorName || 'Ingeniør',
         source: 'user_edited',
+        changedBy: 'user',
       });
     },
     [projectId, projectStatus]

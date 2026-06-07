@@ -2,14 +2,22 @@
 
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { useEffect, useState } from 'react';
+import Underline from '@tiptap/extension-underline';
+import Placeholder from '@tiptap/extension-placeholder';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { EditorToolbar } from '@/components/EditorToolbar';
+import { SaveRevisionDialog } from '@/components/SaveRevisionDialog';
 import type { ProjectStatus } from '@/lib/projectStatus';
 
 type Props = {
   documentLabel: string;
   initialContent: string;
   projectStatus: ProjectStatus;
-  onSave: (content: string, contentJson: string, changeNote: string) => void;
+  onSave: (
+    content: string,
+    contentJson: string,
+    changeNote: string
+  ) => Promise<void>;
   onCancel: () => void;
   onRegenerate?: () => void;
 };
@@ -25,13 +33,29 @@ export function DocumentEditor({
   const [mode, setMode] = useState<'view' | 'edit'>('view');
   const [saveOpen, setSaveOpen] = useState(false);
   const [changeNote, setChangeNote] = useState('');
+  const [saving, setSaving] = useState(false);
+  const editBaseline = useRef(initialContent);
   const locked = projectStatus === 'locked';
 
   const editor = useEditor({
-    extensions: [StarterKit],
-    content: initialContent || `<p></p>`,
+    extensions: [
+      StarterKit.configure({
+        heading: { levels: [1, 2, 3] },
+      }),
+      Underline,
+      Placeholder.configure({
+        placeholder: 'Rediger dokumentinnhold her...',
+      }),
+    ],
+    content: initialContent || '<p></p>',
     editable: mode === 'edit' && !locked,
     immediatelyRender: false,
+    editorProps: {
+      attributes: {
+        class:
+          'prose prose-invert max-w-none focus:outline-none min-h-64 p-4',
+      },
+    },
   });
 
   useEffect(() => {
@@ -44,12 +68,43 @@ export function DocumentEditor({
     editor.commands.setContent(initialContent || '<p></p>');
   }, [editor, initialContent, mode]);
 
-  function handleSaveRevision() {
-    if (!editor || !changeNote.trim()) return;
-    onSave(editor.getHTML(), JSON.stringify(editor.getJSON()), changeNote.trim());
-    setSaveOpen(false);
-    setChangeNote('');
+  const isDirty = useCallback(() => {
+    if (!editor || mode !== 'edit') return false;
+    return editor.getHTML() !== editBaseline.current;
+  }, [editor, mode]);
+
+  function enterEditMode() {
+    editBaseline.current = initialContent || '<p></p>';
+    setMode('edit');
+  }
+
+  function handleCancelEdit() {
+    if (isDirty()) {
+      const ok = confirm(
+        'Du har ulagrede endringer. Avbryte uten å lagre?'
+      );
+      if (!ok) return;
+    }
+    editor?.commands.setContent(editBaseline.current);
     setMode('view');
+  }
+
+  async function handleSaveRevision() {
+    if (!editor || changeNote.trim().length < 3) return;
+    setSaving(true);
+    try {
+      await onSave(
+        editor.getHTML(),
+        JSON.stringify(editor.getJSON()),
+        changeNote.trim()
+      );
+      editBaseline.current = editor.getHTML();
+      setSaveOpen(false);
+      setChangeNote('');
+      setMode('view');
+    } finally {
+      setSaving(false);
+    }
   }
 
   if (locked) {
@@ -63,150 +118,68 @@ export function DocumentEditor({
 
   return (
     <div className="doc-editor">
-      <div className="doc-editor-toolbar">
+      <div className="doc-editor-header">
+        <p className="doc-editor-title">{documentLabel}</p>
         {mode === 'view' ? (
-          <button type="button" className="btn-dl" onClick={() => setMode('edit')}>
+          <button type="button" className="btn-dl" onClick={enterEditMode}>
             Rediger
           </button>
         ) : (
-          <>
-            <button
-              type="button"
-              className="btn-dl"
-              onClick={() => editor?.chain().focus().toggleBold().run()}
-            >
-              Fet
-            </button>
-            <button
-              type="button"
-              className="btn-dl"
-              onClick={() => editor?.chain().focus().toggleItalic().run()}
-            >
-              Kursiv
-            </button>
-            <button
-              type="button"
-              className="btn-dl"
-              onClick={() => editor?.chain().focus().toggleStrike().run()}
-            >
-              Stryk
-            </button>
-            <button
-              type="button"
-              className="btn-dl"
-              onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}
-            >
-              H2
-            </button>
-            <button
-              type="button"
-              className="btn-dl"
-              onClick={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()}
-            >
-              H3
-            </button>
-            <button
-              type="button"
-              className="btn-dl"
-              onClick={() => editor?.chain().focus().toggleBulletList().run()}
-            >
-              Punktliste
-            </button>
-            <button
-              type="button"
-              className="btn-dl"
-              onClick={() => editor?.chain().focus().toggleOrderedList().run()}
-            >
-              Nummerert
-            </button>
-            <button
-              type="button"
-              className="btn-dl"
-              onClick={() => editor?.chain().focus().undo().run()}
-            >
-              Angre
-            </button>
-            <button
-              type="button"
-              className="btn-dl"
-              onClick={() => editor?.chain().focus().redo().run()}
-            >
-              Gjør om
-            </button>
+          <div className="doc-editor-header-actions">
             <button
               type="button"
               className="btn-generate"
-              style={{ marginLeft: 'auto' }}
               onClick={() => setSaveOpen(true)}
             >
-              Lagre revisjon
+              Lagre
             </button>
-            <button type="button" className="btn-cancel" onClick={() => setMode('view')}>
+            <button type="button" className="btn-cancel" onClick={handleCancelEdit}>
               Avbryt
             </button>
-          </>
+          </div>
         )}
-        {onRegenerate && mode === 'view' ? (
-          <button
-            type="button"
-            className="btn-cancel"
-            onClick={() => {
-              if (
-                confirm(
-                  'Dette vil erstatte gjeldende innhold med en ny AI-generering. Gjeldende versjon lagres i historikken. Fortsette?'
-                )
-              ) {
-                onRegenerate();
-              }
-            }}
-          >
-            Regenerer med AI
-          </button>
-        ) : null}
       </div>
 
-      <p className="doc-editor-title">{documentLabel}</p>
+      {mode === 'edit' ? <EditorToolbar editor={editor} /> : null}
+
       <EditorContent editor={editor} className="doc-editor-body" />
 
-      {saveOpen ? (
-        <div className="lock-dialog-backdrop" role="presentation">
-          <div className="lock-dialog" onClick={(e) => e.stopPropagation()}>
-            <h3>Lagre ny revisjon</h3>
-            <p>Beskriv endringen (vises i revisjonsloggen):</p>
-            <input
-              className="form-input"
-              maxLength={100}
-              required
-              placeholder="f.eks. Oppdatert fareidentifikasjon"
-              value={changeNote}
-              onChange={(e) => setChangeNote(e.target.value)}
-            />
-            <div className="lock-dialog-actions">
-              <button
-                type="button"
-                className="btn-cancel"
-                onClick={() => setSaveOpen(false)}
-              >
-                Avbryt
-              </button>
-              <button
-                type="button"
-                className="btn-generate"
-                disabled={!changeNote.trim()}
-                onClick={handleSaveRevision}
-              >
-                Lagre ny revisjon
-              </button>
-            </div>
-          </div>
-        </div>
+      {onRegenerate && mode === 'view' ? (
+        <button
+          type="button"
+          className="btn-cancel doc-editor-regen"
+          onClick={() => {
+            if (
+              confirm(
+                'Dette vil erstatte gjeldende innhold med en ny AI-generering. Gjeldende versjon lagres i historikken. Fortsette?'
+              )
+            ) {
+              onRegenerate();
+            }
+          }}
+        >
+          Regenerer med AI
+        </button>
       ) : null}
 
-      {mode === 'edit' ? null : (
-        <button type="button" className="btn-cancel" style={{ marginTop: 8 }} onClick={onCancel}>
+      {mode === 'view' ? (
+        <button
+          type="button"
+          className="btn-cancel doc-editor-close"
+          onClick={onCancel}
+        >
           Lukk
         </button>
-      )}
+      ) : null}
+
+      <SaveRevisionDialog
+        open={saveOpen}
+        changeNote={changeNote}
+        onChangeNote={setChangeNote}
+        onCancel={() => !saving && setSaveOpen(false)}
+        onConfirm={() => void handleSaveRevision()}
+        saving={saving}
+      />
     </div>
   );
 }

@@ -25,6 +25,16 @@ const DOC_COLORS = [
   'rgba(60,180,180,0.15)',
 ];
 
+function contentPreview(html: string | undefined, fallback: string): string {
+  if (!html) return fallback;
+  const text = html
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!text) return fallback;
+  return text.length > 120 ? `${text.slice(0, 117)}…` : text;
+}
+
 type Props = {
   zipData: ZipData;
   documents: GeneratedDoc[];
@@ -51,6 +61,7 @@ export function ProjectDocuments({
   const [expandedId, setExpandedId] = useState<DocumentId | null>(null);
   const [docTab, setDocTab] = useState<'content' | 'history'>('content');
   const [regenerating, setRegenerating] = useState<DocumentId | null>(null);
+  const [revisionRefreshKey, setRevisionRefreshKey] = useState(0);
 
   const missingCount = completeness.missingRequired.length;
   const isComplete = completeness.isComplete;
@@ -118,10 +129,16 @@ export function ProjectDocuments({
             editable &&
             (catalog?.sourceType === 'ai_generated' ||
               catalog?.sourceType === 'hybrid');
-          const rev = projectId
-            ? getDocumentRevisions(projectId, doc.documentId)[0]?.revision ?? 1
-            : 1;
+          const revisions = projectId
+            ? getDocumentRevisions(projectId, doc.documentId)
+            : [];
+          const rev = revisions[0]?.revision ?? 1;
+          const historyCount = revisions.length;
           const expanded = expandedId === doc.documentId;
+          const preview = contentPreview(
+            documentContents[doc.documentId],
+            doc.filename
+          );
 
           return (
             <div key={doc.documentId + doc.filename} className="doc-card doc-card--wide">
@@ -130,15 +147,28 @@ export function ProjectDocuments({
                   className="doc-card-icon"
                   style={{ background: DOC_COLORS[i % DOC_COLORS.length] }}
                 />
-                <div>
-                  <div className="doc-card-name">{name}</div>
-                  <div className="doc-card-sub">
-                    v{rev} · {new Date().toLocaleDateString('no-NO')}
+                <div className="doc-card-body">
+                  <div className="doc-card-name-row">
+                    <span className="doc-card-name">{name}</span>
+                    <span className="doc-card-badge">AI — ferdig</span>
+                    <span className="doc-card-rev">v{rev}</span>
                   </div>
+                  <p className="doc-card-preview">{preview}</p>
                 </div>
               </div>
-              <div className="doc-card-desc">{doc.filename}</div>
               <div className="doc-btns">
+                {canEdit ? (
+                  <button
+                    type="button"
+                    className="btn-dl"
+                    onClick={() => {
+                      setExpandedId(expanded && docTab === 'content' ? null : doc.documentId);
+                      setDocTab('content');
+                    }}
+                  >
+                    Rediger
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   className="btn-dl"
@@ -150,12 +180,43 @@ export function ProjectDocuments({
                   <button
                     type="button"
                     className="btn-cancel"
+                    disabled={regenerating === doc.documentId}
                     onClick={() => {
-                      setExpandedId(expanded ? null : doc.documentId);
-                      setDocTab('content');
+                      if (
+                        !confirm(
+                          'Dette vil erstatte gjeldende innhold med en ny AI-generering. Gjeldende versjon lagres i historikken. Fortsette?'
+                        )
+                      ) {
+                        return;
+                      }
+                      setRegenerating(doc.documentId);
+                      void regenerateDocument(doc.documentId)
+                        .then(() => setRevisionRefreshKey((k) => k + 1))
+                        .catch((err) => {
+                          alert(
+                            err instanceof Error
+                              ? err.message
+                              : 'Regenerering feilet'
+                          );
+                        })
+                        .finally(() => setRegenerating(null));
                     }}
                   >
-                    {expanded ? 'Lukk' : 'Åpne / rediger'}
+                    {regenerating === doc.documentId
+                      ? 'Regenererer…'
+                      : 'Regenerer med AI'}
+                  </button>
+                ) : null}
+                {canEdit && projectId ? (
+                  <button
+                    type="button"
+                    className="btn-cancel"
+                    onClick={() => {
+                      setExpandedId(expanded && docTab === 'history' ? null : doc.documentId);
+                      setDocTab('history');
+                    }}
+                  >
+                    Historikk ({historyCount || 1})
                   </button>
                 ) : null}
               </div>
@@ -175,7 +236,7 @@ export function ProjectDocuments({
                       className={'doc-tab' + (docTab === 'history' ? ' on' : '')}
                       onClick={() => setDocTab('history')}
                     >
-                      Historikk
+                      Historikk ({historyCount || 1})
                     </button>
                   </div>
                   {docTab === 'content' ? (
@@ -186,38 +247,25 @@ export function ProjectDocuments({
                         `<p>${name}</p>`
                       }
                       projectStatus={projectStatus}
-                      onSave={(content, json, note) =>
-                        saveDocumentEdit(
+                      onSave={async (content, json, note) => {
+                        await saveDocumentEdit(
                           doc.documentId,
                           content,
                           json,
                           note,
                           form.ingenior
-                        )
-                      }
+                        );
+                        setRevisionRefreshKey((k) => k + 1);
+                      }}
                       onCancel={() => setExpandedId(null)}
-                      onRegenerate={
-                        regenerating === doc.documentId
-                          ? undefined
-                          : () => {
-                              setRegenerating(doc.documentId);
-                              void regenerateDocument(doc.documentId)
-                                .catch((err) => {
-                                  alert(
-                                    err instanceof Error
-                                      ? err.message
-                                      : 'Regenerering feilet'
-                                  );
-                                })
-                                .finally(() => setRegenerating(null));
-                            }
-                      }
                     />
                   ) : (
                     <DocumentRevisionHistory
                       projectId={projectId}
                       documentId={doc.documentId}
                       projectStatus={projectStatus}
+                      currentRevision={rev}
+                      refreshKey={revisionRefreshKey}
                       onView={(r) => {
                         if (r.content) {
                           setDocumentContent(
@@ -226,18 +274,17 @@ export function ProjectDocuments({
                               ? r.content
                               : `<p>${r.content}</p>`
                           );
-                          setExpandedId(doc.documentId);
                           setDocTab('content');
                         }
                       }}
                       onRestore={(r) => {
-                        saveDocumentEdit(
+                        void saveDocumentEdit(
                           doc.documentId,
                           r.content,
                           r.contentJson ?? '',
                           `Gjenopprettet fra v${r.revision}`,
                           form.ingenior
-                        );
+                        ).then(() => setRevisionRefreshKey((k) => k + 1));
                         setDocTab('content');
                       }}
                     />
