@@ -4,10 +4,8 @@
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { appendFileSync } from 'fs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const LOG = 'debug-66cbbc.log';
 const files = ['index.html', 'public/index.html', 'lib/generate.ts', 'components/app/ProjectForm.tsx'];
 
 const badPatterns = [
@@ -30,19 +28,6 @@ for (const rel of files) {
     failed = true;
   }
 }
-
-appendFileSync(
-  LOG,
-  JSON.stringify({
-    sessionId: '66cbbc',
-    runId: 'verify-no-oo',
-    hypothesisId: 'H1',
-    location: 'scripts/verify-no-object-object.mjs',
-    message: failed ? 'raw error concat found' : 'no raw error concat',
-    data: { pass: !failed, files },
-    timestamp: Date.now(),
-  }) + '\n'
-);
 
 if (failed) process.exit(1);
 console.log('[verify:no-oo] OK — no raw object error concatenation.');

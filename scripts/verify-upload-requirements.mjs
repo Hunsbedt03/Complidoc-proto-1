@@ -1,21 +1,4 @@
-import { appendFileSync } from 'fs';
 import { deriveUploadRequirements } from '../lib/documents/uploadRequirements.ts';
-
-const LOG = 'debug-66cbbc.log';
-
-function log(message, data, hypothesisId) {
-  const line = JSON.stringify({
-    sessionId: '66cbbc',
-    runId: 'verify-upload-req',
-    hypothesisId,
-    location: 'scripts/verify-upload-requirements.mjs',
-    message,
-    data,
-    timestamp: Date.now(),
-  });
-  appendFileSync(LOG, line + '\n');
-  console.log(message, JSON.stringify(data));
-}
 
 const pneumatic = deriveUploadRequirements({
   maskin: 'Manuell presse',
@@ -31,13 +14,13 @@ const electric = deriveUploadRequirements({
   installasjonsmiljo: 'Industrihall',
 });
 
-log('pneumatic ids', { ids: pneumatic.map((r) => r.id) }, 'P4-H1');
-log('electric ids', { ids: electric.map((r) => r.id) }, 'P4-H1');
+console.log('pneumatic ids', JSON.stringify({ ids: pneumatic.map((r) => r.id) }));
+console.log('electric ids', JSON.stringify({ ids: electric.map((r) => r.id) }));
 
 const pneumaticHasEmc = pneumatic.some((r) => r.id === 'emc_report');
 const electricHasEmc = electric.some((r) => r.id === 'emc_report');
 
-log('emc only on electric', { pneumaticHasEmc, electricHasEmc }, 'P4-H1');
+console.log('emc only on electric', JSON.stringify({ pneumaticHasEmc, electricHasEmc }));
 
 if (!pneumaticHasEmc && electricHasEmc && pneumatic.some((r) => r.id === 'cad_drawings')) {
   process.exit(0);

@@ -1,6 +1,5 @@
 /**
- * Kjør alle Prompt 4-verifikasjoner (skriver debug-66cbbc.log).
- * Exit 0 = alt OK.
+ * Kjør alle Prompt 4-verifikasjoner. Exit 0 = alt OK.
  */
 import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
