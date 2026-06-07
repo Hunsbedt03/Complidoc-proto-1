@@ -63,7 +63,7 @@ async function postGenerate(
   return lastRes!;
 }
 
-async function generateOne(
+export async function generateSingleDocument(
   machineData: string,
   documentId: DocumentId
 ): Promise<GeneratedDoc> {
@@ -161,7 +161,7 @@ export async function generateDocumentPackage(
     const batch = selected.slice(offset, offset + concurrency);
     const batchResults = await Promise.allSettled(
       batch.map(async (documentId) => {
-        const doc = await generateOne(machineData, documentId);
+        const doc = await generateSingleDocument(machineData, documentId);
         completed += 1;
         onProgress({
           stepIndex: completed,

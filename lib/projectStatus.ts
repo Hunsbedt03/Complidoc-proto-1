@@ -9,3 +9,10 @@ export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
 export function isProjectEditable(status: ProjectStatus): boolean {
   return status !== 'locked';
 }
+
+export function parseWorkflowStatus(value: unknown): ProjectStatus {
+  if (value === 'review' || value === 'locked' || value === 'draft') {
+    return value;
+  }
+  return 'draft';
+}

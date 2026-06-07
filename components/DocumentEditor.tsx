@@ -87,6 +87,13 @@ export function DocumentEditor({
             <button
               type="button"
               className="btn-dl"
+              onClick={() => editor?.chain().focus().toggleStrike().run()}
+            >
+              Stryk
+            </button>
+            <button
+              type="button"
+              className="btn-dl"
               onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}
             >
               H2
@@ -94,9 +101,37 @@ export function DocumentEditor({
             <button
               type="button"
               className="btn-dl"
+              onClick={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()}
+            >
+              H3
+            </button>
+            <button
+              type="button"
+              className="btn-dl"
               onClick={() => editor?.chain().focus().toggleBulletList().run()}
             >
-              Liste
+              Punktliste
+            </button>
+            <button
+              type="button"
+              className="btn-dl"
+              onClick={() => editor?.chain().focus().toggleOrderedList().run()}
+            >
+              Nummerert
+            </button>
+            <button
+              type="button"
+              className="btn-dl"
+              onClick={() => editor?.chain().focus().undo().run()}
+            >
+              Angre
+            </button>
+            <button
+              type="button"
+              className="btn-dl"
+              onClick={() => editor?.chain().focus().redo().run()}
+            >
+              Gjør om
             </button>
             <button
               type="button"

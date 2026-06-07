@@ -3,7 +3,8 @@ import type { MissingRequiredDoc } from './completeness';
 
 export function generateManglerTxt(
   missing: MissingRequiredDoc[],
-  projectLabel?: string
+  projectLabel?: string,
+  projectId?: string | null
 ): string {
   if (missing.length === 0) return '';
 
@@ -24,7 +25,11 @@ ${lines.join('\n')}
 Disse dokumentene må legges inn av bruker eller tredjepart.
 AI-genererte dokumenter er klare for gjennomgang.
 
-Last opp manglende dokumenter i Samsiq prosjektoversikten.
+${
+    projectId
+      ? `Last opp manglende dokumenter på: https://samsiq.no/app/output (prosjekt ${projectId})`
+      : 'Last opp manglende dokumenter i Samsiq prosjektoversikten.'
+  }
 `;
 }
 

@@ -20,7 +20,7 @@ import type { ProsjektSummary } from '@/lib/types';
 function workflowBadgeClass(status?: ProjectStatus): string {
   if (status === 'locked') return 'badge-done';
   if (status === 'review') return 'badge-review';
-  return 'badge-prog';
+  return 'badge-draft';
 }
 
 export function Dashboard() {

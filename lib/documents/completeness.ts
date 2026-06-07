@@ -184,7 +184,7 @@ export function computePackageCompleteness(
     percent,
     items,
     isComplete,
-    canExportZip: isComplete,
+    canExportZip: true,
     missingRequired,
     missingRequiredDocs,
     uploadRequirements,

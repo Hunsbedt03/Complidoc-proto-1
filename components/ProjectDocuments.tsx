@@ -46,9 +46,11 @@ export function ProjectDocuments({
     documentContents,
     saveDocumentEdit,
     setDocumentContent,
+    regenerateDocument,
   } = useGeneration();
   const [expandedId, setExpandedId] = useState<DocumentId | null>(null);
   const [docTab, setDocTab] = useState<'content' | 'history'>('content');
+  const [regenerating, setRegenerating] = useState<DocumentId | null>(null);
 
   const missingCount = completeness.missingRequired.length;
   const isComplete = completeness.isComplete;
@@ -56,7 +58,8 @@ export function ProjectDocuments({
   async function handleZipDownload() {
     const manglerTxt = generateManglerTxt(
       completeness.missingRequiredDocs,
-      form.prosjekt || form.maskin
+      form.prosjekt || form.maskin,
+      projectId
     );
     await downloadZipWithExtras(zipData, {
       manglerTxt: isComplete ? undefined : manglerTxt,
@@ -193,6 +196,22 @@ export function ProjectDocuments({
                         )
                       }
                       onCancel={() => setExpandedId(null)}
+                      onRegenerate={
+                        regenerating === doc.documentId
+                          ? undefined
+                          : () => {
+                              setRegenerating(doc.documentId);
+                              void regenerateDocument(doc.documentId)
+                                .catch((err) => {
+                                  alert(
+                                    err instanceof Error
+                                      ? err.message
+                                      : 'Regenerering feilet'
+                                  );
+                                })
+                                .finally(() => setRegenerating(null));
+                            }
+                      }
                     />
                   ) : (
                     <DocumentRevisionHistory

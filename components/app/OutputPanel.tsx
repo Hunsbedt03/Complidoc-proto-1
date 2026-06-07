@@ -19,6 +19,7 @@ import {
 } from '@/lib/localProjects';
 import { loadProjectSession } from '@/lib/projects';
 import { rebuildZipFromDocs } from '@/lib/rebuildZip';
+import { persistWorkflowStatus } from '@/lib/persistWorkflow';
 import { PROJECT_STATUS_LABELS, type ProjectStatus } from '@/lib/projectStatus';
 import { CORE_DOCUMENT_IDS } from '@/lib/documents/ids';
 import { EMPTY_FORM } from '@/lib/constants';
@@ -40,7 +41,7 @@ function StatusBadge({ status }: { status: ProjectStatus }) {
       ? 'badge-done'
       : status === 'review'
         ? 'badge-review'
-        : 'badge-prog';
+        : 'badge-draft';
   return (
     <span className={'badge ' + cls}>{PROJECT_STATUS_LABELS[status]}</span>
   );
@@ -66,7 +67,15 @@ export function OutputPanel() {
 
   function setWorkflowStatus(status: ProjectStatus) {
     setProjectStatus(status);
-    if (projectId) updateLocalProjectWorkflow(projectId, status, uploads);
+    if (projectId) {
+      updateLocalProjectWorkflow(projectId, status, uploads);
+      void persistWorkflowStatus(projectId, status);
+    }
+  }
+
+  function handleLock() {
+    lockProject(form.ingenior);
+    if (projectId) void persistWorkflowStatus(projectId, 'locked');
   }
 
   const documents =
@@ -198,7 +207,7 @@ export function OutputPanel() {
               projectStatus={projectStatus}
               completeness={completeness}
               engineerName={form.ingenior}
-              onLock={() => lockProject(form.ingenior)}
+              onLock={handleLock}
             />
           </>
         ) : null}

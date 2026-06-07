@@ -122,6 +122,7 @@ footer{padding:32px 40px;border-top:0.5px solid rgba(255,255,255,0.07);display:f
 .badge{font-size:11px;padding:3px 10px;border-radius:12px;font-weight:500;margin-left:auto;flex-shrink:0;}
 .badge-done{background:rgba(59,109,17,0.2);color:#97C459;}
 .badge-prog{background:rgba(133,79,11,0.2);color:#EF9F27;}
+.badge-draft{background:rgba(107,114,128,0.2);color:#9CA3AF;border:0.5px solid rgba(107,114,128,0.35);}
 .badge-new{background:rgba(26,111,212,0.15);color:#85B7EB;}
 .section-label{font-size:10px;font-weight:600;color:#4B5563;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px;}
 

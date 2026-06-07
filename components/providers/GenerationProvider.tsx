@@ -16,7 +16,9 @@ import {
 import type { DocumentId } from '@/lib/documents/ids';
 import { normalizeGeneratedDocs } from '@/lib/documents/ids';
 import { getCatalogDocument } from '@/lib/documents/catalog';
+import { buildMachineData, generateSingleDocument } from '@/lib/generate';
 import { updateLocalProjectWorkflow } from '@/lib/localProjects';
+import { rebuildZipFromDocs } from '@/lib/rebuildZip';
 import { appendRevision, seedInitialRevisions } from '@/lib/revisions';
 import type { ProjectStatus } from '@/lib/projectStatus';
 import type { GeneratedDoc, ProjectFormData, UploadSlot, ZipData } from '@/lib/types';
@@ -48,6 +50,7 @@ type GenerationContextValue = {
     editorName: string
   ) => void;
   setDocumentContent: (documentId: DocumentId, content: string) => void;
+  regenerateDocument: (documentId: DocumentId) => Promise<void>;
   setZipFromProject: (
     zip: ZipData,
     title: string,
@@ -144,6 +147,40 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
     setDocumentContents((prev) => ({ ...prev, [documentId]: content }));
   }, []);
 
+  const regenerateDocument = useCallback(
+    async (documentId: DocumentId) => {
+      if (!projectId || !lastForm || !zipData || projectStatus === 'locked') return;
+      const machineData = buildMachineData(lastForm);
+      const doc = await generateSingleDocument(machineData, documentId);
+      const def = getCatalogDocument(documentId);
+      const nextDocs = generatedDocuments.map((d) =>
+        d.documentId === documentId ? doc : d
+      );
+      const newZip = await rebuildZipFromDocs(nextDocs, zipData.filename);
+      setGeneratedDocuments(normalizeGeneratedDocs(nextDocs));
+      setZipData(newZip);
+      const html = `<h2>${def?.label ?? documentId}</h2><p>AI-regenerert ${new Date().toLocaleDateString('no-NO')}. Rediger for å tilpasse før endelig låsing.</p>`;
+      setDocumentContents((prev) => ({ ...prev, [documentId]: html }));
+      appendRevision({
+        projectId,
+        documentId,
+        content: html,
+        changeType: 'ai_regeneration',
+        changeNote: `Regenerert av bruker ${new Date().toLocaleDateString('no-NO')}`,
+        changedBy: 'samsiq-ai',
+        changedByName: lastForm.ingenior || 'Samsiq AI',
+        source: 'ai_regenerated',
+      });
+    },
+    [
+      projectId,
+      lastForm,
+      zipData,
+      projectStatus,
+      generatedDocuments,
+    ]
+  );
+
   const saveDocumentEdit = useCallback(
     (
       documentId: DocumentId,
@@ -213,6 +250,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
       lockProject,
       saveDocumentEdit,
       setDocumentContent,
+      regenerateDocument,
       setZipFromProject: (
         zip: ZipData,
         title: string,
@@ -258,6 +296,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
       lockProject,
       saveDocumentEdit,
       setDocumentContent,
+      regenerateDocument,
     ]
   );
 

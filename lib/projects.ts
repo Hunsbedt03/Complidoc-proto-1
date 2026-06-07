@@ -5,7 +5,7 @@ import { rebuildZipFromDocs } from './rebuildZip';
 import { normalizeDocumentId } from './documents/ids';
 import type { GeneratedDoc } from './types';
 import { projectFormFromMachineData } from './parseMachineData';
-import type { ProjectStatus } from './projectStatus';
+import { parseWorkflowStatus, type ProjectStatus } from './projectStatus';
 
 function throwClientError(step: string, err: unknown, extra?: Record<string, unknown>): never {
   console.error('[samsiq]', step, supabaseErrorFields(err), extra ?? '');
@@ -18,14 +18,30 @@ export async function loadProjects(
 ): Promise<ProsjektSummary[]> {
   const { data, error } = await supabase
     .from('prosjekter')
-    .select('id, navn, produsent, status, created_at, zip_filename')
+    .select('id, navn, produsent, status, created_at, zip_filename, workflow_status')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
     .limit(20);
   if (error) {
+    const msg = formatSupabaseError(error);
+    if (msg.includes('workflow_status') || msg.includes('42703')) {
+      const { data: fallback, error: fbErr } = await supabase
+        .from('prosjekter')
+        .select('id, navn, produsent, status, created_at, zip_filename')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(20);
+      if (fbErr) throwClientError('loadProjects', fbErr, { userId });
+      return fallback || [];
+    }
     throwClientError('loadProjects', error, { userId });
   }
-  return data || [];
+  return (data || []).map((row) => ({
+    ...row,
+    workflowStatus: parseWorkflowStatus(
+      (row as { workflow_status?: string }).workflow_status
+    ),
+  }));
 }
 
 export async function loadProjectZip(
@@ -87,7 +103,9 @@ export async function loadProjectSession(
 ): Promise<LoadedProjectSession | null> {
   const { data: prosjekt, error } = await supabase
     .from('prosjekter')
-    .select('navn, kunde, produsent, ingenior, machine_data, zip_base64, zip_filename')
+    .select(
+      'navn, kunde, produsent, ingenior, machine_data, zip_base64, zip_filename, workflow_status'
+    )
     .eq('id', projectId)
     .eq('user_id', userId)
     .single();
@@ -157,7 +175,9 @@ export async function loadProjectSession(
     form,
     documents,
     uploads,
-    workflowStatus: 'draft',
+    workflowStatus: parseWorkflowStatus(
+      (prosjekt as { workflow_status?: string }).workflow_status
+    ),
   };
 }
 
