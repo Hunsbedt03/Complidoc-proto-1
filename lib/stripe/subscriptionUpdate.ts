@@ -34,6 +34,15 @@ export function formatSubscriptionTrialEnd(
   return sub.trial_end ? new Date(sub.trial_end * 1000).toISOString() : null;
 }
 
+/** Stripe v22+ moved subscription ref from Invoice to parent.subscription_details. */
+export function getInvoiceSubscriptionId(
+  invoice: Stripe.Invoice
+): string | null {
+  const sub = invoice.parent?.subscription_details?.subscription;
+  if (!sub) return null;
+  return typeof sub === 'string' ? sub : sub.id;
+}
+
 export function subscriptionPatch(sub: Stripe.Subscription): SubscriptionUpdate {
   const priceId = sub.items.data[0]?.price?.id ?? '';
   const plan = getPlanFromPriceId(priceId);

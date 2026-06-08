@@ -1,8 +1,9 @@
 import { createServerClient } from '@supabase/ssr';
-import type { SupabaseClient } from '@supabase/supabase-js';
 import { NextResponse, type NextRequest } from 'next/server';
 
 const PUBLIC_APP_PATHS = ['/app/new', '/app/output', '/app/dashboard'];
+
+type MiddlewareSupabase = ReturnType<typeof createServerClient>;
 
 type CookieToSet = {
   name: string;
@@ -11,7 +12,7 @@ type CookieToSet = {
 };
 
 async function isOnboardingCompleted(
-  supabase: SupabaseClient,
+  supabase: MiddlewareSupabase,
   userId: string
 ): Promise<boolean> {
   const { data, error } = await supabase

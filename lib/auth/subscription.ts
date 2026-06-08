@@ -18,6 +18,7 @@ export type UserSubscriptionRow = {
   trial_end: string | null;
   subscription_period_end: string | null;
   stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
 };
 
 const ACTIVE_STATUSES = new Set<SubscriptionStatus>(['active', 'trialing']);
@@ -33,7 +34,7 @@ export async function fetchUserSubscription(
   const { data, error } = await supabase
     .from('users')
     .select(
-      'subscription_plan, subscription_status, projects_used_this_month, trial_end, subscription_period_end, stripe_customer_id'
+      'subscription_plan, subscription_status, projects_used_this_month, trial_end, subscription_period_end, stripe_customer_id, stripe_subscription_id'
     )
     .eq('id', userId)
     .maybeSingle();

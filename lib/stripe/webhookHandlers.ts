@@ -6,6 +6,7 @@ import { getPlanFromPriceId } from '@/lib/stripe/planFromPrice';
 import {
   formatSubscriptionPeriodEnd,
   formatSubscriptionTrialEnd,
+  getInvoiceSubscriptionId,
   persistUserSubscription,
   subscriptionPatch,
 } from '@/lib/stripe/subscriptionUpdate';
@@ -46,7 +47,7 @@ export async function handleSubscriptionCancelled(
 }
 
 export async function handlePaymentFailed(invoice: Stripe.Invoice): Promise<void> {
-  const subscriptionId = invoice.subscription as string | null;
+  const subscriptionId = getInvoiceSubscriptionId(invoice);
   if (!subscriptionId) return;
 
   const stripe = getStripe();
