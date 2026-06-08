@@ -25,6 +25,7 @@ type AuthContextValue = {
   projectsError: string | null;
   loading: boolean;
   refreshProjects: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
   hydrateCloudProjects: (cloud: ProsjektSummary[]) => void;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, fullName: string) => Promise<{ needsConfirmation: boolean }>;
@@ -187,6 +188,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [supabase, mergeWithLocal, fetchCloudProjects]);
 
+  const refreshProfile = useCallback(async () => {
+    const {
+      data: { user: currentUser },
+    } = await supabase.auth.getUser();
+    if (!currentUser) return;
+
+    const { data: profileData } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', currentUser.id)
+      .maybeSingle();
+
+    setProfile(
+      profileData || {
+        id: currentUser.id,
+        email: currentUser.email || '',
+        full_name: null,
+      }
+    );
+  }, [supabase]);
+
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user: currentUser } }) => {
       setUser(currentUser);
@@ -246,6 +268,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       projectsError,
       loading,
       refreshProjects,
+      refreshProfile,
       hydrateCloudProjects,
       signIn,
       signUp,
@@ -259,6 +282,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       projectsError,
       loading,
       refreshProjects,
+      refreshProfile,
       hydrateCloudProjects,
       signIn,
       signUp,

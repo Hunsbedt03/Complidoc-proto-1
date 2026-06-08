@@ -16,7 +16,7 @@ import {
 import type { DocumentId } from '@/lib/documents/ids';
 import { normalizeGeneratedDocs } from '@/lib/documents/ids';
 import { getCatalogDocument } from '@/lib/documents/catalog';
-import { buildMachineData, generateSingleDocument } from '@/lib/generate';
+import { buildMachineDataForGeneration, generateSingleDocument } from '@/lib/generate';
 import { updateLocalProjectWorkflow } from '@/lib/localProjects';
 import { rebuildZipFromDocs } from '@/lib/rebuildZip';
 import { appendRevision, seedInitialRevisions } from '@/lib/revisions';
@@ -151,7 +151,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
   const regenerateDocument = useCallback(
     async (documentId: DocumentId) => {
       if (!projectId || !lastForm || !zipData || projectStatus === 'locked') return;
-      const machineData = buildMachineData(lastForm);
+      const machineData = await buildMachineDataForGeneration(lastForm);
       const doc = await generateSingleDocument(machineData, documentId);
       const def = getCatalogDocument(documentId);
       const nextDocs = generatedDocuments.map((d) =>

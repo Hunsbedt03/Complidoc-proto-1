@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { LoadingOverlay } from '@/components/ui/LoadingOverlay';
@@ -26,13 +26,28 @@ import {
 
 export function ProjectForm() {
   const router = useRouter();
-  const { user, bedriftId, refreshProjects } = useAuth();
+  const { user, profile, bedriftId, refreshProjects } = useAuth();
   const { setResult, syncProjectId } = useGeneration();
 
   const [form, setForm] = useState<ProjectFormData>({ ...EMPTY_FORM });
   const [selectedDocuments, setSelectedDocuments] = useState<DocumentId[]>(() =>
     getDefaultSelectedDocuments()
   );
+  useEffect(() => {
+    if (!user) return;
+    void fetch('/api/company-profile')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json: { profile?: { companyName?: string; responsibleEngineer?: string } } | null) => {
+        const cp = json?.profile;
+        if (!cp) return;
+        setForm((prev) => ({
+          ...prev,
+          produsent: prev.produsent || cp.companyName || '',
+          ingenior: prev.ingenior || cp.responsibleEngineer || profile?.full_name || '',
+        }));
+      });
+  }, [user, profile?.full_name]);
+
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState({
     stepIndex: 0,

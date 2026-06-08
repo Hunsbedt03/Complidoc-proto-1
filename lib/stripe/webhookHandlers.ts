@@ -4,6 +4,8 @@ import type Stripe from 'stripe';
 import { getStripe } from '@/lib/stripe/client';
 import { getPlanFromPriceId } from '@/lib/stripe/planFromPrice';
 import {
+  formatSubscriptionPeriodEnd,
+  formatSubscriptionTrialEnd,
   persistUserSubscription,
   subscriptionPatch,
 } from '@/lib/stripe/subscriptionUpdate';
@@ -38,9 +40,7 @@ export async function handleSubscriptionCancelled(
   await persistUserSubscription(userId, {
     subscription_status: 'canceled',
     subscription_plan: 'free',
-    subscription_period_end: sub.current_period_end
-      ? new Date(sub.current_period_end * 1000).toISOString()
-      : null,
+    subscription_period_end: formatSubscriptionPeriodEnd(sub),
     trial_end: null,
   });
 }
@@ -58,11 +58,7 @@ export async function handlePaymentFailed(invoice: Stripe.Invoice): Promise<void
   await persistUserSubscription(userId, {
     subscription_status: 'past_due',
     subscription_plan: plan === 'free' ? 'free' : plan,
-    subscription_period_end: sub.current_period_end
-      ? new Date(sub.current_period_end * 1000).toISOString()
-      : null,
-    trial_end: sub.trial_end
-      ? new Date(sub.trial_end * 1000).toISOString()
-      : null,
+    subscription_period_end: formatSubscriptionPeriodEnd(sub),
+    trial_end: formatSubscriptionTrialEnd(sub),
   });
 }

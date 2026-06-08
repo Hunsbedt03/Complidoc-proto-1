@@ -13,6 +13,27 @@ export type SubscriptionUpdate = {
   trial_end: string | null;
 };
 
+/** Period end lives on SubscriptionItem since Stripe Basil (SDK v22+). */
+export function getSubscriptionPeriodEndUnix(
+  sub: Stripe.Subscription
+): number | null {
+  const fromItem = sub.items?.data?.[0]?.current_period_end;
+  return typeof fromItem === 'number' ? fromItem : null;
+}
+
+export function formatSubscriptionPeriodEnd(
+  sub: Stripe.Subscription
+): string | null {
+  const unix = getSubscriptionPeriodEndUnix(sub);
+  return unix ? new Date(unix * 1000).toISOString() : null;
+}
+
+export function formatSubscriptionTrialEnd(
+  sub: Stripe.Subscription
+): string | null {
+  return sub.trial_end ? new Date(sub.trial_end * 1000).toISOString() : null;
+}
+
 export function subscriptionPatch(sub: Stripe.Subscription): SubscriptionUpdate {
   const priceId = sub.items.data[0]?.price?.id ?? '';
   const plan = getPlanFromPriceId(priceId);
@@ -21,12 +42,8 @@ export function subscriptionPatch(sub: Stripe.Subscription): SubscriptionUpdate 
     stripe_subscription_id: sub.id,
     subscription_status: sub.status,
     subscription_plan: plan === 'free' ? 'free' : plan,
-    subscription_period_end: sub.current_period_end
-      ? new Date(sub.current_period_end * 1000).toISOString()
-      : null,
-    trial_end: sub.trial_end
-      ? new Date(sub.trial_end * 1000).toISOString()
-      : null,
+    subscription_period_end: formatSubscriptionPeriodEnd(sub),
+    trial_end: formatSubscriptionTrialEnd(sub),
   };
 }
 

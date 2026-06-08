@@ -265,9 +265,12 @@ function parseMachineData(raw) {
 
 // ─── Bygg kontekststreng for prompts ─────────────────────────────────────────
 function buildContext(machineData) {
+  const companyNote = String(machineData).includes('PRODUSENT / BEDRIFT')
+    ? '\nVIKTIG: Produsentinformasjon under «PRODUSENT / BEDRIFT» skal brukes nøyaktig i dokumentet, spesielt i samsvarserklæringen.\n'
+    : '';
   return `=== MASKINDATA FRA BRUKER ===
 ${machineData}
-=== SLUTT MASKINDATA ===`;
+=== SLUTT MASKINDATA ===${companyNote}`;
 }
 
 // ─── AI-generering ───────────────────────────────────────────────────────────

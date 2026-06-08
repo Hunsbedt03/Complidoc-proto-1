@@ -8,6 +8,7 @@ import { useAuth, useUserInitials } from '@/components/providers/AuthProvider';
 const NAV = [
   { href: '/app/dashboard', label: 'Oversikt', id: 'dashboard' },
   { href: '/app/new', label: 'Nytt prosjekt', id: 'new' },
+  { href: '/app/settings', label: 'Innstillinger', id: 'settings' },
 ];
 
 export function AppSidebar() {
@@ -90,6 +91,12 @@ export function AppTopbar({ title, subtitle }: { title: string; subtitle: string
 }
 
 export function AppNav({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+
+  if (pathname?.startsWith('/app/onboarding')) {
+    return <>{children}</>;
+  }
+
   return (
     <div id="app-page">
       <nav>

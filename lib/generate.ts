@@ -5,7 +5,27 @@ import { getGeneratableIds } from './documents/catalog';
 import { getDocumentDefinition, resolveApiDocType } from './documents/registry';
 import { getDefaultSelectedDocuments } from './documents/registry';
 import { formatApiError } from './parseJsonResponse';
-import type { GeneratedDoc, ProjectFormData, ZipData } from './types';
+import { appendCompanyContext } from './companyProfile';
+import type { CompanyProfile, GeneratedDoc, ProjectFormData, ZipData } from './types';
+
+export async function fetchCompanyProfileClient(): Promise<CompanyProfile | null> {
+  try {
+    const res = await fetch('/api/company-profile');
+    if (!res.ok) return null;
+    const json = (await res.json()) as { profile?: CompanyProfile | null };
+    return json.profile ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function buildMachineDataForGeneration(
+  form: ProjectFormData,
+  companyProfile?: CompanyProfile | null
+): Promise<string> {
+  const profile = companyProfile ?? (await fetchCompanyProfileClient());
+  return appendCompanyContext(buildMachineData(form), profile);
+}
 
 export function buildMachineData(form: ProjectFormData): string {
   return `Maskin: ${form.maskin}
@@ -165,7 +185,7 @@ export async function generateDocumentPackage(
 
   await assertPackageAllowed();
 
-  const machineData = buildMachineData(form);
+  const machineData = await buildMachineDataForGeneration(form);
   const selected = getGeneratableIds(normalizeSelectedDocuments(form));
   const total = selected.length;
   const safeSerial = (form.serienr || form.maskin).replace(/[^a-zA-Z0-9]/g, '_');

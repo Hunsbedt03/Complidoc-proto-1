@@ -23,6 +23,7 @@ export const PANEL_TITLES: Record<string, [string, string]> = {
   dashboard: ['Oversikt', 'Dine prosjekter'],
   new: ['Nytt prosjekt', 'Fyll inn maskindata for å generere dokumentpakke'],
   output: ['Dokumentpakke klar', 'Last ned og signer'],
+  settings: ['Innstillinger', 'Konto og bedriftsinformasjon'],
 };
 
 export const EMPTY_FORM = {

@@ -62,6 +62,7 @@ export type UserProfile = {
   id: string;
   email: string;
   full_name: string | null;
+  onboarding_completed?: boolean | null;
   stripe_customer_id?: string | null;
   stripe_subscription_id?: string | null;
   subscription_status?: string | null;
@@ -69,6 +70,20 @@ export type UserProfile = {
   subscription_period_end?: string | null;
   trial_end?: string | null;
   projects_used_this_month?: number | null;
+};
+
+export type CompanyProfile = {
+  companyName: string;
+  orgNumber: string;
+  address: string;
+  postalCode: string;
+  city: string;
+  country: string;
+  responsibleEngineer: string;
+  engineerTitle: string;
+  phone: string;
+  website?: string;
+  logoUrl?: string;
 };
 
 export type UploadSlot = {
