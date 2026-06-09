@@ -5,6 +5,9 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { CompletenessBar } from '@/components/CompletenessIndicator';
 import { ArchiveWarningBanner } from '@/components/archive/ArchiveWarningBanner';
+import { CertificationExpiryBanner } from '@/components/settings/CertificationExpiryBanner';
+import { getExpiringCertifications } from '@/lib/companyProfile/extended';
+import type { CompanyProfile } from '@/lib/types';
 import {
   SubscriptionBanner,
   isSubscriptionActive,
@@ -49,10 +52,30 @@ export function Dashboard() {
   const [subscriptionLoading, setSubscriptionLoading] = useState(false);
   const [pendingActivation, setPendingActivation] = useState(paymentSuccess);
   const [activationConfirmed, setActivationConfirmed] = useState(false);
+  const [companyProfile, setCompanyProfile] = useState<CompanyProfile | null>(
+    null
+  );
+
+  const expiringCerts = useMemo(
+    () => getExpiringCertifications(companyProfile?.certifications ?? []),
+    [companyProfile?.certifications]
+  );
 
   useEffect(() => {
     setLocalProjects(listLocalProjects());
   }, []);
+
+  useEffect(() => {
+    if (!user) {
+      setCompanyProfile(null);
+      return;
+    }
+    void fetch('/api/company-profile')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json: { profile?: CompanyProfile | null } | null) => {
+        setCompanyProfile(json?.profile ?? null);
+      });
+  }, [user]);
 
   useEffect(() => {
     if (!user) {
@@ -231,6 +254,8 @@ export function Dashboard() {
 
   return (
     <>
+      <CertificationExpiryBanner expiringCerts={expiringCerts} />
+
       <SubscriptionBanner
         data={subscription}
         loading={subscriptionLoading}

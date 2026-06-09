@@ -89,6 +89,21 @@ export type UserProfile = {
   projects_used_this_month?: number | null;
 };
 
+export type CompanyCertificationStandard =
+  | ISOCertification
+  | 'iso_50001'
+  | 'iso_22000';
+
+export type CompanyCertification = {
+  standard: CompanyCertificationStandard;
+  certBody?: string;
+  certNumber?: string;
+  issuedDate?: string;
+  expiryDate?: string;
+  scope?: string;
+  certificateFileUrl?: string;
+};
+
 export type CompanyProfile = {
   companyName: string;
   orgNumber: string;
@@ -101,6 +116,16 @@ export type CompanyProfile = {
   phone: string;
   website?: string;
   logoUrl?: string;
+  industrySector?: string;
+  typicalMachineTypes?: string[];
+  typicalInstallationEnv?: string[];
+  primaryMarkets?: string[];
+  certifications?: CompanyCertification[];
+  preferredStandards?: string[];
+  defaultResponsibleEngineer?: string;
+  defaultMarket?: string;
+  defaultInstallationEnv?: string;
+  profileCompleteness?: number;
 };
 
 export type UploadSlot = {

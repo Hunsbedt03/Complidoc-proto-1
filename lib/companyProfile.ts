@@ -1,4 +1,5 @@
-import type { CompanyProfile } from '@/lib/types';
+import { calculateProfileCompleteness } from '@/lib/companyProfile/extended';
+import type { CompanyCertification, CompanyProfile } from '@/lib/types';
 
 export function buildCompanyContextBlock(profile: CompanyProfile): string {
   const lines = [
@@ -41,7 +42,27 @@ export type DbCompanyProfile = {
   phone: string | null;
   website: string | null;
   logo_url: string | null;
+  industry_sector?: string | null;
+  typical_machine_types?: string[] | null;
+  typical_installation_env?: string[] | null;
+  primary_markets?: string[] | null;
+  certifications?: CompanyCertification[] | null;
+  preferred_standards?: string[] | null;
+  default_responsible_engineer?: string | null;
+  default_market?: string | null;
+  default_installation_env?: string | null;
+  profile_completeness?: number | null;
 };
+
+function parseCertifications(raw: unknown): CompanyCertification[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter(
+    (c): c is CompanyCertification =>
+      typeof c === 'object' &&
+      c !== null &&
+      typeof (c as CompanyCertification).standard === 'string'
+  );
+}
 
 export function mapDbToCompanyProfile(row: DbCompanyProfile): CompanyProfile {
   return {
@@ -56,6 +77,16 @@ export function mapDbToCompanyProfile(row: DbCompanyProfile): CompanyProfile {
     phone: row.phone ?? '',
     website: row.website ?? undefined,
     logoUrl: row.logo_url ?? undefined,
+    industrySector: row.industry_sector ?? undefined,
+    typicalMachineTypes: row.typical_machine_types ?? [],
+    typicalInstallationEnv: row.typical_installation_env ?? [],
+    primaryMarkets: row.primary_markets ?? ['eu_eea'],
+    certifications: parseCertifications(row.certifications),
+    preferredStandards: row.preferred_standards ?? [],
+    defaultResponsibleEngineer: row.default_responsible_engineer ?? undefined,
+    defaultMarket: row.default_market ?? 'EU / EØS — Norge',
+    defaultInstallationEnv: row.default_installation_env ?? undefined,
+    profileCompleteness: row.profile_completeness ?? 0,
   };
 }
 
@@ -63,6 +94,7 @@ export function mapCompanyProfileToDb(
   userId: string,
   profile: CompanyProfile
 ): Omit<DbCompanyProfile, 'id' | 'created_at' | 'updated_at'> {
+  const completeness = calculateProfileCompleteness(profile).percent;
   return {
     user_id: userId,
     company_name: profile.companyName.trim(),
@@ -76,6 +108,19 @@ export function mapCompanyProfileToDb(
     phone: profile.phone.trim() || null,
     website: profile.website?.trim() || null,
     logo_url: profile.logoUrl || null,
+    industry_sector: profile.industrySector || null,
+    typical_machine_types: profile.typicalMachineTypes ?? [],
+    typical_installation_env: profile.typicalInstallationEnv ?? [],
+    primary_markets: profile.primaryMarkets?.length
+      ? profile.primaryMarkets
+      : ['eu_eea'],
+    certifications: profile.certifications ?? [],
+    preferred_standards: profile.preferredStandards ?? [],
+    default_responsible_engineer:
+      profile.defaultResponsibleEngineer?.trim() || null,
+    default_market: profile.defaultMarket?.trim() || 'EU / EØS — Norge',
+    default_installation_env: profile.defaultInstallationEnv?.trim() || null,
+    profile_completeness: completeness,
   };
 }
 
@@ -105,4 +150,11 @@ export const EMPTY_COMPANY_PROFILE: CompanyProfile = {
   responsibleEngineer: '',
   engineerTitle: '',
   phone: '',
+  typicalMachineTypes: [],
+  typicalInstallationEnv: [],
+  primaryMarkets: ['eu_eea'],
+  certifications: [],
+  preferredStandards: [],
+  defaultMarket: 'EU / EØS — Norge',
+  profileCompleteness: 0,
 };

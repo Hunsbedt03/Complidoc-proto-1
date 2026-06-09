@@ -7,7 +7,13 @@ import {
   daysUntilReview,
 } from '@/lib/archive/completeness';
 import { normalizeArchiveTypeId } from '@/lib/archive/normalize';
-import { getArchiveEligibleDocuments } from '@/lib/archive/eligible';
+import {
+  filterArchiveEligibleByProfile,
+  getArchiveEligibleDocuments,
+  getVisibleArchiveFilterTabs,
+} from '@/lib/archive/eligible';
+import { profileIsoStandards } from '@/lib/companyProfile/extended';
+import type { CompanyProfile } from '@/lib/types';
 import { ARCHIVE_CATEGORY_LABELS, ARCHIVE_FILTER_TABS } from '@/lib/archive/types';
 import type { ArchiveDocument } from '@/lib/archive/types';
 import type { ArchiveCoverageGroup } from '@/lib/archive/completeness';
@@ -35,8 +41,29 @@ export function ArchivePage() {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [presetType, setPresetType] = useState<string | undefined>();
   const [replaceDoc, setReplaceDoc] = useState<ArchiveDocument | undefined>();
+  const [companyProfile, setCompanyProfile] = useState<CompanyProfile | null>(
+    null
+  );
 
-  const eligible = useMemo(() => getArchiveEligibleDocuments(), []);
+  const profileCerts = companyProfile?.certifications ?? [];
+  const registeredIso = useMemo(
+    () => profileIsoStandards(profileCerts),
+    [profileCerts]
+  );
+
+  const eligible = useMemo(
+    () =>
+      filterArchiveEligibleByProfile(
+        getArchiveEligibleDocuments(),
+        profileCerts
+      ),
+    [profileCerts]
+  );
+
+  const visibleTabs = useMemo(
+    () => getVisibleArchiveFilterTabs(profileCerts),
+    [profileCerts]
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -52,15 +79,29 @@ export function ArchivePage() {
       setCompanyProfileId(json.companyProfileId ?? null);
       const merged = mergeLocalArchiveList(companyId, json.documents ?? []);
       setDocuments(merged);
-      setCoverage(computeArchiveCoverage(merged));
+      setCoverage(computeArchiveCoverage(merged, registeredIso));
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, registeredIso]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    void fetch('/api/company-profile')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json: { profile?: CompanyProfile | null } | null) => {
+        setCompanyProfile(json?.profile ?? null);
+      });
+  }, []);
+
+  useEffect(() => {
+    if (!visibleTabs.some((t) => t.id === filter)) {
+      setFilter('all');
+    }
+  }, [visibleTabs, filter]);
 
   const activeByType = useMemo(
     () => archiveActiveByType(documents),
@@ -128,6 +169,13 @@ export function ArchivePage() {
         </button>
       </div>
 
+      {!profileCerts.length ? (
+        <p className="archive-info-banner">
+          ℹ️ Legg til ISO-sertifiseringer i Innstillinger for å se relevante
+          dokumentkrav.
+        </p>
+      ) : null}
+
       {coverage.length > 0 ? (
         <section className="archive-coverage">
           <h3 className="archive-section-title">Kompletthetsgrad</h3>
@@ -171,7 +219,7 @@ export function ArchivePage() {
       </div>
 
       <div className="archive-filter-tabs">
-        {ARCHIVE_FILTER_TABS.map((tab) => (
+        {visibleTabs.map((tab) => (
           <button
             key={tab.id}
             type="button"

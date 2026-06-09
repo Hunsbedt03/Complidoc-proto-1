@@ -37,12 +37,17 @@ export function archiveActiveByType(
 }
 
 export function computeArchiveCoverage(
-  archiveDocs: ArchiveDocument[]
+  archiveDocs: ArchiveDocument[],
+  registeredCerts?: ISOCertification[]
 ): ArchiveCoverageGroup[] {
   const active = archiveActiveByType(archiveDocs);
   const eligible = getArchiveEligibleDocuments();
+  const groups =
+    registeredCerts?.length
+      ? ISO_GROUPS.filter((g) => registeredCerts.includes(g.cert))
+      : ISO_GROUPS;
 
-  return ISO_GROUPS.map(({ cert, label }) => {
+  return groups.map(({ cert, label }) => {
     const required = eligible.filter((d) => d.isoScope?.includes(cert));
     const missing: string[] = [];
     let complete = 0;

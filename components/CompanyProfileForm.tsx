@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { EMPTY_COMPANY_PROFILE } from '@/lib/companyProfile';
 import type { CompanyProfile } from '@/lib/types';
 
@@ -31,6 +31,17 @@ export function CompanyProfileForm({
   );
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (existingProfile) {
+      setProfile({
+        ...EMPTY_COMPANY_PROFILE,
+        ...existingProfile,
+        country: existingProfile.country ?? 'Norge',
+      });
+      setLogoPreview(existingProfile.logoUrl);
+    }
+  }, [existingProfile]);
 
   function update<K extends keyof CompanyProfile>(key: K, value: CompanyProfile[K]) {
     setProfile((prev) => ({ ...prev, [key]: value }));

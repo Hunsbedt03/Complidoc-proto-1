@@ -25,7 +25,8 @@ import type { AutoLinkResult } from '@/lib/archive/types';
 import { getLocalCompanyId } from '@/lib/localArchive';
 import { deriveRequirements } from '@/lib/documents/requirements';
 import { projectInputFromForm } from '@/lib/projectInput';
-import type { ProjectFormData } from '@/lib/types';
+import { projectDefaultsFromProfile } from '@/lib/companyProfile/extended';
+import type { CompanyProfile, ProjectFormData } from '@/lib/types';
 import { DocumentChecklist } from '@/components/DocumentChecklist';
 import { CertificationMultiSelect } from '@/components/ui/CertificationMultiSelect';
 import type { ISOCertification } from '@/lib/documents/types';
@@ -47,13 +48,26 @@ export function ProjectForm() {
     if (!user) return;
     void fetch('/api/company-profile')
       .then((r) => (r.ok ? r.json() : null))
-      .then((json: { profile?: { companyName?: string; responsibleEngineer?: string } } | null) => {
+      .then((json: { profile?: CompanyProfile | null } | null) => {
         const cp = json?.profile;
         if (!cp) return;
+        const defaults = projectDefaultsFromProfile(cp);
         setForm((prev) => ({
           ...prev,
-          produsent: prev.produsent || cp.companyName || '',
-          ingenior: prev.ingenior || cp.responsibleEngineer || profile?.full_name || '',
+          produsent: prev.produsent || defaults.produsent,
+          ingenior:
+            prev.ingenior ||
+            defaults.ingenior ||
+            profile?.full_name ||
+            '',
+          marked: prev.marked || defaults.marked,
+          installasjonsmiljo:
+            prev.installasjonsmiljo || defaults.installasjonsmiljo,
+          standarder: prev.standarder || defaults.standarder,
+          certifications:
+            prev.certifications?.length
+              ? prev.certifications
+              : defaults.certifications,
         }));
       });
   }, [user, profile?.full_name]);
