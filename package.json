@@ -6,7 +6,7 @@
     "dev": "node scripts/dev-reset.mjs && next dev",
     "dev:quick": "next dev",
     "dev:reset": "node scripts/dev-reset.mjs && next dev",
-    "build": "node scripts/assert-vercel-config.mjs && node scripts/assert-edge-middleware.mjs && next build",
+    "build": "node scripts/remove-legacy-public-index.mjs && node scripts/assert-vercel-config.mjs && node scripts/assert-edge-middleware.mjs && next build",
     "start": "next start",
     "lint": "next lint",
     "setup:check": "node scripts/verify-supabase-setup.mjs",

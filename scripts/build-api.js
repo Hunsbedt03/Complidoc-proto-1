@@ -7,17 +7,8 @@ const entry = path.join(root, 'api', 'generate.source.js');
 const outdir = path.join(root, 'api', 'generate');
 const outfile = path.join(outdir, 'index.js');
 const legacyFile = path.join(root, 'api', 'generate.js');
-const indexHtml = path.join(root, 'index.html');
-const publicDir = path.join(root, 'public');
-const publicIndex = path.join(publicDir, 'index.html');
-
 if (!fs.existsSync(entry)) {
   console.error('[build-api] missing:', entry);
-  process.exit(1);
-}
-
-if (!fs.existsSync(indexHtml)) {
-  console.error('[build-api] FATAL: index.html missing — include it in your deploy');
   process.exit(1);
 }
 
@@ -47,11 +38,4 @@ if (sizeKb < 200) {
   process.exit(1);
 }
 
-fs.mkdirSync(publicDir, { recursive: true });
-fs.copyFileSync(indexHtml, publicIndex);
-console.log('[build-api] wrote public/index.html (' + fs.statSync(publicIndex).size + ' bytes)');
-
-if (!fs.existsSync(publicIndex)) {
-  console.error('[build-api] FATAL: failed to create public/index.html');
-  process.exit(1);
-}
+// Legacy SPA (index.html) is no longer published to public/ — Next.js App Router owns /app/*.

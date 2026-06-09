@@ -1,8 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
-const PUBLIC_APP_PATHS = ['/app/new', '/app/output', '/app/dashboard'];
-
 type MiddlewareSupabase = ReturnType<typeof createServerClient>;
 
 type CookieToSet = {
@@ -63,9 +61,6 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
-  const isPublicApp = PUBLIC_APP_PATHS.some(
-    (p) => pathname === p || pathname.startsWith(`${p}/`)
-  );
   const isOnboardingRoute = pathname.startsWith('/app/onboarding');
 
   if (user && pathname.startsWith('/app')) {
@@ -86,7 +81,7 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  if (!user && pathname.startsWith('/app') && !isPublicApp) {
+  if (!user && pathname.startsWith('/app')) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     url.searchParams.set('redirect', pathname);

@@ -37,9 +37,7 @@
   };
 
   window.showApp = function () {
-    document.documentElement.dataset.view = 'app';
-    applyPanel('new');
-    window.scrollTo(0, 0);
+    window.location.href = '/login?redirect=/app/new';
   };
 
   window.showPanel = function (name) {
@@ -57,8 +55,8 @@
   });
 
   document.addEventListener('DOMContentLoaded', function () {
-    if ((location.hash === '#app' || location.hash === '#new') && window.SamsiqAuth && window.SamsiqAuth.isLoggedIn()) {
-      showApp(true);
+    if (location.hash === '#app' || location.hash === '#new') {
+      window.location.replace('/login?redirect=/app/new');
     }
   });
 })();
@@ -358,7 +356,7 @@ html[data-view="app"] #app-page{display:block!important;}
         <div class="price-badge">Mest populær</div>
         <div class="price-name">Pro</div>
         <div class="price-desc">For voksende bedrifter</div>
-        <div><span class="price-amount">3 990</span><span class="price-period"> kr/mnd</span></div>
+        <div><span class="price-amount">2 490</span><span class="price-period"> kr/mnd</span></div>
         <div class="price-divider"></div>
         <div class="price-feature"><div class="pf-check"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#1A6FD4" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>Ubegrenset dokumentpakker</div>
         <div class="price-feature"><div class="pf-check"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#1A6FD4" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>10 brukere</div>

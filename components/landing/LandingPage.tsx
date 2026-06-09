@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { Logo } from '@/components/ui/Logo';
+import { PLANS, formatNok } from '@/lib/plans';
 
 function CheckIcon() {
   return (
@@ -146,37 +147,40 @@ export function LandingPage() {
         <h2>Enkel, forutsigbar prising</h2>
         <p className="section-sub">Velg planen som passer din bedrift. Ingen skjulte kostnader.</p>
         <div className="pricing-grid">
-          <div className="price-card">
-            <div className="price-name">Starter</div>
-            <div className="price-desc">For små bedrifter</div>
-            <div>
-              <span className="price-amount">990</span>
-              <span className="price-period"> kr/mnd</span>
-            </div>
-            <div className="price-divider" />
-            <div className="price-feature">
-              <div className="pf-check">
-                <CheckIcon />
+          {(['starter', 'pro'] as const).map((planId) => {
+            const plan = PLANS[planId];
+            const featured = planId === 'pro';
+            return (
+              <div key={planId} className={'price-card' + (featured ? ' featured' : '')}>
+                {featured ? <div className="price-badge">Mest populær</div> : null}
+                <div className="price-name">{plan.name}</div>
+                <div className="price-desc">
+                  {planId === 'starter' ? 'For små bedrifter' : 'For voksende bedrifter'}
+                </div>
+                <div>
+                  <span className="price-amount">
+                    {formatNok(plan.monthlyPrice).replace(' kr', '')}
+                  </span>
+                  <span className="price-period"> kr/mnd</span>
+                </div>
+                <div className="price-divider" />
+                {planId === 'starter' ? (
+                  <div className="price-feature">
+                    <div className="pf-check">
+                      <CheckIcon />
+                    </div>
+                    5 dokumentpakker/mnd
+                  </div>
+                ) : null}
+                <Link
+                  href="/priser"
+                  className={'price-btn ' + (featured ? 'btn-filled' : 'btn-outline')}
+                >
+                  {featured ? 'Start gratis prøveperiode' : 'Kom i gang'}
+                </Link>
               </div>
-              5 dokumentpakker/mnd
-            </div>
-            <Link href="/priser" className="price-btn btn-outline">
-              Kom i gang
-            </Link>
-          </div>
-          <div className="price-card featured">
-            <div className="price-badge">Mest populær</div>
-            <div className="price-name">Pro</div>
-            <div className="price-desc">For voksende bedrifter</div>
-            <div>
-              <span className="price-amount">2 490</span>
-              <span className="price-period"> kr/mnd</span>
-            </div>
-            <div className="price-divider" />
-            <Link href="/priser" className="price-btn btn-filled">
-              Start gratis prøveperiode
-            </Link>
-          </div>
+            );
+          })}
           <div className="price-card">
             <div className="price-name">Enterprise</div>
             <div className="price-desc">For store organisasjoner</div>
