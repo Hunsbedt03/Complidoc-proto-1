@@ -162,14 +162,16 @@ export async function findActiveArchiveDoc(
   };
 }
 
-function formToPayload(form: ProjectFormData) {
+export function formToPayload(form: ProjectFormData) {
   const raw = form.selectedDocuments ?? CORE_DOCUMENT_IDS;
   const selectedAi = raw.filter(
     (id) => getCatalogDocument(id)?.sourceType === 'ai_generated'
   ) as DocumentId[];
-  const selectedHybrid = raw.filter(
-    (id) => getCatalogDocument(id)?.sourceType === 'hybrid'
-  ) as DocumentId[];
+  const selectedHybrid =
+    form.selectedHybrid ??
+    (raw.filter(
+      (id) => getCatalogDocument(id)?.sourceType === 'hybrid'
+    ) as DocumentId[]);
   return { selectedAi, selectedHybrid };
 }
 

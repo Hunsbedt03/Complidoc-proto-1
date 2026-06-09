@@ -34,6 +34,8 @@ export type ProjectFormData = {
   standarder: string;
   marked: string;
   selectedDocuments?: DocumentId[];
+  /** Hybrid-dokumenter valgt i prosjektskjemaet (avledes fra selectedDocuments hvis utelatt). */
+  selectedHybrid?: DocumentId[];
   certifications?: ISOCertification[];
   addedDocuments?: DocumentId[];
 };
@@ -150,7 +152,6 @@ export type SaveProjectPayload = ProjectFormData & {
   zipFilename: string;
   zipBase64: string;
   documents: GeneratedDoc[];
-  selectedHybrid?: DocumentId[];
   uploads?: UploadSlot[];
   workflowStatus?: ProjectStatus;
   completenessPercent?: number;

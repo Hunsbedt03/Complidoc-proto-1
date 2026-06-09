@@ -2,10 +2,7 @@ import 'server-only';
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { deriveRequirements } from '@/lib/documents/requirements';
-import { getCatalogDocument } from '@/lib/documents/catalog';
 import { projectInputFromForm } from '@/lib/projectInput';
-import { CORE_DOCUMENT_IDS } from '@/lib/documents/ids';
-import type { DocumentId } from '@/lib/documents/ids';
 import type { SaveProjectPayload } from '@/lib/types';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isArchiveEligibleId } from './eligible';
@@ -14,6 +11,7 @@ import type { DbArchiveRow } from './mappers';
 import {
   buildTypesToLink,
   enrichFormForSync,
+  formToPayload,
   matchArchiveRowFromCache,
 } from './syncLinks';
 import type { AutoLinkResult, ProjectArchiveLink } from './types';
@@ -53,17 +51,8 @@ export async function autoLinkArchiveDocuments(
   const activeArchive = (allActiveRows ?? []) as DbArchiveRow[];
   const enrichedPayload = enrichFormForSync(payload, activeArchive);
 
-  const raw = enrichedPayload.selectedDocuments ?? CORE_DOCUMENT_IDS;
-  const selectedAi = raw.filter(
-    (id) => getCatalogDocument(id)?.sourceType === 'ai_generated'
-  ) as DocumentId[];
-  const selectedHybrid =
-    enrichedPayload.selectedHybrid ??
-    (raw.filter(
-      (id) => getCatalogDocument(id)?.sourceType === 'hybrid'
-    ) as DocumentId[]);
-
   const projectInput = projectInputFromForm(enrichedPayload);
+  const { selectedAi, selectedHybrid } = formToPayload(enrichedPayload);
   const required = deriveRequirements(projectInput, selectedAi, selectedHybrid);
   const archiveEligible = required.filter((d) => isArchiveEligibleId(d.id));
 
