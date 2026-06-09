@@ -15,6 +15,8 @@ type Props = {
   slot: UploadSlot | undefined;
   onUploadComplete: (slot: UploadSlot) => void;
   disabled?: boolean;
+  /** Kun drop-sone uten overskrift (under arkiv-varsel) */
+  compact?: boolean;
 };
 
 function extOf(name: string): string {
@@ -28,6 +30,7 @@ export function DocumentUploadSlot({
   slot,
   onUploadComplete,
   disabled = false,
+  compact = false,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -106,6 +109,7 @@ export function DocumentUploadSlot({
     <div
       className={
         'upload-slot ' +
+        (compact ? 'upload-slot--compact ' : '') +
         (showUploaded
           ? 'upload-slot--ok'
           : showError
@@ -115,22 +119,44 @@ export function DocumentUploadSlot({
               : 'upload-slot--empty')
       }
     >
-      <div className="upload-slot-head">
-        <span className="upload-slot-title">
-          📎 {requirement.label}
-        </span>
-        <span
-          className={
-            requirement.required ? 'upload-slot-req' : 'upload-slot-optional'
-          }
-        >
-          {requirement.required ? 'Påkrevd' : 'Anbefalt'}
-        </span>
-      </div>
-      <p className="upload-slot-desc">{requirement.description}</p>
-      <p className="upload-slot-reason">
-        <span className="upload-slot-reason-icon">ℹ️</span> {requirement.reason}
-      </p>
+      {!compact ? (
+        <>
+          <div className="upload-slot-head">
+            <span className="upload-slot-title">
+              📎 {requirement.label}
+            </span>
+            <span
+              className={
+                requirement.required ? 'upload-slot-req' : 'upload-slot-optional'
+              }
+            >
+              {requirement.required ? 'Påkrevd' : 'Anbefalt'}
+            </span>
+          </div>
+          <p className="upload-slot-desc">{requirement.description}</p>
+          <p className="upload-slot-reason">
+            <span className="upload-slot-reason-icon">ℹ️</span> {requirement.reason}
+          </p>
+        </>
+      ) : (
+        <p className="upload-slot-compact-label">Kun dette prosjektet:</p>
+      )}
+
+      {!compact && requirement.requiredContent?.length ? (
+        <div className="upload-slot-required-content">
+          <p className="upload-slot-required-title">Må inneholde:</p>
+          <ul className="upload-slot-required-list">
+            {requirement.requiredContent.map((item) => (
+              <li key={item} className="upload-slot-required-item">
+                <span className="upload-slot-required-check" aria-hidden>
+                  ✓
+                </span>
+                {item}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       {uploading ? (
         <div className="upload-slot-progress">

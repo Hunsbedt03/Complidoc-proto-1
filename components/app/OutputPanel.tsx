@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { ArchiveSyncButton } from '@/components/archive/ArchiveSyncButton';
 import { LockProjectButton } from '@/components/LockProjectButton';
 import { ProjectActivityLog } from '@/components/ProjectActivityLog';
 import { ProjectDocuments } from '@/components/ProjectDocuments';
@@ -17,6 +18,11 @@ import {
   resolveStoredDocuments,
   updateLocalProjectWorkflow,
 } from '@/lib/localProjects';
+import {
+  fetchSyncedArchiveLinks,
+  mergeArchiveLinks,
+} from '@/lib/archive/clientSync';
+import { restoreProjectArchiveLinks } from '@/lib/archive/restoreLinks';
 import { loadProjectSession } from '@/lib/projects';
 import { rebuildZipFromDocs } from '@/lib/rebuildZip';
 import { persistWorkflowStatus } from '@/lib/persistWorkflow';
@@ -61,6 +67,9 @@ export function OutputPanel() {
     lockProject,
     projectId,
     setZipFromProject,
+    addDocumentToProject,
+    archiveLinks,
+    setArchiveLinks,
   } = useGeneration();
 
   const [restoring, setRestoring] = useState(false);
@@ -81,7 +90,35 @@ export function OutputPanel() {
   const documents =
     generatedDocuments.length > 0 ? generatedDocuments : FALLBACK_DOCS;
   const form = lastForm ?? { ...EMPTY_FORM };
-  const completeness = usePackageCompleteness(form, documents, uploads);
+  const completeness = usePackageCompleteness(
+    form,
+    documents,
+    uploads,
+    false,
+    archiveLinks
+  );
+
+  useEffect(() => {
+    if (!projectId || !lastForm) return;
+
+    let cancelled = false;
+    void (async () => {
+      const { links: synced } = await fetchSyncedArchiveLinks(projectId, lastForm);
+      if (cancelled) return;
+
+      if (synced.length) {
+        setArchiveLinks(synced);
+        return;
+      }
+
+      const restored = restoreProjectArchiveLinks(projectId, lastForm);
+      if (restored.length) setArchiveLinks(restored);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, lastForm, setArchiveLinks]);
 
   useEffect(() => {
     if (zipData) return;
@@ -112,12 +149,26 @@ export function OutputPanel() {
 
         if (cancelled) return;
 
+        let archiveLinks = restoreProjectArchiveLinks(
+          local.id,
+          local.payload,
+          local.payload.archiveLinks
+        );
+        const { links: synced } = await fetchSyncedArchiveLinks(
+          local.id,
+          local.payload
+        );
+        if (synced.length) {
+          archiveLinks = mergeArchiveLinks(archiveLinks, synced);
+        }
+
         setZipFromProject(zip, local.payload.prosjekt || session.outputTitle, {
           form: local.payload,
           documents,
           projectId: local.id,
           status: local.payload.workflowStatus ?? session.projectStatus,
           uploads: local.payload.uploads ?? [],
+          archiveLinks,
         });
         setRestoring(false);
         return;
@@ -134,6 +185,20 @@ export function OutputPanel() {
           session.projectId
         );
         if (cloud && !cancelled) {
+          let cloudArchiveLinks: typeof archiveLinks = [];
+          const { links: synced } = await fetchSyncedArchiveLinks(
+            cloud.projectId,
+            cloud.form
+          );
+          if (synced.length) {
+            cloudArchiveLinks = synced;
+          } else {
+            cloudArchiveLinks = restoreProjectArchiveLinks(
+              cloud.projectId,
+              cloud.form
+            );
+          }
+
           setZipFromProject(
             { zip: cloud.zip, filename: cloud.filename },
             cloud.title,
@@ -143,6 +208,7 @@ export function OutputPanel() {
               projectId: cloud.projectId,
               status: cloud.workflowStatus,
               uploads: cloud.uploads,
+              archiveLinks: cloudArchiveLinks,
             }
           );
           setRestoring(false);
@@ -184,6 +250,12 @@ export function OutputPanel() {
       </div>
 
       <div className="output-workflow">
+        <ArchiveSyncButton
+          projectId={projectId}
+          form={form}
+          onLinksUpdated={setArchiveLinks}
+          disabled={projectStatus === 'locked'}
+        />
         {projectStatus !== 'locked' ? (
           <>
             {projectStatus === 'draft' ? (
@@ -217,9 +289,12 @@ export function OutputPanel() {
         form={form}
         generatedDocuments={documents}
         uploads={uploads}
+        archiveLinks={archiveLinks}
         projectId={projectId}
         projectStatus={projectStatus}
         onUploadChange={setUpload}
+        onAddDocument={addDocumentToProject}
+        onArchiveLinksChange={setArchiveLinks}
       />
 
       <ProjectDocuments

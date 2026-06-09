@@ -1,13 +1,12 @@
 import type { DocumentId } from './ids';
 import { CORE_DOCUMENT_IDS, normalizeGeneratedDocs } from './ids';
-import { getCatalogDocument, getVisibleCatalog } from './catalog';
-import type { ProjectInput } from './suggest';
-import {
-  deriveUploadRequirements,
-  type UploadRequirement,
-} from './uploadRequirements';
-import type { UploadSlot } from '../types';
-import type { GeneratedDoc } from '../types';
+import { getCatalogDocument } from './catalog';
+import type { ProjectContext } from './types';
+import { CATEGORY_LABELS, type DocumentCategory } from './types';
+import { deriveRequirements, catalogToUploadRequirement } from './requirements';
+import type { UploadRequirement } from './uploadRequirements';
+import type { GeneratedDoc, ProjectArchiveLink, UploadSlot } from '../types';
+import { isArchiveEligibleId } from '../archive/eligible';
 
 export type CompletenessItem = {
   documentId: string;
@@ -16,6 +15,15 @@ export type CompletenessItem = {
   required: boolean;
   status: 'complete' | 'generating' | 'missing' | 'uploaded' | 'template_ready';
   detail: string;
+  category: DocumentCategory;
+};
+
+export type CategoryCompleteness = {
+  category: DocumentCategory;
+  label: string;
+  complete: number;
+  total: number;
+  percent: number;
 };
 
 export type MissingRequiredDoc = {
@@ -31,6 +39,7 @@ export type PackageCompleteness = {
   complete: number;
   percent: number;
   items: CompletenessItem[];
+  categories: CategoryCompleteness[];
   isComplete: boolean;
   canExportZip: boolean;
   missingRequired: string[];
@@ -49,30 +58,87 @@ function isUploadDone(status: UploadSlot['status']): boolean {
   return status === 'uploaded';
 }
 
+function isItemComplete(item: CompletenessItem): boolean {
+  return (
+    item.status === 'complete' ||
+    item.status === 'uploaded' ||
+    (item.sourceType === 'hybrid' &&
+      item.status === 'template_ready' &&
+      !item.required)
+  );
+}
+
+export function computeCategoryCompleteness(
+  items: CompletenessItem[]
+): CategoryCompleteness[] {
+  const byCat = new Map<DocumentCategory, CompletenessItem[]>();
+  for (const item of items) {
+    const list = byCat.get(item.category) ?? [];
+    list.push(item);
+    byCat.set(item.category, list);
+  }
+
+  return [...byCat.entries()]
+    .map(([category, catItems]) => {
+      const requiredItems = catItems.filter((i) => i.required);
+      const pool = requiredItems.length ? requiredItems : catItems;
+      const complete = pool.filter(isItemComplete).length;
+      const total = pool.length;
+      return {
+        category,
+        label: CATEGORY_LABELS[category] ?? category,
+        complete,
+        total,
+        percent: total > 0 ? Math.round((complete / total) * 100) : 0,
+      };
+    })
+    .filter((c) => c.total > 0)
+    .sort((a, b) => a.label.localeCompare(b.label, 'nb'));
+}
+
 export function computePackageCompleteness(
-  input: ProjectInput,
+  input: ProjectContext,
   selectedAi: DocumentId[],
   selectedHybrid: DocumentId[],
   generatedDocs: GeneratedDoc[],
   uploads: UploadSlot[],
-  generating = false
+  generating = false,
+  archiveLinks: ProjectArchiveLink[] = []
 ): PackageCompleteness {
-  const visible = getVisibleCatalog(input);
+  const archiveByType = new Map(
+    archiveLinks.map((l) => [l.documentTypeId.trim().toLowerCase(), l])
+  );
   const normalizedDocs = normalizeGeneratedDocs(generatedDocs);
   const generatedIds = new Set(normalizedDocs.map((d) => d.documentId));
-  const uploadRequirements = deriveUploadRequirements(input);
+  const requirements = deriveRequirements(input, selectedAi, selectedHybrid);
+  const uploadRequirements = requirements
+    .filter((d) => d.sourceType === 'user_upload')
+    .map(catalogToUploadRequirement);
 
-  const aiAndHybrid = visible.filter((d) => {
-    if (d.sourceType === 'ai_generated') {
-      return CORE_DOCUMENT_IDS.includes(d.id) || selectedAi.includes(d.id);
-    }
-    if (d.sourceType === 'hybrid') {
-      return d.required || selectedHybrid.includes(d.id);
-    }
-    return false;
-  });
+  const items: CompletenessItem[] = requirements.map((def) => {
+    const category = def.category;
 
-  const aiItems: CompletenessItem[] = aiAndHybrid.map((def) => {
+    if (def.sourceType === 'user_upload') {
+      const up = uploadStatus(def.id, uploads);
+      const fromArchive =
+        isArchiveEligibleId(def.id) &&
+        archiveByType.has(def.id.trim().toLowerCase());
+      const uploaded = isUploadDone(up) || fromArchive;
+      return {
+        documentId: def.id,
+        label: def.label,
+        sourceType: 'user_upload' as const,
+        required: def.required,
+        status: uploaded ? 'uploaded' : 'missing',
+        detail: fromArchive && !isUploadDone(up)
+          ? 'Fra bedriftsarkiv'
+          : uploaded
+            ? 'Lastet opp'
+            : 'Mangler opplasting',
+        category,
+      };
+    }
+
     if (def.sourceType === 'hybrid') {
       const up = uploadStatus(def.id, uploads);
       const tpl = generatedIds.has(def.id);
@@ -84,6 +150,7 @@ export function computePackageCompleteness(
           required: def.required,
           status: 'uploaded' as const,
           detail: 'Ferdig versjon lastet opp',
+          category,
         };
       }
       if (tpl) {
@@ -94,6 +161,7 @@ export function computePackageCompleteness(
           required: def.required,
           status: 'template_ready' as const,
           detail: 'Mal klar — venter på signering/opplasting',
+          category,
         };
       }
       return {
@@ -105,8 +173,10 @@ export function computePackageCompleteness(
         detail: selectedHybrid.includes(def.id)
           ? 'Mal ikke generert ennå'
           : 'Ikke valgt',
+        category,
       };
     }
+
     const done = generatedIds.has(def.id);
     return {
       documentId: def.id,
@@ -123,35 +193,14 @@ export function computePackageCompleteness(
         : generating
           ? 'AI — genererer'
           : 'AI — mangler',
+      category,
     };
   });
 
-  const uploadItems: CompletenessItem[] = uploadRequirements.map((req) => {
-    const up = uploadStatus(req.id, uploads);
-    return {
-      documentId: req.id,
-      label: req.label,
-      sourceType: 'user_upload' as const,
-      required: req.required,
-      status: isUploadDone(up) ? 'uploaded' : 'missing',
-      detail: isUploadDone(up) ? 'Lastet opp' : 'Mangler opplasting',
-    };
-  });
-
-  const items = [...aiItems, ...uploadItems];
-
-  const complete = items.filter(
-    (i) =>
-      i.status === 'complete' ||
-      i.status === 'uploaded' ||
-      (i.sourceType === 'hybrid' && i.status === 'template_ready' && !i.required)
-  ).length;
+  const complete = items.filter(isItemComplete).length;
 
   const missingItems = items.filter(
-    (i) =>
-      i.required &&
-      i.status !== 'complete' &&
-      i.status !== 'uploaded'
+    (i) => i.required && !isItemComplete(i)
   );
   const missingRequired = missingItems.map((i) => i.label);
   const missingRequiredDocs: MissingRequiredDoc[] = missingItems.map((i) => {
@@ -160,15 +209,13 @@ export function computePackageCompleteness(
     return {
       documentId: i.documentId,
       label: i.label,
-      directive: uploadReq?.directive ?? catalog?.directive,
+      directive: uploadReq?.directive ?? catalog?.directive ?? catalog?.standard,
     };
   });
 
   const requiredTotal = items.filter((i) => i.required).length;
   const requiredComplete = items.filter(
-    (i) =>
-      i.required &&
-      (i.status === 'complete' || i.status === 'uploaded')
+    (i) => i.required && isItemComplete(i)
   ).length;
 
   const percent =
@@ -177,12 +224,14 @@ export function computePackageCompleteness(
       : Math.round((complete / Math.max(items.length, 1)) * 100);
 
   const isComplete = missingRequired.length === 0;
+  const categories = computeCategoryCompleteness(items);
 
   return {
     total: items.length,
     complete,
     percent,
     items,
+    categories,
     isComplete,
     canExportZip: true,
     missingRequired,
@@ -230,8 +279,16 @@ export function getCompletenessSummary(
   return `Mangler ${n} obligatorisk${n === 1 ? '' : 'e'} dokument${n === 1 ? '' : 'er'} — utkast kan lastes ned`;
 }
 
-export function getRequiredUploadIds(input: ProjectInput): string[] {
-  return deriveUploadRequirements(input)
-    .filter((r) => r.required)
+export function getRequiredUploadIds(
+  input: ProjectContext,
+  selectedAi?: DocumentId[],
+  selectedHybrid?: DocumentId[]
+): string[] {
+  return deriveRequirements(
+    input,
+    selectedAi ?? CORE_DOCUMENT_IDS,
+    selectedHybrid ?? []
+  )
+    .filter((r) => r.sourceType === 'user_upload' && r.required)
     .map((r) => r.id);
 }

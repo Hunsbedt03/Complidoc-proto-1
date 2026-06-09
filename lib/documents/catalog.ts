@@ -1,201 +1,232 @@
 import type { DocumentId } from './ids';
-import type { DocumentSourceType } from './source';
-import type { ProjectInput } from './suggest';
+import type { CatalogDocument, DocumentCategory, ProjectContext } from './types';
+import { EXTENDED_CATALOG } from './catalogExtended';
 
-export type CatalogDocument = {
-  id: DocumentId;
-  label: string;
-  labelEN?: string;
-  sourceType: DocumentSourceType;
-  required: boolean;
-  directive?: string;
-  description: string;
-  acceptedFormats?: string[];
-  zipOrder: number;
-  outputFormat: 'docx';
-  showWhen?: (input: ProjectInput) => boolean;
-};
+export type { CatalogDocument } from './types';
 
-function marketMatch(input: ProjectInput, keywords: string[]): boolean {
+function marketMatch(input: ProjectContext, keywords: string[]): boolean {
   const m = (input.marked ?? '').toLowerCase();
   return keywords.some((k) => m.includes(k));
 }
 
-export const ALL_DOCUMENTS: CatalogDocument[] = [
+const BASE_DOCUMENTS: CatalogDocument[] = [
   {
     id: 'risk_assessment',
     label: 'Risikovurdering',
     labelEN: 'Risk Assessment',
+    category: 'risk_assessment',
     sourceType: 'ai_generated',
     required: true,
-    directive: 'EN ISO 12100:2010',
+    standard: 'EN ISO 12100:2010',
     description: 'Genereres automatisk basert på maskindata og fareidentifikasjon',
+    reason: 'Påkrevd risikovurdering etter EN ISO 12100 for alle maskiner',
     zipOrder: 1,
     outputFormat: 'docx',
   },
   {
     id: 'technical_file',
-    label: 'Teknisk konstruksjonsfil (tekstdel)',
+    label: 'Teknisk beskrivelse og funksjon',
+    labelEN: 'Technical Description',
+    category: 'technical_file',
     sourceType: 'ai_generated',
     required: true,
-    directive: '2006/42/EF Vedlegg VII',
+    directive: '2006/42/EF Vedlegg VII A',
     description: 'Maskinbeskrivelse, funksjon og driftsgrenser',
+    reason: 'Kjernedokument i teknisk fil under Maskindirektivet',
     zipOrder: 2,
     outputFormat: 'docx',
   },
   {
     id: 'declaration_of_conformity',
-    label: 'EF-Samsvarserklæring',
+    label: 'EU-samsvarserklæring',
     labelEN: 'Declaration of Conformity',
+    category: 'conformity',
     sourceType: 'ai_generated',
     required: true,
     directive: '2006/42/EF Vedlegg II A',
     description: 'Genereres med produsentinfo og relevante direktiver',
+    reason: 'Juridisk påkrevd før CE-merking og markedsføring',
+    retentionYears: 10,
     zipOrder: 3,
     outputFormat: 'docx',
   },
   {
     id: 'qc_checklist',
     label: 'QC-sjekkliste',
+    category: 'production_quality',
     sourceType: 'ai_generated',
     required: true,
     description: 'Kvalitetskontroll ved produksjon og leveranse',
+    reason: 'Dokumenterer at kvalitetskontroll er utført før leveranse',
+    isoScope: ['iso_9001'],
     zipOrder: 4,
     outputFormat: 'docx',
   },
   {
     id: 'hazard_register',
     label: 'Fareregister',
+    category: 'risk_assessment',
     sourceType: 'ai_generated',
     required: true,
     description: 'Identifiserte farer med tiltak og restrisiko',
+    reason: 'Supplerer risikovurderingen med strukturert fareoversikt',
     zipOrder: 12,
     outputFormat: 'docx',
   },
   {
     id: 'harmonized_standards_matrix',
     label: 'Harmonisert standardliste',
+    category: 'technical_file',
     sourceType: 'ai_generated',
     required: true,
     description: 'Harmoniserte standarder med samsvarsbegrunnelse',
+    reason: 'Viser hvilke harmoniserte standarder som er anvendt',
     zipOrder: 8,
     outputFormat: 'docx',
   },
   {
     id: 'user_manual_no',
     label: 'Brukerhåndbok (NO)',
+    category: 'user_documentation',
     sourceType: 'ai_generated',
     required: true,
     directive: '2006/42/EF Vedlegg I §1.7.4',
     description: 'Komplett brukermanual på norsk',
+    reason: 'Påkrevd brukerdokumentasjon på nasjonalt språk',
     zipOrder: 20,
     outputFormat: 'docx',
   },
   {
     id: 'user_manual_en',
     label: 'Brukerhåndbok (EN)',
+    category: 'user_documentation',
     sourceType: 'ai_generated',
     required: false,
     description: 'Komplett brukermanual på engelsk',
+    reason: 'Anbefalt for eksport og internasjonale markeder',
     zipOrder: 21,
     outputFormat: 'docx',
   },
   {
     id: 'maintenance_manual',
     label: 'Vedlikeholdsmanual',
+    category: 'user_documentation',
     sourceType: 'ai_generated',
-    required: false,
+    required: true,
     description: 'Serviceintervaller, smøreplan og forebyggende vedlikehold',
+    reason: 'Sikrer trygg og korrekt vedlikehold gjennom maskinens levetid',
     zipOrder: 23,
     outputFormat: 'docx',
   },
   {
     id: 'installation_manual',
     label: 'Installasjonsmanual',
+    category: 'user_documentation',
     sourceType: 'ai_generated',
-    required: false,
+    required: true,
     description: 'Montasje, løft, fundamentering og idriftsettelse',
+    reason: 'Korrekt installasjon er forutsetning for sikker drift',
     zipOrder: 22,
     outputFormat: 'docx',
   },
   {
     id: 'fmea',
     label: 'FMEA',
+    category: 'risk_assessment',
     sourceType: 'ai_generated',
     required: false,
     description: 'Feilmodus- og konsekvensanalyse',
+    reason: 'Anbefalt for systematisk analyse av feilmodus',
     zipOrder: 10,
     outputFormat: 'docx',
   },
   {
     id: 'warning_signs_spec',
-    label: 'Advarselsteksttabell',
+    label: 'Advarselsskilt og piktogramspesifikasjon',
+    category: 'safety_marking',
     sourceType: 'ai_generated',
-    required: false,
+    required: true,
+    standard: 'ISO 11684',
     description: 'Advarselsskilt og tekster (ISO 11684)',
+    reason: 'Sikkerhetsmerking skal være i samsvar med ISO 11684',
     zipOrder: 31,
     outputFormat: 'docx',
   },
   {
     id: 'function_description',
     label: 'Funksjonsbeskrivelse og driftsgrenser',
+    category: 'technical_file',
     sourceType: 'ai_generated',
-    required: false,
+    required: true,
     zipOrder: 5,
     outputFormat: 'docx',
     description: 'Funksjon, kapasitet og grenser for maskinen',
+    reason: 'Definerer hva maskinen er beregnet for og ikke beregnet for',
   },
   {
     id: 'safety_function_analysis',
     label: 'Safety function-analyse (PL/SIL)',
+    category: 'risk_assessment',
     sourceType: 'ai_generated',
     required: false,
+    standard: 'EN ISO 13849 / IEC 62061',
     zipOrder: 11,
     outputFormat: 'docx',
     description: 'Sikkerhetsfunksjoner etter EN ISO 13849 / IEC 62061',
+    reason: 'Kreves når maskinen har sikkerhetsrelaterte styresystemer',
   },
   {
     id: 'emergency_stop_analysis',
     label: 'Nødstoppanalyse',
+    category: 'risk_assessment',
     sourceType: 'ai_generated',
     required: false,
     zipOrder: 13,
     outputFormat: 'docx',
     description: 'Nødstopp og sikkerhetskrets',
+    reason: 'Dokumenterer nødstoppfunksjon og responstid',
   },
   {
     id: 'operator_safety_instructions',
     label: 'Sikkerhetsinstruksjoner for operatør',
+    category: 'safety_marking',
     sourceType: 'ai_generated',
-    required: false,
+    required: true,
     zipOrder: 32,
     outputFormat: 'docx',
     description: 'Sikkerhetsregler før og under drift',
+    reason: 'Operatør må kjenne sikkerhetsregler før oppstart',
   },
   {
     id: 'cad_drawings',
     label: 'Konstruksjonstegninger (CAD)',
+    category: 'technical_file',
     sourceType: 'user_upload',
     required: true,
     directive: '2006/42/EF Vedlegg VII',
     description: 'Generell-, detalj- og monteringstegninger (PDF, DWG, STEP)',
+    requiredContent: ['Generell tegning', 'Detaljering av sikkerhetsfunksjoner', 'Monteringstegning'],
     acceptedFormats: ['pdf', 'dwg', 'dxf', 'step', 'png'],
+    reason: 'Påkrevd for alle maskiner under Maskindirektivet',
     zipOrder: 70,
     outputFormat: 'docx',
   },
   {
     id: 'material_certificates',
-    label: 'Materialsertifikater',
+    label: 'Materialsertifikater (EN 10204)',
+    category: 'production_quality',
     sourceType: 'user_upload',
     required: false,
     description: 'EN 10204 3.1 eller 3.2 for strukturelle komponenter',
     acceptedFormats: ['pdf'],
+    reason: 'Dokumenterer materialkvalitet for lastbærende komponenter',
     zipOrder: 71,
     outputFormat: 'docx',
   },
   {
     id: 'lab_test_reports',
     label: 'Laboratorietestrapporter',
+    category: 'production_quality',
     sourceType: 'user_upload',
     required: false,
     description: 'EMC, støy, vibrasjon fra akkreditert lab',
@@ -206,98 +237,171 @@ export const ALL_DOCUMENTS: CatalogDocument[] = [
       (i.drivsystem ?? '').toLowerCase().includes('v') ||
       (i.drivsystem ?? '').toLowerCase().includes('kw') ||
       (i.drivsystem ?? '').toLowerCase().includes('elektr'),
+    reason: 'Tredjeparts testrapporter styrker samsvarsbegrunnelsen',
   },
   {
     id: 'weld_certificates',
-    label: 'Sveisesertifikater / NDT-protokoller',
+    label: 'Sveisesertifikater (WPS/WPQR)',
+    category: 'production_quality',
     sourceType: 'user_upload',
     required: false,
+    standard: 'EN ISO 15614',
     description: 'WPS og NDT-resultater',
     acceptedFormats: ['pdf'],
+    reason: 'Anbefalt for maskiner med sveiste lastbærende konstruksjoner',
     zipOrder: 73,
     outputFormat: 'docx',
   },
   {
     id: 'notified_body_cert',
     label: 'Notified Body-sertifikat',
+    category: 'conformity',
     sourceType: 'user_upload',
     required: false,
+    directive: '2006/42/EF Vedlegg IX',
     description: 'EU-typeeksaminering (Notified Body)',
     acceptedFormats: ['pdf'],
+    reason: 'Kreves ved involvering av Notified Body',
     zipOrder: 74,
     outputFormat: 'docx',
   },
   {
     id: 'fat_report',
-    label: 'FAT-rapport (Factory Acceptance Test)',
+    label: 'FAT-rapport med bilder',
+    category: 'production_quality',
     sourceType: 'user_upload',
     required: false,
     description: 'Testrapport og bilder fra akseptansetest',
     acceptedFormats: ['pdf', 'jpg', 'png', 'zip'],
+    reason: 'Dokumenterer at maskinen er testet før leveranse',
     zipOrder: 75,
     outputFormat: 'docx',
   },
   {
     id: 'component_datasheets',
     label: 'Komponentdatablader',
+    category: 'technical_file',
     sourceType: 'user_upload',
     required: false,
     description: 'Leverandørdokumentasjon for kritiske komponenter',
     acceptedFormats: ['pdf', 'zip'],
+    reason: 'Underbygger valg av sikkerhetskritiske komponenter',
     zipOrder: 76,
     outputFormat: 'docx',
   },
   {
     id: 'fem_analysis',
     label: 'FEM/FEA-analyse',
+    category: 'technical_file',
     sourceType: 'user_upload',
     required: false,
     description: 'Elementmetodeanalyse for strukturell integritet',
     acceptedFormats: ['pdf'],
+    reason: 'Verifiserer strukturell styrke ved beregningsbasert design',
     zipOrder: 77,
     outputFormat: 'docx',
   },
   {
     id: 'test_protocol',
     label: 'Testprotokoll',
+    category: 'production_quality',
     sourceType: 'hybrid',
     required: false,
     description: 'Samsiq genererer skjema — du fyller inn måleresultater',
     acceptedFormats: ['pdf', 'docx'],
+    reason: 'Strukturert testprotokoll med måleresultater',
     zipOrder: 80,
     outputFormat: 'docx',
   },
   {
     id: 'fat_checklist',
     label: 'FAT-protokoll / akseptansesjekkliste',
+    category: 'production_quality',
     sourceType: 'hybrid',
     required: false,
     description: 'Samsiq genererer sjekkliste — signeres etter test',
     acceptedFormats: ['pdf', 'docx'],
+    reason: 'Systematisk gjennomgang ved factory acceptance test',
     zipOrder: 81,
     outputFormat: 'docx',
   },
   {
     id: 'inspection_report',
-    label: 'Inspeksjonsrapport',
+    label: 'Inspeksjonsrapport (tredjepart)',
+    category: 'production_quality',
     sourceType: 'hybrid',
     required: false,
     description: 'Samsiq lager mal — du legger til funn og signaturer',
     acceptedFormats: ['pdf', 'docx'],
+    reason: 'Uavhengig inspeksjon styrker tillit til produktet',
     zipOrder: 82,
     outputFormat: 'docx',
   },
   {
     id: 'noise_vibration_sheet',
     label: 'Støy- og vibrasjonsmåleskjema',
+    category: 'safety_marking',
     sourceType: 'hybrid',
     required: false,
     description: 'Måleprotokoll — lab eller bruker fyller inn verdier',
     acceptedFormats: ['pdf', 'docx', 'xlsx'],
+    reason: 'Støy og vibrasjon skal måles og deklareres der relevant',
     zipOrder: 83,
     outputFormat: 'docx',
   },
+  {
+    id: 'rohs_declaration',
+    label: 'RoHS-samsvarserklæring',
+    category: 'product_compliance',
+    sourceType: 'ai_generated',
+    required: false,
+    description: 'Erklæring om begrensning av farlige stoffer i EE-utstyr',
+    reason: 'Elektroniske komponenter må oppfylle RoHS',
+    zipOrder: 127,
+    outputFormat: 'docx',
+    showWhen: (i) => marketMatch(i, ['eu', 'eøs', 'eos', 'norge']),
+  },
+  {
+    id: 'quality_control_plan',
+    label: 'Kvalitetskontrollplan',
+    category: 'production_quality',
+    sourceType: 'ai_generated',
+    required: false,
+    description: 'Plan for inspeksjon og kontroll under produksjon',
+    reason: 'Strukturerer QC-aktiviteter i produksjonsfasen',
+    zipOrder: 90,
+    outputFormat: 'docx',
+  },
+  {
+    id: 'fabrication_drawing_list',
+    label: 'Tegningsliste produksjon',
+    category: 'technical_file',
+    sourceType: 'user_upload',
+    required: false,
+    description: 'Oversikt over alle produksjonstegninger',
+    acceptedFormats: ['pdf'],
+    reason: 'Sikrer at riktige tegninger brukes i produksjon',
+    zipOrder: 91,
+    outputFormat: 'docx',
+  },
+  {
+    id: 'welding_procedures',
+    label: 'Sveiseprosedyrer',
+    category: 'production_quality',
+    sourceType: 'user_upload',
+    required: false,
+    description: 'WPS-dokumentasjon for sveisearbeid',
+    acceptedFormats: ['pdf'],
+    reason: 'Kontrollert sveising krever dokumenterte prosedyrer',
+    zipOrder: 92,
+    outputFormat: 'docx',
+  },
 ];
+
+const extendedIds = new Set(EXTENDED_CATALOG.map((d) => d.id));
+const mergedBase = BASE_DOCUMENTS.filter((d) => !extendedIds.has(d.id));
+
+export const ALL_DOCUMENTS: CatalogDocument[] = [...mergedBase, ...EXTENDED_CATALOG];
 
 export const CATALOG_BY_ID: Record<string, CatalogDocument> = Object.fromEntries(
   ALL_DOCUMENTS.map((d) => [d.id, d])
@@ -307,13 +411,13 @@ export function getCatalogDocument(id: DocumentId): CatalogDocument | undefined 
   return CATALOG_BY_ID[id];
 }
 
-export function getVisibleCatalog(input: ProjectInput): CatalogDocument[] {
+export function getVisibleCatalog(input: ProjectContext): CatalogDocument[] {
   return ALL_DOCUMENTS.filter((d) => !d.showWhen || d.showWhen(input));
 }
 
 export function getDocumentsBySource(
-  sourceType: DocumentSourceType,
-  input: ProjectInput
+  sourceType: CatalogDocument['sourceType'],
+  input: ProjectContext
 ): CatalogDocument[] {
   return getVisibleCatalog(input).filter((d) => d.sourceType === sourceType);
 }
@@ -323,4 +427,10 @@ export function getGeneratableIds(ids: DocumentId[]): DocumentId[] {
     const d = getCatalogDocument(id);
     return d?.sourceType === 'ai_generated' || d?.sourceType === 'hybrid';
   });
+}
+
+export function getDocumentsByCategory(
+  category: DocumentCategory
+): CatalogDocument[] {
+  return ALL_DOCUMENTS.filter((d) => d.category === category);
 }

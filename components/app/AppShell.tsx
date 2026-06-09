@@ -7,6 +7,7 @@ import { useAuth, useUserInitials } from '@/components/providers/AuthProvider';
 
 const NAV = [
   { href: '/app/dashboard', label: 'Oversikt', id: 'dashboard' },
+  { href: '/app/archive', label: 'Arkiv', id: 'archive' },
   { href: '/app/new', label: 'Nytt prosjekt', id: 'new' },
   { href: '/app/settings', label: 'Innstillinger', id: 'settings' },
 ];

@@ -8,13 +8,19 @@ import {
 } from '@/lib/documents/completeness';
 import { projectInputFromForm } from '@/lib/projectInput';
 import { CORE_DOCUMENT_IDS } from '@/lib/documents/ids';
-import type { GeneratedDoc, ProjectFormData, UploadSlot } from '@/lib/types';
+import type {
+  GeneratedDoc,
+  ProjectArchiveLink,
+  ProjectFormData,
+  UploadSlot,
+} from '@/lib/types';
 
 export function usePackageCompleteness(
   form: ProjectFormData,
   generatedDocuments: GeneratedDoc[],
   uploads: UploadSlot[],
-  generating = false
+  generating = false,
+  archiveLinks: ProjectArchiveLink[] = []
 ): PackageCompleteness {
   const projectInput = useMemo(() => projectInputFromForm(form), [form]);
 
@@ -38,7 +44,8 @@ export function usePackageCompleteness(
         selectedHybrid,
         generatedDocuments,
         uploads,
-        generating
+        generating,
+        archiveLinks
       ),
     [
       projectInput,
@@ -47,6 +54,7 @@ export function usePackageCompleteness(
       generatedDocuments,
       uploads,
       generating,
+      archiveLinks,
     ]
   );
 }

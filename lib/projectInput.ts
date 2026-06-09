@@ -10,5 +10,7 @@ export function projectInputFromForm(form: ProjectFormData): ProjectInput {
     maskin: form.maskin,
     beskrivelse: form.beskrivelse,
     tiltenktbruk: form.tiltenktbruk,
+    certifications: form.certifications,
+    addedDocuments: form.addedDocuments,
   };
 }

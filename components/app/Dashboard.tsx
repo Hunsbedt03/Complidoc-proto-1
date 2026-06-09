@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { CompletenessBar } from '@/components/CompletenessIndicator';
+import { ArchiveWarningBanner } from '@/components/archive/ArchiveWarningBanner';
 import {
   SubscriptionBanner,
   isSubscriptionActive,
@@ -12,15 +13,18 @@ import {
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useGeneration } from '@/components/providers/GenerationProvider';
 import { createClient } from '@/lib/supabase/client';
+import { fetchSyncedArchiveLinks } from '@/lib/archive/clientSync';
+import { restoreProjectArchiveLinks } from '@/lib/archive/restoreLinks';
 import {
   getLocalProject,
   listLocalProjects,
   resolveStoredDocuments,
 } from '@/lib/localProjects';
+import { saveLocalProjectArchiveLinks } from '@/lib/localArchive';
 import { rebuildZipFromDocs } from '@/lib/rebuildZip';
 import { formatDate, loadProjectSession } from '@/lib/projects';
 import { PROJECT_STATUS_LABELS, type ProjectStatus } from '@/lib/projectStatus';
-import type { ProsjektSummary } from '@/lib/types';
+import type { ProjectArchiveLink, ProsjektSummary } from '@/lib/types';
 
 function workflowBadgeClass(status?: ProjectStatus): string {
   if (status === 'locked') return 'badge-done';
@@ -149,12 +153,30 @@ export function Dashboard() {
               local.payload.zipFilename || 'Samsiq.zip'
             );
 
+      let archiveLinks = restoreProjectArchiveLinks(
+        local.id,
+        local.payload,
+        local.payload.archiveLinks,
+        user?.id
+      );
+      const { links: synced } = await fetchSyncedArchiveLinks(
+        local.id,
+        local.payload
+      );
+      if (synced.length) {
+        archiveLinks = synced;
+      }
+      if (archiveLinks.length) {
+        saveLocalProjectArchiveLinks(local.id, archiveLinks);
+      }
+
       setZipFromProject(zip, local.payload.prosjekt, {
         form: local.payload,
         documents,
         projectId: local.id,
         status: local.payload.workflowStatus ?? 'draft',
         uploads: local.payload.uploads ?? [],
+        archiveLinks,
       });
       router.push('/app/output');
       return;
@@ -168,6 +190,22 @@ export function Dashboard() {
       return;
     }
 
+    let archiveLinks: ProjectArchiveLink[] = [];
+    if (loaded.form) {
+      const { links: synced } = await fetchSyncedArchiveLinks(
+        loaded.projectId,
+        loaded.form
+      );
+      archiveLinks = synced.length
+        ? synced
+        : restoreProjectArchiveLinks(
+            loaded.projectId,
+            loaded.form,
+            undefined,
+            user.id
+          );
+    }
+
     setZipFromProject(
       { zip: loaded.zip, filename: loaded.filename },
       loaded.title,
@@ -177,6 +215,7 @@ export function Dashboard() {
         projectId: loaded.projectId,
         status: loaded.workflowStatus,
         uploads: loaded.uploads,
+        archiveLinks,
       }
     );
     router.push('/app/output');
@@ -197,6 +236,8 @@ export function Dashboard() {
         loading={subscriptionLoading}
         pendingActivation={pendingActivation}
       />
+
+      <ArchiveWarningBanner />
 
       {activationConfirmed && !pendingActivation ? (
         <p

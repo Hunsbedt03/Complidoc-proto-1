@@ -41,7 +41,9 @@ Styring: ${form.styring || 'Ikke spesifisert'}
 Tiltenkt bruk: ${form.tiltenktbruk || 'Ikke spesifisert'}
 Marked: ${form.marked || 'Ikke spesifisert'}
 Relevante standarder: ${form.standarder || 'Ikke spesifisert'}
-Beskrivelse: ${form.beskrivelse || 'Ikke spesifisert'}`;
+Beskrivelse: ${form.beskrivelse || 'Ikke spesifisert'}
+Sertifiseringer: ${(form.certifications ?? []).filter((c) => c !== 'none').join(', ') || 'Ingen'}
+Tilleggsdokumenter: ${(form.addedDocuments ?? []).join(', ') || 'Ingen'}`;
 }
 
 export function validateForm(form: ProjectFormData): string | null {

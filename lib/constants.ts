@@ -40,4 +40,6 @@ export const EMPTY_FORM = {
   tiltenktbruk: '',
   standarder: '',
   marked: '',
+  certifications: [],
+  addedDocuments: [],
 };

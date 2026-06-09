@@ -32,7 +32,7 @@ export function CompletenessIndicator({
   return (
     <div className={`completeness-indicator completeness-indicator--${tone}`}>
       <div className="completeness-indicator-head">
-        <span className="completeness-indicator-title">Teknisk fil</span>
+        <span className="completeness-indicator-title">Dokumentfullstendighet</span>
         <span className="completeness-indicator-pct">
           {completeness.complete}/{completeness.total} · {completeness.percent}%
         </span>
@@ -43,6 +43,29 @@ export function CompletenessIndicator({
           style={{ width: `${completeness.percent}%` }}
         />
       </div>
+
+      {completeness.categories.length > 0 ? (
+        <ul className="completeness-category-list">
+          {completeness.categories.map((cat) => (
+            <li key={cat.category} className="completeness-category-row">
+              <span className="completeness-category-label">
+                {cat.label}
+                {cat.percent >= 100 ? ' ✓' : ''}
+              </span>
+              <span className="completeness-category-stats">
+                {cat.complete}/{cat.total} · {cat.percent}%
+              </span>
+              <div className="completeness-category-track">
+                <div
+                  className="completeness-category-fill"
+                  style={{ width: `${cat.percent}%` }}
+                />
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
       <p className="completeness-indicator-summary">{summary}</p>
       {completeness.missingRequired.length > 0 && projectStatus !== 'locked' ? (
         <p className="completeness-indicator-hint">

@@ -1,17 +1,24 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { CompletenessIndicator } from '@/components/CompletenessIndicator';
+import { DocumentSearch } from '@/components/DocumentSearch';
+import { ArchiveDocumentSlot } from '@/components/archive/ArchiveDocumentSlot';
+import { ArchiveUploadDialog } from '@/components/archive/ArchiveUploadDialog';
+import type { ArchiveDocument } from '@/lib/archive/types';
 import { DocumentUploadSlot } from '@/components/DocumentUploadSlot';
+import { isArchiveEligibleId } from '@/lib/archive/eligible';
 import { getDocumentsBySource } from '@/lib/documents/catalog';
-import { deriveUploadRequirements } from '@/lib/documents/uploadRequirements';
+import { catalogToUploadRequirement } from '@/lib/documents/requirements';
 import { SOURCE_CONFIG } from '@/lib/documents/source';
 import { projectInputFromForm } from '@/lib/projectInput';
 import { usePackageCompleteness } from '@/lib/usePackageCompleteness';
 import { getCatalogDocument } from '@/lib/documents/catalog';
+import type { DocumentId } from '@/lib/documents/ids';
 import type { ProjectStatus } from '@/lib/projectStatus';
 import type {
   GeneratedDoc,
+  ProjectArchiveLink,
   ProjectFormData,
   UploadSlot,
 } from '@/lib/types';
@@ -28,9 +35,12 @@ type Props = {
   form: ProjectFormData;
   generatedDocuments: GeneratedDoc[];
   uploads: UploadSlot[];
+  archiveLinks?: ProjectArchiveLink[];
   projectId: string | null;
   projectStatus: ProjectStatus;
   onUploadChange: (slot: UploadSlot) => void;
+  onAddDocument?: (documentId: DocumentId) => void;
+  onArchiveLinksChange?: (links: ProjectArchiveLink[]) => void;
   generating?: boolean;
 };
 
@@ -38,23 +48,35 @@ export function ProjectPackageOverview({
   form,
   generatedDocuments,
   uploads,
+  archiveLinks = [],
   projectId,
   projectStatus,
   onUploadChange,
+  onAddDocument,
+  onArchiveLinksChange,
   generating = false,
 }: Props) {
+  const [archiveUploadType, setArchiveUploadType] = useState<string | null>(
+    null
+  );
+
   const completeness = usePackageCompleteness(
     form,
     generatedDocuments,
     uploads,
-    generating
+    generating,
+    archiveLinks
   );
 
   const projectInput = useMemo(() => projectInputFromForm(form), [form]);
+  const uploadRequirements = completeness.uploadRequirements;
 
-  const uploadRequirements = useMemo(
-    () => deriveUploadRequirements(projectInput),
-    [projectInput]
+  const archiveLinkByType = useMemo(
+    () =>
+      new Map(
+        archiveLinks.map((l) => [l.documentTypeId.trim().toLowerCase(), l])
+      ),
+    [archiveLinks]
   );
 
   const selectedHybrid = useMemo(() => {
@@ -74,6 +96,36 @@ export function ProjectPackageOverview({
 
   function slotFor(id: string): UploadSlot | undefined {
     return uploads.find((u) => u.documentId === id);
+  }
+
+  function handleArchiveSaved(doc: ArchiveDocument) {
+    if (!projectId) return;
+    const link: ProjectArchiveLink = {
+      projectId,
+      archiveDocumentId: doc.id,
+      documentTypeId: doc.documentTypeId,
+      linkStatus: 'confirmed',
+      linkedAt: new Date().toISOString(),
+      label: doc.label,
+      version: doc.version,
+      fileName: doc.fileName,
+      uploadedAt: doc.uploadedAt,
+    };
+    const next = [
+      ...archiveLinks.filter((l) => l.documentTypeId !== doc.documentTypeId),
+      link,
+    ];
+    onArchiveLinksChange?.(next);
+    onUploadChange({
+      documentId: doc.documentTypeId,
+      status: 'uploaded',
+      fromArchive: true,
+      archiveDocumentId: doc.id,
+      archiveVersion: doc.version,
+      fileName: doc.fileName,
+      uploadedAt: doc.uploadedAt,
+    });
+    setArchiveUploadType(null);
   }
 
   const cfg = SOURCE_CONFIG.user_upload;
@@ -105,7 +157,8 @@ export function ProjectPackageOverview({
               {cfg.icon} Dokumenter du må laste opp
             </span>
             <p className="doc-source-desc">
-              Kravene er utledet fra maskindata du fylte inn — ikke en fast liste.
+              Bedriftsdokumenter hentes fra arkivet. Maskinspesifikke filer lastes
+              opp per prosjekt.
             </p>
           </div>
           {!projectId ? (
@@ -114,16 +167,30 @@ export function ProjectPackageOverview({
             <p className="form-info">Prosjektet er låst — opplastinger kan ikke endres.</p>
           ) : (
             <div className="upload-slot-grid">
-              {uploadRequirements.map((req) => (
-                <DocumentUploadSlot
-                  key={req.id}
-                  requirement={req}
-                  projectId={projectId}
-                  slot={slotFor(req.id)}
-                  onUploadComplete={onUploadChange}
-                  disabled={uploadsDisabled}
-                />
-              ))}
+              {uploadRequirements.map((req) =>
+                isArchiveEligibleId(req.id) ? (
+                  <ArchiveDocumentSlot
+                    key={req.id}
+                    requirement={req}
+                    projectId={projectId}
+                    archiveLink={archiveLinkByType.get(req.id.trim().toLowerCase())}
+                    slot={slotFor(req.id)}
+                    onUploadComplete={onUploadChange}
+                    onUploadToArchive={(typeId) => setArchiveUploadType(typeId)}
+                    onReplaceArchive={(typeId) => setArchiveUploadType(typeId)}
+                    disabled={uploadsDisabled}
+                  />
+                ) : (
+                  <DocumentUploadSlot
+                    key={req.id}
+                    requirement={req}
+                    projectId={projectId}
+                    slot={slotFor(req.id)}
+                    onUploadComplete={onUploadChange}
+                    disabled={uploadsDisabled}
+                  />
+                )
+              )}
             </div>
           )}
         </section>
@@ -139,15 +206,10 @@ export function ProjectPackageOverview({
           </div>
           <div className="upload-slot-grid">
             {hybridDocs.map((doc) => {
-              const req = {
-                id: doc.id,
-                label: doc.label,
-                description: doc.description,
-                directive: doc.directive,
-                acceptedFormats: doc.acceptedFormats ?? ['pdf', 'docx'],
-                required: doc.required,
-                reason: 'Hybrid mal — last opp signert/ferdig versjon',
-              };
+              const req = catalogToUploadRequirement({
+                ...doc,
+                reason: doc.reason ?? 'Hybrid mal — last opp signert/ferdig versjon',
+              });
               return (
                 <DocumentUploadSlot
                   key={doc.id}
@@ -162,6 +224,21 @@ export function ProjectPackageOverview({
           </div>
         </section>
       ) : null}
+
+      {onAddDocument ? (
+        <DocumentSearch
+          form={form}
+          onAdd={onAddDocument}
+          disabled={uploadsDisabled}
+        />
+      ) : null}
+
+      <ArchiveUploadDialog
+        open={!!archiveUploadType}
+        onClose={() => setArchiveUploadType(null)}
+        onSaved={handleArchiveSaved}
+        presetDocumentTypeId={archiveUploadType ?? undefined}
+      />
     </div>
   );
 }

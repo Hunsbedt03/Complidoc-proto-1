@@ -42,7 +42,9 @@ function completenessPercent(payload: SaveProjectPayload): number {
     selectedAi,
     selectedHybrid,
     resolveStoredDocuments(payload),
-    payload.uploads ?? []
+    payload.uploads ?? [],
+    false,
+    payload.archiveLinks ?? []
   ).percent;
 }
 
@@ -117,13 +119,22 @@ export function updateLocalProjectWorkflow(
   workflowStatus: ProjectStatus,
   uploads?: SaveProjectPayload['uploads']
 ): void {
+  updateLocalProjectPayload(id, {
+    workflowStatus,
+    uploads: uploads ?? getLocalProject(id)?.payload.uploads,
+  });
+}
+
+export function updateLocalProjectPayload(
+  id: string,
+  patch: Partial<SaveProjectPayload>
+): void {
   const records = readAll();
   const idx = records.findIndex((r) => r.id === id);
   if (idx < 0) return;
   const payload = {
     ...records[idx].payload,
-    workflowStatus,
-    uploads: uploads ?? records[idx].payload.uploads,
+    ...patch,
   };
   records[idx] = {
     ...records[idx],

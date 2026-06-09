@@ -1,5 +1,20 @@
+import type { ArchiveLinkStatus } from './archive/types';
 import type { DocumentId } from './documents/ids';
+import type { ISOCertification } from './documents/types';
 import type { ProjectStatus } from './projectStatus';
+
+export type ProjectArchiveLink = {
+  id?: string;
+  projectId: string;
+  archiveDocumentId: string;
+  documentTypeId: string;
+  linkStatus: ArchiveLinkStatus;
+  linkedAt?: string;
+  label?: string;
+  version?: string;
+  fileName?: string;
+  uploadedAt?: string;
+};
 
 /** Legacy korte id-er (API / eksisterende prosjekter). */
 export type DocType = 'risk' | 'tech' | 'doc' | 'qc';
@@ -19,6 +34,8 @@ export type ProjectFormData = {
   standarder: string;
   marked: string;
   selectedDocuments?: DocumentId[];
+  certifications?: ISOCertification[];
+  addedDocuments?: DocumentId[];
 };
 
 export type GeneratedDoc = {
@@ -97,6 +114,10 @@ export type UploadSlot = {
   fileBase64?: string;
   mimeType?: string;
   errorMessage?: string;
+  /** Hentet fra bedriftsarkiv */
+  fromArchive?: boolean;
+  archiveDocumentId?: string;
+  archiveVersion?: string;
 };
 
 export type SaveProjectPayload = ProjectFormData & {
@@ -109,4 +130,5 @@ export type SaveProjectPayload = ProjectFormData & {
   workflowStatus?: ProjectStatus;
   completenessPercent?: number;
   localProjectId?: string;
+  archiveLinks?: ProjectArchiveLink[];
 };

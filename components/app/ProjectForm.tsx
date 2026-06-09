@@ -19,17 +19,27 @@ import { formatSupabaseError, supabaseErrorFields } from '@/lib/supabaseError';
 import type { DocumentId } from '@/lib/documents/ids';
 import { getCatalogDocument } from '@/lib/documents/catalog';
 import { getDefaultSelectedDocuments } from '@/lib/documents/registry';
+import { isArchiveEligibleId } from '@/lib/archive/eligible';
+import { resolveArchiveLinksAfterSave } from '@/lib/archive/mapSaveResponse';
+import type { AutoLinkResult } from '@/lib/archive/types';
+import { getLocalCompanyId } from '@/lib/localArchive';
+import { deriveRequirements } from '@/lib/documents/requirements';
+import { projectInputFromForm } from '@/lib/projectInput';
 import type { ProjectFormData } from '@/lib/types';
-import {
-  DocumentChecklist,
-} from '@/components/DocumentChecklist';
+import { DocumentChecklist } from '@/components/DocumentChecklist';
+import { CertificationMultiSelect } from '@/components/ui/CertificationMultiSelect';
+import type { ISOCertification } from '@/lib/documents/types';
 
 export function ProjectForm() {
   const router = useRouter();
   const { user, profile, bedriftId, refreshProjects } = useAuth();
-  const { setResult, syncProjectId } = useGeneration();
+  const { setResult, syncProjectId, setArchiveLinks } = useGeneration();
 
-  const [form, setForm] = useState<ProjectFormData>({ ...EMPTY_FORM });
+  const [form, setForm] = useState<ProjectFormData>({
+    ...EMPTY_FORM,
+    certifications: [],
+    addedDocuments: [],
+  });
   const [selectedDocuments, setSelectedDocuments] = useState<DocumentId[]>(() =>
     getDefaultSelectedDocuments()
   );
@@ -66,6 +76,8 @@ export function ProjectForm() {
       const formWithDocs: ProjectFormData = {
         ...form,
         selectedDocuments,
+        certifications: form.certifications ?? [],
+        addedDocuments: form.addedDocuments ?? [],
       };
       const result = await generateDocumentPackage(formWithDocs, (p) =>
         setProgress({
@@ -114,8 +126,41 @@ export function ProjectForm() {
         data: { user: saveUser },
       } = await supabase.auth.getUser();
 
+      function localArchivePayload(pid: string) {
+        const input = projectInputFromForm(formWithDocs);
+        const eligibleTypeIds = deriveRequirements(
+          input,
+          formWithDocs.selectedDocuments ?? [],
+          selectedHybrid
+        )
+          .filter((d) => isArchiveEligibleId(d.id))
+          .map((d) => d.id);
+        return {
+          localArchiveEligibleIds: eligibleTypeIds,
+          localCompanyId: getLocalCompanyId(saveUser?.id ?? pid),
+        };
+      }
+
+      async function applyArchiveLinks(
+        pid: string,
+        saveJson?: {
+          archiveLinks?: AutoLinkResult[];
+          localArchiveEligibleIds?: string[];
+          localCompanyId?: string;
+        }
+      ) {
+        const links = resolveArchiveLinksAfterSave(pid, {
+          ...localArchivePayload(pid),
+          ...saveJson,
+        });
+        if (links.length) setArchiveLinks(links);
+        return links;
+      }
+
       async function persistLocal(extra?: Record<string, unknown>) {
         const localId = saveProjectLocally(savePayload);
+        const links = await applyArchiveLinks(localId);
+        saveProjectLocally({ ...savePayload, localProjectId: localId, archiveLinks: links });
         try {
           await refreshProjects();
         } catch (refreshErr) {
@@ -156,6 +201,9 @@ export function ProjectForm() {
             projectId?: string;
             partialDocumentSave?: boolean;
             skippedDocumentTypes?: string[];
+            archiveLinks?: AutoLinkResult[];
+            localArchiveEligibleIds?: string[];
+            localCompanyId?: string;
           }>(saveRes);
           if (!saveRes.ok) {
             const apiErr = formatApiError(saveJson.error) || 'Lagring feilet';
@@ -172,10 +220,16 @@ export function ProjectForm() {
           }
           if (saveJson.projectId) {
             syncProjectId(saveJson.projectId);
+            const links = resolveArchiveLinksAfterSave(
+              saveJson.projectId,
+              saveJson
+            );
             saveProjectLocally({
               ...savePayload,
               localProjectId: saveJson.projectId,
+              archiveLinks: links,
             });
+            setArchiveLinks(links);
           }
           await refreshProjects();
           }
@@ -389,6 +443,14 @@ export function ProjectForm() {
               placeholder="f.eks. EU / EØS — Norge"
             />
           </div>
+        </div>
+        <div className="form-row full">
+          <CertificationMultiSelect
+            value={form.certifications ?? []}
+            onChange={(certifications: ISOCertification[]) =>
+              setForm((prev) => ({ ...prev, certifications }))
+            }
+          />
         </div>
       </div>
 

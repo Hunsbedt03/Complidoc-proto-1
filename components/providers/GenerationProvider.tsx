@@ -17,12 +17,22 @@ import type { DocumentId } from '@/lib/documents/ids';
 import { normalizeGeneratedDocs } from '@/lib/documents/ids';
 import { getCatalogDocument } from '@/lib/documents/catalog';
 import { buildMachineDataForGeneration, generateSingleDocument } from '@/lib/generate';
-import { updateLocalProjectWorkflow } from '@/lib/localProjects';
+import {
+  updateLocalProjectPayload,
+  updateLocalProjectWorkflow,
+} from '@/lib/localProjects';
+import { saveLocalProjectArchiveLinks } from '@/lib/localArchive';
 import { rebuildZipFromDocs } from '@/lib/rebuildZip';
 import { appendRevision, seedInitialRevisions } from '@/lib/revisions';
 import { saveDocumentRevision } from '@/lib/revisions/saveRevision';
 import type { ProjectStatus } from '@/lib/projectStatus';
-import type { GeneratedDoc, ProjectFormData, UploadSlot, ZipData } from '@/lib/types';
+import type {
+  GeneratedDoc,
+  ProjectArchiveLink,
+  ProjectFormData,
+  UploadSlot,
+  ZipData,
+} from '@/lib/types';
 
 type GenerationContextValue = {
   projectId: string | null;
@@ -33,6 +43,8 @@ type GenerationContextValue = {
   generatedDocuments: GeneratedDoc[];
   documentContents: Record<string, string>;
   uploads: UploadSlot[];
+  archiveLinks: ProjectArchiveLink[];
+  setArchiveLinks: (links: ProjectArchiveLink[]) => void;
   setResult: (
     zip: ZipData,
     title: string,
@@ -61,8 +73,10 @@ type GenerationContextValue = {
       projectId?: string;
       status?: ProjectStatus;
       uploads?: UploadSlot[];
+      archiveLinks?: ProjectArchiveLink[];
     }
   ) => void;
+  addDocumentToProject: (documentId: DocumentId) => void;
   clear: () => void;
 };
 
@@ -83,6 +97,18 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
   const [generatedDocuments, setGeneratedDocuments] = useState<GeneratedDoc[]>([]);
   const [documentContents, setDocumentContents] = useState<Record<string, string>>({});
   const [uploads, setUploads] = useState<UploadSlot[]>([]);
+  const [archiveLinks, setArchiveLinksState] = useState<ProjectArchiveLink[]>([]);
+
+  const setArchiveLinks = useCallback(
+    (links: ProjectArchiveLink[]) => {
+      setArchiveLinksState(links);
+      if (projectId) {
+        updateLocalProjectPayload(projectId, { archiveLinks: links });
+        saveLocalProjectArchiveLinks(projectId, links);
+      }
+    },
+    [projectId]
+  );
 
   useEffect(() => {
     if (projectId && zipData) {
@@ -183,6 +209,18 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
     ]
   );
 
+  const addDocumentToProject = useCallback((documentId: DocumentId) => {
+    setLastForm((prev) => {
+      if (!prev) return prev;
+      const existing = prev.addedDocuments ?? [];
+      if (existing.includes(documentId)) return prev;
+      return {
+        ...prev,
+        addedDocuments: [...existing, documentId],
+      };
+    });
+  }, []);
+
   const saveDocumentEdit = useCallback(
     async (
       documentId: DocumentId,
@@ -218,6 +256,8 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
       generatedDocuments,
       documentContents,
       uploads,
+      archiveLinks,
+      setArchiveLinks,
       setResult: (
         zip: ZipData,
         title: string,
@@ -232,6 +272,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
         setLastForm(form);
         setGeneratedDocuments(normalizeGeneratedDocs(documents));
         setUploads([]);
+        setArchiveLinksState([]);
         const contents: Record<string, string> = {};
         for (const doc of documents) {
           const def = getCatalogDocument(doc.documentId);
@@ -253,6 +294,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
       saveDocumentEdit,
       setDocumentContent,
       regenerateDocument,
+      addDocumentToProject,
       setZipFromProject: (
         zip: ZipData,
         title: string,
@@ -262,6 +304,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
           projectId?: string;
           status?: ProjectStatus;
           uploads?: UploadSlot[];
+          archiveLinks?: ProjectArchiveLink[];
         }
       ) => {
         setZipData(zip);
@@ -271,6 +314,15 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
         if (meta?.projectId) setProjectId(meta.projectId);
         if (meta?.status) setProjectStatus(meta.status);
         if (meta?.uploads) setUploads(meta.uploads);
+        if (meta?.archiveLinks) {
+          setArchiveLinksState(meta.archiveLinks);
+          if (meta.projectId) {
+            updateLocalProjectPayload(meta.projectId, {
+              archiveLinks: meta.archiveLinks,
+            });
+            saveLocalProjectArchiveLinks(meta.projectId, meta.archiveLinks);
+          }
+        }
       },
       clear: () => {
         clearGenerationSession();
@@ -282,6 +334,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
         setGeneratedDocuments([]);
         setDocumentContents({});
         setUploads([]);
+        setArchiveLinksState([]);
       },
     }),
     [
@@ -293,12 +346,15 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
       generatedDocuments,
       documentContents,
       uploads,
+      archiveLinks,
+      setArchiveLinks,
       setUpload,
       syncProjectId,
       lockProject,
       saveDocumentEdit,
       setDocumentContent,
       regenerateDocument,
+      addDocumentToProject,
     ]
   );
 

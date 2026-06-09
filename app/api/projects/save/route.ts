@@ -1,4 +1,15 @@
 import { NextResponse } from 'next/server';
+import {
+  autoLinkArchiveDocuments,
+  getCompanyProfileId,
+} from '@/lib/archive/autoLink';
+import type { AutoLinkResult } from '@/lib/archive/types';
+import { isArchiveEligibleId } from '@/lib/archive/eligible';
+import { deriveRequirements } from '@/lib/documents/requirements';
+import { projectInputFromForm } from '@/lib/projectInput';
+import { CORE_DOCUMENT_IDS } from '@/lib/documents/ids';
+import type { DocumentId } from '@/lib/documents/ids';
+import { getLocalCompanyId } from '@/lib/localArchive';
 import { saveGeneratedProject, ensureUserProfile } from '@/lib/projects-save';
 import { formatSupabaseError } from '@/lib/supabaseError';
 import { upsertUserProfileAdmin } from '@/lib/upsertUserProfileAdmin';
@@ -37,10 +48,41 @@ export async function POST(request: Request) {
 
     const { projectId, skippedDocumentTypes } = saveResult;
 
+    let archiveLinks: AutoLinkResult[] = [];
+
+    const companyId = await getCompanyProfileId(supabase, user.id);
+    if (companyId) {
+      try {
+        archiveLinks = await autoLinkArchiveDocuments(
+          supabase,
+          projectId,
+          companyId,
+          user.id,
+          body.payload
+        );
+      } catch (linkErr) {
+        console.warn('[samsiq] autoLinkArchiveDocuments', linkErr);
+      }
+    }
+
+    const projectInput = projectInputFromForm(body.payload);
+    const selectedAi = (body.payload.selectedDocuments ?? CORE_DOCUMENT_IDS) as DocumentId[];
+    const required = deriveRequirements(
+      projectInput,
+      selectedAi,
+      body.payload.selectedHybrid ?? []
+    );
+    const eligibleTypeIds = required
+      .filter((d) => isArchiveEligibleId(d.id))
+      .map((d) => d.id);
+
     return NextResponse.json({
       projectId,
       skippedDocumentTypes,
       partialDocumentSave: skippedDocumentTypes.length > 0,
+      archiveLinks,
+      localArchiveEligibleIds: eligibleTypeIds,
+      localCompanyId: getLocalCompanyId(user.id),
     });
   } catch (err) {
     const message = formatSupabaseError(err);
