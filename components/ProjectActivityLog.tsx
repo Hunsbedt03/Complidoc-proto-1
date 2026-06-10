@@ -1,6 +1,6 @@
 'use client';
 
-import { listProjectActivity } from '@/lib/revisions';
+import { PROJECT_ACTIVITY_ID, listProjectActivity } from '@/lib/revisions';
 
 type Props = {
   projectId: string;
@@ -17,17 +17,22 @@ export function ProjectActivityLog({ projectId, documentLabels }: Props) {
       <h3 className="section-label">Aktivitetslogg</h3>
       <ul className="activity-log-list">
         {rows.map((r) => {
-          const label = documentLabels[r.documentId] ?? r.documentId;
+          const isProject = r.documentId === PROJECT_ACTIVITY_ID;
+          const label = isProject
+            ? 'prosjektet'
+            : (documentLabels[r.documentId] ?? r.documentId);
           const action =
-            r.changeType === 'user_edit'
-              ? 'redigerte'
-              : r.changeType === 'ai_regeneration'
-                ? 'regenererte'
-                : r.changeType === 'file_upload'
-                  ? 'lastet opp'
-                  : r.changeType === 'locked'
-                    ? 'låste'
-                    : 'genererte';
+            r.changeType === 'project_created'
+              ? 'opprettet'
+              : r.changeType === 'user_edit'
+                ? 'redigerte'
+                : r.changeType === 'ai_regeneration'
+                  ? 'regenererte'
+                  : r.changeType === 'file_upload'
+                    ? 'lastet opp'
+                    : r.changeType === 'locked'
+                      ? 'låste'
+                      : 'genererte';
           return (
             <li key={r.id} className="activity-log-row">
               <span className="activity-log-time">
@@ -37,7 +42,8 @@ export function ProjectActivityLog({ projectId, documentLabels }: Props) {
                 })}
               </span>
               <span className="activity-log-text">
-                {r.changedByName} {action} {label} (v{r.revision})
+                {r.changedByName} {action} {label}
+                {!isProject ? ` (v${r.revision})` : ''}
               </span>
             </li>
           );

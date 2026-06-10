@@ -79,6 +79,7 @@ export type ProsjektSummary = {
 
 export type UserProfile = {
   id: string;
+  company_id?: string | null;
   email: string;
   full_name: string | null;
   onboarding_completed?: boolean | null;

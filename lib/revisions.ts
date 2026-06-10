@@ -3,7 +3,10 @@ export type RevisionChangeType =
   | 'ai_regeneration'
   | 'user_edit'
   | 'file_upload'
-  | 'locked';
+  | 'locked'
+  | 'project_created';
+
+export const PROJECT_ACTIVITY_ID = '__project__';
 
 export type RevisionSource =
   | 'ai_generated'

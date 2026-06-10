@@ -18,6 +18,7 @@ export const PLANS = {
     ],
     limits: {
       projectsPerMonth: 5,
+      teamMembers: 2,
     },
   },
   pro: {
@@ -32,11 +33,12 @@ export const PLANS = {
       'PDF, DOCX og ZIP eksport',
       'Full revisjonshistorikk',
       'Prioritert support',
-      'Flere brukere (inntil 5)',
+      'Flere brukere (inntil 10)',
       'Tilpasset bedriftslogo i dokumenter',
     ],
     limits: {
       projectsPerMonth: -1,
+      teamMembers: 10,
     },
   },
 } as const;

@@ -27,6 +27,7 @@ import { saveLocalProjectArchiveLinks } from '@/lib/localArchive';
 import { rebuildZipFromDocs } from '@/lib/rebuildZip';
 import { formatDate, loadProjectSession } from '@/lib/projects';
 import { PROJECT_STATUS_LABELS, type ProjectStatus } from '@/lib/projectStatus';
+import { usePermissions } from '@/hooks/usePermissions';
 import type { ProjectArchiveLink, ProsjektSummary } from '@/lib/types';
 
 function workflowBadgeClass(status?: ProjectStatus): string {
@@ -40,6 +41,7 @@ export function Dashboard() {
   const searchParams = useSearchParams();
   const paymentSuccess = searchParams.get('payment') === 'success';
   const { user, loading, projects, projectsError } = useAuth();
+  const permissions = usePermissions();
   const { setZipFromProject } = useGeneration();
   const supabase = createClient();
 
@@ -354,14 +356,16 @@ export function Dashboard() {
                 nytt prosjekt eller sjekk at du er logget inn med riktig konto.
               </p>
             )}
-            <Link href="/app/new" className="proj-card">
-              <div className="proj-icon">+</div>
-              <div>
-                <div className="proj-name">Ingen prosjekter ennå</div>
-                <div className="proj-meta">Opprett ditt første prosjekt</div>
-              </div>
-              <span className="badge badge-new">Ny</span>
-            </Link>
+            {permissions.createProject ? (
+              <Link href="/app/new" className="proj-card">
+                <div className="proj-icon">+</div>
+                <div>
+                  <div className="proj-name">Ingen prosjekter ennå</div>
+                  <div className="proj-meta">Opprett ditt første prosjekt</div>
+                </div>
+                <span className="badge badge-new">Ny</span>
+              </Link>
+            ) : null}
           </>
         )}
         {displayProjects.map((p) => {
@@ -395,7 +399,7 @@ export function Dashboard() {
             </button>
           );
         })}
-        {displayProjects.length > 0 && (
+        {displayProjects.length > 0 && permissions.createProject ? (
           <Link href="/app/new" className="proj-card">
             <div className="proj-icon">+</div>
             <div>
@@ -404,7 +408,7 @@ export function Dashboard() {
             </div>
             <span className="badge badge-new">Ny</span>
           </Link>
-        )}
+        ) : null}
       </div>
     </>
   );

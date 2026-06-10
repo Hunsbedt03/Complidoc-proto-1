@@ -15,6 +15,8 @@ import {
   PRIMARY_MARKET_OPTIONS,
   calculateProfileCompleteness,
 } from '@/lib/companyProfile/extended';
+import { TeamSettings } from '@/components/settings/TeamSettings';
+import { usePermissions } from '@/hooks/usePermissions';
 import type { CompanyProfile } from '@/lib/types';
 
 async function saveProfile(
@@ -53,6 +55,9 @@ export function ExtendedCompanySettings({ initialProfile, loading }: Props) {
     }
   }, [initialProfile]);
 
+  const permissions = usePermissions();
+  const canEditProfile = permissions.editProfile;
+
   const completeness = useMemo(
     () => calculateProfileCompleteness(profile),
     [profile]
@@ -85,15 +90,21 @@ export function ExtendedCompanySettings({ initialProfile, loading }: Props) {
         missingFields={completeness.missingFields}
       />
 
+      <TeamSettings />
+
       <SettingsSection
         title="Bedriftsinformasjon"
         description="Grunnleggende opplysninger brukt i alle genererte dokumenter."
       >
+        {!canEditProfile ? (
+          <p className="form-card-hint">Kun eier eller admin kan redigere bedriftsprofilen.</p>
+        ) : null}
         <CompanyProfileForm
           existingProfile={profile}
           saving={savingSection === 'basic'}
           submitLabel="Lagre grunninfo"
           onSubmit={async (p) => {
+            if (!canEditProfile) return;
             const next = { ...profile, ...p };
             setProfile(next);
             await persist('basic', next);
@@ -104,7 +115,7 @@ export function ExtendedCompanySettings({ initialProfile, loading }: Props) {
       <SettingsSection
         title="Bransje og produksjon"
         description="Hjelper systemet å forhåndsutfylle nye prosjekter riktig."
-        onSave={() => void persist('industry', profile)}
+        onSave={canEditProfile ? () => void persist('industry', profile) : undefined}
         saving={savingSection === 'industry'}
         saved={savedSection === 'industry'}
       >
@@ -150,7 +161,7 @@ export function ExtendedCompanySettings({ initialProfile, loading }: Props) {
       <SettingsSection
         title="Markeder"
         description="Bestemmer hvilke direktiver og sertifiseringer som kreves."
-        onSave={() => void persist('markets', profile)}
+        onSave={canEditProfile ? () => void persist('markets', profile) : undefined}
         saving={savingSection === 'markets'}
         saved={savedSection === 'markets'}
       >
@@ -172,12 +183,13 @@ export function ExtendedCompanySettings({ initialProfile, loading }: Props) {
         id="certifications"
         title="ISO-sertifiseringer"
         description="Legg til og oppdater sertifiseringer. Systemet viser kun relevante dokumentkrav."
-        onSave={() => void persist('certifications', profile)}
+        onSave={canEditProfile ? () => void persist('certifications', profile) : undefined}
         saving={savingSection === 'certifications'}
         saved={savedSection === 'certifications'}
       >
         <CertificationManager
           certifications={profile.certifications ?? []}
+          disabled={!canEditProfile}
           onChange={(certs) =>
             setProfile((p) => ({ ...p, certifications: certs }))
           }
@@ -187,7 +199,7 @@ export function ExtendedCompanySettings({ initialProfile, loading }: Props) {
       <SettingsSection
         title="Standardverdier for nye prosjekter"
         description="Disse verdiene forhåndsutfylles automatisk — du kan alltid overstyre per prosjekt."
-        onSave={() => void persist('defaults', profile)}
+        onSave={canEditProfile ? () => void persist('defaults', profile) : undefined}
         saving={savingSection === 'defaults'}
         saved={savedSection === 'defaults'}
       >

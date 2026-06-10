@@ -28,12 +28,15 @@ import { projectInputFromForm } from '@/lib/projectInput';
 import { projectDefaultsFromProfile } from '@/lib/companyProfile/extended';
 import type { CompanyProfile, ProjectFormData } from '@/lib/types';
 import { DocumentChecklist } from '@/components/DocumentChecklist';
+import { usePermissions } from '@/hooks/usePermissions';
+import { appendRevision, PROJECT_ACTIVITY_ID } from '@/lib/revisions';
 import { CertificationMultiSelect } from '@/components/ui/CertificationMultiSelect';
 import type { ISOCertification } from '@/lib/documents/types';
 
 export function ProjectForm() {
   const router = useRouter();
   const { user, profile, bedriftId, refreshProjects } = useAuth();
+  const permissions = usePermissions();
   const { setResult, syncProjectId, setArchiveLinks } = useGeneration();
 
   const [form, setForm] = useState<ProjectFormData>({
@@ -85,6 +88,10 @@ export function ProjectForm() {
   }
 
   async function handleGenerate() {
+    if (!permissions.createProject) {
+      alert('Du har ikke tilgang til å opprette nye prosjekter.');
+      return;
+    }
     setLoading(true);
     try {
       const formWithDocs: ProjectFormData = {
@@ -108,6 +115,19 @@ export function ProjectForm() {
         formWithDocs,
         result.documents
       );
+
+      const creatorName =
+        formWithDocs.ingenior || profile?.full_name || user?.email || 'Bruker';
+      appendRevision({
+        projectId: localProjectId,
+        documentId: PROJECT_ACTIVITY_ID as DocumentId,
+        content: formWithDocs.prosjekt,
+        changeType: 'project_created',
+        changeNote: 'Prosjekt opprettet',
+        changedBy: user?.id ?? 'user',
+        changedByName: creatorName,
+        source: 'user_edited',
+      });
 
       if (result.failedLabels.length > 0) {
         console.warn('[samsiq] Delvis generering:', result.failedLabels);
@@ -277,6 +297,20 @@ export function ProjectForm() {
     } finally {
       setLoading(false);
     }
+  }
+
+  if (!permissions.loading && !permissions.createProject) {
+    return (
+      <div className="form-card">
+        <p className="form-info">
+          Du har lesetilgang og kan ikke opprette nye prosjekter. Kontakt en admin i
+          bedriften for utvidet tilgang.
+        </p>
+        <Link href="/app/dashboard" className="btn-dl">
+          Tilbake til oversikt
+        </Link>
+      </div>
+    );
   }
 
   return (

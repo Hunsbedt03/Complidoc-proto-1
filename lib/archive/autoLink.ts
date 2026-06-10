@@ -14,6 +14,7 @@ import {
   formToPayload,
   matchArchiveRowFromCache,
 } from './syncLinks';
+import { resolveCompanyProfileId } from '@/lib/team/server';
 import type { AutoLinkResult, ProjectArchiveLink } from './types';
 
 function normalizeTypeId(id: string): string {
@@ -24,12 +25,7 @@ export async function getCompanyProfileId(
   supabase: SupabaseClient,
   userId: string
 ): Promise<string | null> {
-  const { data } = await supabase
-    .from('company_profiles')
-    .select('id')
-    .eq('user_id', userId)
-    .maybeSingle();
-  return data?.id ?? null;
+  return resolveCompanyProfileId(supabase, userId);
 }
 
 export async function autoLinkArchiveDocuments(

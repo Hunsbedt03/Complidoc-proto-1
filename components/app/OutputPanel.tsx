@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { ArchiveSyncButton } from '@/components/archive/ArchiveSyncButton';
 import { LockProjectButton } from '@/components/LockProjectButton';
+import { usePermissions } from '@/hooks/usePermissions';
 import { ProjectActivityLog } from '@/components/ProjectActivityLog';
 import { ProjectDocuments } from '@/components/ProjectDocuments';
 import { ProjectPackageOverview } from '@/components/ProjectPackageOverview';
@@ -55,6 +56,7 @@ function StatusBadge({ status }: { status: ProjectStatus }) {
 
 export function OutputPanel() {
   const router = useRouter();
+  const permissions = usePermissions();
   const {
     zipData,
     outputTitle,
@@ -256,7 +258,7 @@ export function OutputPanel() {
           onLinksUpdated={setArchiveLinks}
           disabled={projectStatus === 'locked'}
         />
-        {projectStatus !== 'locked' ? (
+        {projectStatus !== 'locked' && permissions.editProject ? (
           <>
             {projectStatus === 'draft' ? (
               <button
@@ -275,12 +277,14 @@ export function OutputPanel() {
                 Tilbake til utkast
               </button>
             )}
-            <LockProjectButton
-              projectStatus={projectStatus}
-              completeness={completeness}
-              engineerName={form.ingenior}
-              onLock={handleLock}
-            />
+            {permissions.lockProject ? (
+              <LockProjectButton
+                projectStatus={projectStatus}
+                completeness={completeness}
+                engineerName={form.ingenior}
+                onLock={handleLock}
+              />
+            ) : null}
           </>
         ) : null}
       </div>

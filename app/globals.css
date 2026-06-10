@@ -530,6 +530,31 @@ footer{padding:32px 40px;border-top:0.5px solid rgba(255,255,255,0.07);display:f
 .cert-expiry-card-link{display:inline-block;font-size:13px;color:#FCD34D;text-decoration:none;font-weight:500;}
 .cert-expiry-card-link:hover{text-decoration:underline;}
 .archive-info-banner{font-size:13px;color:var(--text3);background:rgba(26,111,212,0.08);border:0.5px solid rgba(26,111,212,0.2);border-radius:8px;padding:12px 16px;margin-bottom:16px;}
+.team-member-list{display:flex;flex-direction:column;gap:10px;}
+.team-member-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;background:rgba(255,255,255,0.03);border:0.5px solid rgba(255,255,255,0.1);border-radius:8px;}
+.team-member-main{display:flex;align-items:center;gap:12px;min-width:0;}
+.team-avatar{width:36px;height:36px;border-radius:50%;background:rgba(26,111,212,0.25);color:#7EB8FF;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex-shrink:0;}
+.team-member-name{font-size:14px;color:var(--text1);margin:0 0 2px;font-weight:500;}
+.team-member-you{color:var(--text3);font-weight:400;}
+.team-member-email{font-size:12px;color:var(--text3);margin:0;}
+.team-member-meta{font-size:11px;color:var(--text3);margin:4px 0 0;}
+.team-member-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px;}
+.team-role-badge{font-size:11px;padding:3px 8px;border-radius:4px;background:rgba(255,255,255,0.08);color:var(--text2);}
+.team-role-badge--owner{color:#FCD34D;background:rgba(245,158,11,0.15);}
+.team-role-badge--admin{color:#7EB8FF;background:rgba(26,111,212,0.15);}
+.team-role-select{min-width:120px;padding:6px 8px;}
+.team-invite-form{margin-top:16px;}
+.team-invite-row{display:flex;flex-wrap:wrap;gap:8px;}
+.team-invite-row .form-input{flex:1;min-width:180px;}
+.team-pending{margin-top:16px;}
+.team-pending-title{font-size:13px;color:var(--text2);margin:0 0 8px;}
+.team-pending-list{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:8px;}
+.team-pending-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;font-size:12px;color:var(--text3);padding:8px 10px;background:rgba(0,0,0,0.2);border-radius:6px;}
+.team-invite-link{word-break:break-all;}
+.invite-page{min-height:80vh;display:flex;align-items:center;justify-content:center;padding:24px;}
+.invite-card{max-width:480px;width:100%;background:#111318;border:0.5px solid rgba(255,255,255,0.1);border-radius:12px;padding:28px;}
+.invite-card h1{font-size:20px;color:var(--text1);margin:0 0 12px;}
+.invite-actions{display:flex;flex-direction:column;gap:10px;margin-top:20px;}
 @media(max-width:640px){
   .onboarding-choice-grid{grid-template-columns:1fr;}
   .onboarding-card{padding:20px;}

@@ -1,24 +1,20 @@
 import { NextResponse } from 'next/server';
-import { upsertUserProfileAdmin } from '@/lib/upsertUserProfileAdmin';
-import { formatSupabaseError } from '@/lib/supabaseError';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { bootstrapTeamForUser } from '@/lib/team/server';
+import { DEFAULT_OWNER_PERMISSIONS } from '@/lib/auth/permissions';
+import { bootstrapTeamForUser, getUserPermissions } from '@/lib/team/server';
+import { formatSupabaseError } from '@/lib/supabaseError';
 
-export async function POST() {
+export async function GET() {
   try {
     const supabase = await createClient();
     const {
       data: { user },
       error: authError,
     } = await supabase.auth.getUser();
+
     if (authError || !user) {
       return NextResponse.json({ error: 'Ikke innlogget' }, { status: 401 });
-    }
-
-    const usedAdmin = await upsertUserProfileAdmin(user);
-    if (!usedAdmin) {
-      return NextResponse.json({ ok: false, reason: 'no_service_role' });
     }
 
     const admin = createAdminClient();
@@ -26,9 +22,12 @@ export async function POST() {
       await bootstrapTeamForUser(admin, user.id);
     }
 
-    return NextResponse.json({ ok: true });
+    const permissions = await getUserPermissions(supabase, user.id);
+    return NextResponse.json({
+      permissions: permissions ?? DEFAULT_OWNER_PERMISSIONS,
+    });
   } catch (err) {
-    const message = formatSupabaseError(err);
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.warn('[samsiq team] permissions:', formatSupabaseError(err));
+    return NextResponse.json({ permissions: DEFAULT_OWNER_PERMISSIONS });
   }
 }
