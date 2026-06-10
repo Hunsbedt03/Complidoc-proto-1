@@ -1,11 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import {
-  getDocumentRevisions,
-  type DocumentRevision,
-  type RevisionSource,
-} from '@/lib/revisions';
+import type { DocumentRevision, RevisionSource } from '@/lib/revisions';
 import { fetchDocumentRevisions } from '@/lib/revisions/saveRevision';
 import type { DocumentId } from '@/lib/documents/ids';
 import type { ProjectStatus } from '@/lib/projectStatus';
@@ -22,11 +18,13 @@ function formatRelativeTime(iso: string): string {
   return new Date(iso).toLocaleDateString('nb-NO');
 }
 
-function sourceIcon(source: RevisionSource): string {
-  if (source === 'ai_regenerated' || source === 'ai_generated') return '🤖';
-  if (source === 'user_edited') return '✏️';
-  if (source === 'file_upload') return '📎';
-  return '🤖';
+function sourceIcon(rev: DocumentRevision): string {
+  if (rev.changeType === 'ai' || rev.changeType === 'ai_regeneration') return '🤖';
+  if (rev.changeType === 'restore') return '↩️';
+  if (rev.source === 'user_edited' || rev.changeType === 'user_edit') return '✏️';
+  if (rev.source === 'file_upload' || rev.changeType === 'file_upload') return '📎';
+  if (rev.source === 'ai_regenerated' || rev.source === 'ai_generated') return '🤖';
+  return '📄';
 }
 
 type Props = {
@@ -48,16 +46,19 @@ export function DocumentRevisionHistory({
   onRestore,
   onView,
 }: Props) {
-  const [rows, setRows] = useState<DocumentRevision[]>(() =>
-    getDocumentRevisions(projectId, documentId)
-  );
-  const [loading, setLoading] = useState(false);
+  const [rows, setRows] = useState<DocumentRevision[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const fetched = await fetchDocumentRevisions(projectId, documentId);
       setRows(fetched);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Kunne ikke laste historikk');
+      setRows([]);
     } finally {
       setLoading(false);
     }
@@ -67,8 +68,12 @@ export function DocumentRevisionHistory({
     void load();
   }, [load, refreshKey]);
 
-  if (loading && !rows.length) {
+  if (loading) {
     return <p className="form-info">Laster revisjonshistorikk…</p>;
+  }
+
+  if (error) {
+    return <p className="form-error">{error}</p>;
   }
 
   if (!rows.length) {
@@ -86,7 +91,7 @@ export function DocumentRevisionHistory({
             <div className="revision-row-body">
               <div className="revision-row-head">
                 <span className="revision-icon" aria-hidden>
-                  {sourceIcon(rev.source)}
+                  {sourceIcon(rev)}
                 </span>
                 <span className="revision-author">{rev.changedByName}</span>
                 <span className="revision-time">

@@ -8,6 +8,8 @@ import type {
   RevisionSource,
 } from '@/lib/revisions';
 
+export const runtime = 'nodejs';
+
 type DbRevision = {
   id: string;
   project_id: string;
@@ -61,8 +63,8 @@ export async function GET(request: Request) {
     const projectId = searchParams.get('projectId');
     const documentId = searchParams.get('documentId');
 
-    if (!projectId || !documentId) {
-      return NextResponse.json({ error: 'Mangler projectId eller documentId' }, { status: 400 });
+    if (!projectId) {
+      return NextResponse.json({ error: 'Mangler projectId' }, { status: 400 });
     }
 
     const supabase = await createClient();
@@ -83,12 +85,19 @@ export async function GET(request: Request) {
     const admin = createAdminClient();
     const db = admin ?? supabase;
 
-    const { data, error } = await db
+    let query = db
       .from('document_revisions')
       .select('*')
-      .eq('project_id', projectId)
-      .eq('document_id', documentId)
-      .order('revision', { ascending: false });
+      .eq('project_id', projectId);
+
+    if (documentId) {
+      query = query.eq('document_id', documentId);
+    }
+
+    const { data, error } = await query.order(
+      documentId ? 'revision' : 'changed_at',
+      { ascending: false }
+    );
 
     if (error) {
       const msg = formatSupabaseError(error);
@@ -111,7 +120,6 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       revisions: (data as DbRevision[]).map(mapRow),
-      storage: admin ? ('supabase' as const) : ('local' as const),
     });
   } catch (err) {
     return NextResponse.json({ error: formatSupabaseError(err) }, { status: 500 });
@@ -160,7 +168,7 @@ export async function POST(request: Request) {
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return NextResponse.json({ error: 'Ikke innlogget', storage: 'local' as const }, { status: 401 });
+      return NextResponse.json({ error: 'Ikke innlogget' }, { status: 401 });
     }
 
     const allowed = await assertProjectAccess(supabase, user.id, projectId);
@@ -169,18 +177,9 @@ export async function POST(request: Request) {
     }
 
     const admin = createAdminClient();
-    if (!admin) {
-      return NextResponse.json(
-        {
-          storage: 'local' as const,
-          setupRequired: true,
-          error: 'Supabase ikke konfigurert — lagrer lokalt',
-        },
-        { status: 503 }
-      );
-    }
+    const db = admin ?? supabase;
 
-    const { data: latest } = await admin
+    const { data: latest } = await db
       .from('document_revisions')
       .select('revision')
       .eq('project_id', projectId)
@@ -207,7 +206,7 @@ export async function POST(request: Request) {
       user.email ||
       'Ukjent';
 
-    const { data: inserted, error: insertError } = await admin
+    const { data: inserted, error: insertError } = await db
       .from('document_revisions')
       .insert({
         project_id: projectId,
@@ -232,10 +231,8 @@ export async function POST(request: Request) {
         msg.includes('42P01');
       return NextResponse.json(
         {
-          storage: 'local' as const,
-          setupRequired: missing,
           error: missing
-            ? 'Kjør supabase/patch-document-revisions.sql i Supabase'
+            ? 'Kjør supabase/migrations/20260610_document_revisions.sql i Supabase'
             : msg,
         },
         { status: missing ? 503 : 500 }
@@ -244,7 +241,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       revision: mapRow(inserted as DbRevision),
-      storage: 'supabase' as const,
     });
   } catch (err) {
     return NextResponse.json({ error: formatSupabaseError(err) }, { status: 500 });

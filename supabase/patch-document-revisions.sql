@@ -1,4 +1,5 @@
 -- Revisjonshistorikk for dokumenter (Prompt 3 tillegg)
+-- Full migrering med RLS: supabase/migrations/20260610_document_revisions.sql
 create table if not exists public.document_revisions (
   id uuid default gen_random_uuid() primary key,
   project_id uuid not null references public.prosjekter(id) on delete cascade,

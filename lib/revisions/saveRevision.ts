@@ -1,8 +1,7 @@
-import {
-  appendRevision,
-  type DocumentRevision,
-  type RevisionChangeType,
-  type RevisionSource,
+import type {
+  DocumentRevision,
+  RevisionChangeType,
+  RevisionSource,
 } from '@/lib/revisions';
 
 export type SaveRevisionInput = {
@@ -19,106 +18,59 @@ export type SaveRevisionInput = {
 
 export type SaveRevisionResult = {
   revision: DocumentRevision;
-  storage: 'supabase' | 'local';
 };
 
-/** Lagre revisjon lokalt + best-effort synk til Supabase. */
+async function parseRevisionResponse(
+  res: Response
+): Promise<DocumentRevision> {
+  const json = (await res.json()) as {
+    revision?: DocumentRevision;
+    error?: string;
+  };
+  if (!res.ok || !json.revision) {
+    throw new Error(json.error ?? 'Kunne ikke lagre revisjon i Supabase');
+  }
+  return json.revision;
+}
+
+/** Lagre revisjon i Supabase (document_revisions). */
 export async function saveDocumentRevision(
   input: SaveRevisionInput
 ): Promise<SaveRevisionResult> {
-  let cloudRevision: DocumentRevision | null = null;
-
-  try {
-    const res = await fetch('/api/projects/revisions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(input),
-    });
-    const json = (await res.json()) as {
-      revision?: DocumentRevision;
-      error?: string;
-    };
-    if (res.ok && json.revision) {
-      cloudRevision = json.revision;
-    }
-  } catch {
-    /* lokal fallback */
-  }
-
-  if (cloudRevision) {
-    const all = readLocalRevisions();
-    const filtered = all.filter(
-      (r) =>
-        !(
-          r.projectId === cloudRevision!.projectId &&
-          r.documentId === cloudRevision!.documentId &&
-          r.revision === cloudRevision!.revision
-        )
-    );
-    writeLocalRevisions([...filtered, cloudRevision]);
-    return { revision: cloudRevision, storage: 'supabase' };
-  }
-
-  const local = appendRevision({
-    projectId: input.projectId,
-    documentId: input.documentId,
-    content: input.content,
-    contentJson: input.contentJson,
-    changeType: input.changeType,
-    changeNote: input.changeNote,
-    changedBy: input.changedBy ?? 'user',
-    changedByName: input.changedByName,
-    source: input.source,
+  const res = await fetch('/api/projects/revisions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
   });
-
-  return { revision: local, storage: 'local' };
+  const revision = await parseRevisionResponse(res);
+  return { revision };
 }
 
+/** Hent revisjoner for ett dokument fra Supabase. */
 export async function fetchDocumentRevisions(
   projectId: string,
   documentId: string
 ): Promise<DocumentRevision[]> {
-  try {
-    const params = new URLSearchParams({ projectId, documentId });
-    const res = await fetch(`/api/projects/revisions?${params}`);
-    if (res.ok) {
-      const json = (await res.json()) as { revisions?: DocumentRevision[] };
-      if (json.revisions?.length) {
-        mergeCloudRevisions(projectId, documentId, json.revisions);
-        return json.revisions;
-      }
-    }
-  } catch {
-    /* fall through */
+  const params = new URLSearchParams({ projectId, documentId });
+  const res = await fetch(`/api/projects/revisions?${params}`);
+  if (!res.ok) {
+    const json = (await res.json()) as { error?: string };
+    throw new Error(json.error ?? 'Kunne ikke hente revisjonshistorikk');
   }
-  const { getDocumentRevisions } = await import('@/lib/revisions');
-  return getDocumentRevisions(projectId, documentId);
+  const json = (await res.json()) as { revisions?: DocumentRevision[] };
+  return json.revisions ?? [];
 }
 
-function readLocalRevisions(): DocumentRevision[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const raw = localStorage.getItem('samsiq-document-revisions');
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as DocumentRevision[];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
+/** Hent alle revisjoner for et prosjekt (aktivitetslogg m.m.). */
+export async function fetchProjectRevisions(
+  projectId: string
+): Promise<DocumentRevision[]> {
+  const params = new URLSearchParams({ projectId });
+  const res = await fetch(`/api/projects/revisions?${params}`);
+  if (!res.ok) {
+    const json = (await res.json()) as { error?: string };
+    throw new Error(json.error ?? 'Kunne ikke hente prosjektrevisjoner');
   }
-}
-
-function writeLocalRevisions(rows: DocumentRevision[]) {
-  localStorage.setItem('samsiq-document-revisions', JSON.stringify(rows.slice(0, 500)));
-}
-
-function mergeCloudRevisions(
-  projectId: string,
-  documentId: string,
-  cloud: DocumentRevision[]
-) {
-  const all = readLocalRevisions();
-  const rest = all.filter(
-    (r) => !(r.projectId === projectId && r.documentId === documentId)
-  );
-  writeLocalRevisions([...rest, ...cloud]);
+  const json = (await res.json()) as { revisions?: DocumentRevision[] };
+  return json.revisions ?? [];
 }

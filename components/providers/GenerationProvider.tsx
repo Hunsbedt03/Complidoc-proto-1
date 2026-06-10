@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -23,7 +24,7 @@ import {
 } from '@/lib/localProjects';
 import { saveLocalProjectArchiveLinks } from '@/lib/localArchive';
 import { rebuildZipFromDocs } from '@/lib/rebuildZip';
-import { appendRevision, seedInitialRevisions } from '@/lib/revisions';
+import { hydrateDocumentContents } from '@/lib/revisions/hydrateContents';
 import { saveDocumentRevision } from '@/lib/revisions/saveRevision';
 import type { ProjectStatus } from '@/lib/projectStatus';
 import type {
@@ -56,6 +57,13 @@ type GenerationContextValue = {
   setProjectStatus: (status: ProjectStatus) => void;
   lockProject: (engineerName: string) => void;
   saveDocumentEdit: (
+    documentId: DocumentId,
+    content: string,
+    contentJson: string,
+    changeNote: string,
+    editorName: string
+  ) => Promise<void>;
+  restoreDocumentRevision: (
     documentId: DocumentId,
     content: string,
     contentJson: string,
@@ -98,6 +106,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
   const [documentContents, setDocumentContents] = useState<Record<string, string>>({});
   const [uploads, setUploads] = useState<UploadSlot[]>([]);
   const [archiveLinks, setArchiveLinksState] = useState<ProjectArchiveLink[]>([]);
+  const hydratedForProjectRef = useRef<string | null>(null);
 
   const setArchiveLinks = useCallback(
     (links: ProjectArchiveLink[]) => {
@@ -122,7 +131,26 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
 
   const syncProjectId = useCallback((id: string) => {
     setProjectId(id);
+    hydratedForProjectRef.current = null;
   }, []);
+
+  useEffect(() => {
+    if (!projectId || generatedDocuments.length === 0) return;
+    if (hydratedForProjectRef.current === projectId) return;
+
+    let cancelled = false;
+    const docIds = generatedDocuments.map((d) => d.documentId);
+
+    void hydrateDocumentContents(projectId, docIds).then((contents) => {
+      if (cancelled) return;
+      hydratedForProjectRef.current = projectId;
+      setDocumentContents((prev) => ({ ...contents, ...prev }));
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, generatedDocuments]);
 
   const setUpload = useCallback(
     (slot: UploadSlot) => {
@@ -136,15 +164,18 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
         return next;
       });
       if (projectId && slot.status === 'uploaded') {
-        appendRevision({
+        void saveDocumentRevision({
           projectId,
           documentId: slot.documentId,
           content: slot.fileName ?? '',
+          contentJson: '',
           changeType: 'file_upload',
           changeNote: `Lastet opp ${slot.fileName ?? 'fil'}`,
-          changedBy: 'user',
           changedByName: lastForm?.ingenior || 'Bruker',
           source: 'file_upload',
+          changedBy: 'user',
+        }).catch((err) => {
+          console.warn('[samsiq] upload revision:', err);
         });
       }
     },
@@ -156,15 +187,18 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
       if (!projectId) return;
       setProjectStatus('locked');
       updateLocalProjectWorkflow(projectId, 'locked', uploads);
-      appendRevision({
+      void saveDocumentRevision({
         projectId,
         documentId: 'risk_assessment',
         content: '',
+        contentJson: '',
         changeType: 'locked',
         changeNote: `Prosjektpakke låst av ${engineerName || 'ingeniør'}`,
-        changedBy: 'user',
         changedByName: engineerName || 'Ingeniør',
         source: 'user_edited',
+        changedBy: 'user',
+      }).catch((err) => {
+        console.warn('[samsiq] lock revision:', err);
       });
     },
     [projectId, uploads]
@@ -193,8 +227,8 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
         documentId,
         content: html,
         contentJson: JSON.stringify({ type: 'doc', content: [] }),
-        changeType: 'ai_regeneration',
-        changeNote: `Regenerert av bruker ${new Date().toLocaleDateString('no-NO')}`,
+        changeType: 'ai',
+        changeNote: `Regenerert med AI ${new Date().toLocaleDateString('no-NO')}`,
         changedByName: lastForm.ingenior || 'Samsiq AI',
         source: 'ai_regenerated',
         changedBy: 'samsiq-ai',
@@ -246,6 +280,31 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
     [projectId, projectStatus]
   );
 
+  const restoreDocumentRevision = useCallback(
+    async (
+      documentId: DocumentId,
+      content: string,
+      contentJson: string,
+      changeNote: string,
+      editorName: string
+    ) => {
+      if (!projectId || projectStatus === 'locked') return;
+      setDocumentContents((prev) => ({ ...prev, [documentId]: content }));
+      await saveDocumentRevision({
+        projectId,
+        documentId,
+        content,
+        contentJson,
+        changeType: 'restore',
+        changeNote,
+        changedByName: editorName || 'Ingeniør',
+        source: 'user_edited',
+        changedBy: 'user',
+      });
+    },
+    [projectId, projectStatus]
+  );
+
   const value = useMemo(
     () => ({
       projectId,
@@ -265,6 +324,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
         documents: GeneratedDoc[]
       ) => {
         const id = crypto.randomUUID();
+        hydratedForProjectRef.current = id;
         setProjectId(id);
         setProjectStatus('draft');
         setZipData(zip);
@@ -280,11 +340,6 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
             `<h2>${def?.label ?? doc.documentId}</h2><p>AI-generert dokument. Rediger for å tilpasse før endelig låsing.</p>`;
         }
         setDocumentContents(contents);
-        seedInitialRevisions(
-          id,
-          documents.map((d) => d.documentId),
-          form.ingenior || 'Samsiq'
-        );
         return id;
       },
       setUpload,
@@ -292,6 +347,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
       setProjectStatus,
       lockProject,
       saveDocumentEdit,
+      restoreDocumentRevision,
       setDocumentContent,
       regenerateDocument,
       addDocumentToProject,
@@ -311,7 +367,10 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
         setOutputTitle(title);
         if (meta?.form) setLastForm(meta.form);
         if (meta?.documents) setGeneratedDocuments(normalizeGeneratedDocs(meta.documents));
-        if (meta?.projectId) setProjectId(meta.projectId);
+        if (meta?.projectId) {
+          setProjectId(meta.projectId);
+          hydratedForProjectRef.current = null;
+        }
         if (meta?.status) setProjectStatus(meta.status);
         if (meta?.uploads) setUploads(meta.uploads);
         if (meta?.archiveLinks) {
@@ -326,6 +385,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
       },
       clear: () => {
         clearGenerationSession();
+        hydratedForProjectRef.current = null;
         setProjectId(null);
         setProjectStatus('draft');
         setZipData(null);
@@ -352,6 +412,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
       syncProjectId,
       lockProject,
       saveDocumentEdit,
+      restoreDocumentRevision,
       setDocumentContent,
       regenerateDocument,
       addDocumentToProject,

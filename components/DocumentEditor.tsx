@@ -102,6 +102,8 @@ export function DocumentEditor({
       setSaveOpen(false);
       setChangeNote('');
       setMode('view');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Lagring feilet');
     } finally {
       setSaving(false);
     }

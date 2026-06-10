@@ -10,7 +10,9 @@ import { projectInputFromForm } from '@/lib/projectInput';
 import { CORE_DOCUMENT_IDS } from '@/lib/documents/ids';
 import type { DocumentId } from '@/lib/documents/ids';
 import { getLocalCompanyId } from '@/lib/localArchive';
+import { seedCloudInitialRevisions } from '@/lib/revisions/server';
 import { saveGeneratedProject, ensureUserProfile } from '@/lib/projects-save';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { formatSupabaseError } from '@/lib/supabaseError';
 import { upsertUserProfileAdmin } from '@/lib/upsertUserProfileAdmin';
 import { createClient } from '@/lib/supabase/server';
@@ -38,8 +40,10 @@ export async function POST(request: Request) {
       await ensureUserProfile(supabase, user.id);
     }
 
+    const db = createAdminClient() ?? supabase;
+
     const saveResult = await saveGeneratedProject(
-      supabase,
+      db,
       user.id,
       body.bedriftId,
       body.payload,
@@ -47,6 +51,17 @@ export async function POST(request: Request) {
     );
 
     const { projectId, skippedDocumentTypes } = saveResult;
+
+    const documentIds = body.payload.documents.map((d) => d.documentId);
+    void seedCloudInitialRevisions(
+      db,
+      projectId,
+      documentIds,
+      user.id,
+      body.payload.ingenior || 'Samsiq'
+    ).catch((err) => {
+      console.warn('[samsiq] seedCloudInitialRevisions', err);
+    });
 
     let archiveLinks: AutoLinkResult[] = [];
 

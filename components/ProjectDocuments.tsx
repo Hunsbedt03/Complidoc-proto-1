@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { DocumentEditor } from '@/components/DocumentEditor';
 import { DocumentRevisionHistory } from '@/components/DocumentRevisionHistory';
 import { getDocumentDefinition } from '@/lib/documents/registry';
@@ -14,7 +14,7 @@ import { useGeneration } from '@/components/providers/GenerationProvider';
 import type { DocumentId } from '@/lib/documents/ids';
 import type { GeneratedDoc, ProjectFormData, UploadSlot, ZipData } from '@/lib/types';
 import type { ProjectStatus } from '@/lib/projectStatus';
-import { getDocumentRevisions } from '@/lib/revisions';
+import { fetchDocumentRevisions } from '@/lib/revisions/saveRevision';
 
 const DOC_COLORS = [
   'rgba(226,75,74,0.15)',
@@ -55,6 +55,7 @@ export function ProjectDocuments({
     projectId,
     documentContents,
     saveDocumentEdit,
+    restoreDocumentRevision,
     setDocumentContent,
     regenerateDocument,
   } = useGeneration();
@@ -62,6 +63,41 @@ export function ProjectDocuments({
   const [docTab, setDocTab] = useState<'content' | 'history'>('content');
   const [regenerating, setRegenerating] = useState<DocumentId | null>(null);
   const [revisionRefreshKey, setRevisionRefreshKey] = useState(0);
+  const [revisionMeta, setRevisionMeta] = useState<
+    Record<string, { latest: number; count: number }>
+  >({});
+
+  useEffect(() => {
+    if (!projectId || !documents.length) {
+      setRevisionMeta({});
+      return;
+    }
+    let cancelled = false;
+    void Promise.all(
+      documents.map(async (doc) => {
+        try {
+          const rows = await fetchDocumentRevisions(projectId, doc.documentId);
+          return {
+            documentId: doc.documentId,
+            latest: rows[0]?.revision ?? 1,
+            count: rows.length,
+          };
+        } catch {
+          return { documentId: doc.documentId, latest: 1, count: 0 };
+        }
+      })
+    ).then((results) => {
+      if (cancelled) return;
+      const next: Record<string, { latest: number; count: number }> = {};
+      for (const r of results) {
+        next[r.documentId] = { latest: r.latest, count: r.count };
+      }
+      setRevisionMeta(next);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, documents, revisionRefreshKey]);
 
   const missingCount = completeness.missingRequired.length;
   const isComplete = completeness.isComplete;
@@ -129,11 +165,9 @@ export function ProjectDocuments({
             editable &&
             (catalog?.sourceType === 'ai_generated' ||
               catalog?.sourceType === 'hybrid');
-          const revisions = projectId
-            ? getDocumentRevisions(projectId, doc.documentId)
-            : [];
-          const rev = revisions[0]?.revision ?? 1;
-          const historyCount = revisions.length;
+          const meta = revisionMeta[doc.documentId];
+          const rev = meta?.latest ?? 1;
+          const historyCount = meta?.count ?? 0;
           const expanded = expandedId === doc.documentId;
           const preview = contentPreview(
             documentContents[doc.documentId],
@@ -278,13 +312,21 @@ export function ProjectDocuments({
                         }
                       }}
                       onRestore={(r) => {
-                        void saveDocumentEdit(
+                        void restoreDocumentRevision(
                           doc.documentId,
                           r.content,
                           r.contentJson ?? '',
-                          `Gjenopprettet fra v${r.revision}`,
+                          `Gjenopprettet til v${r.revision}`,
                           form.ingenior
-                        ).then(() => setRevisionRefreshKey((k) => k + 1));
+                        )
+                          .then(() => setRevisionRefreshKey((k) => k + 1))
+                          .catch((err) => {
+                            alert(
+                              err instanceof Error
+                                ? err.message
+                                : 'Gjenoppretting feilet'
+                            );
+                          });
                         setDocTab('content');
                       }}
                     />

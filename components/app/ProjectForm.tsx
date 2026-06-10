@@ -29,7 +29,8 @@ import { projectDefaultsFromProfile } from '@/lib/companyProfile/extended';
 import type { CompanyProfile, ProjectFormData } from '@/lib/types';
 import { DocumentChecklist } from '@/components/DocumentChecklist';
 import { usePermissions } from '@/hooks/usePermissions';
-import { appendRevision, PROJECT_ACTIVITY_ID } from '@/lib/revisions';
+import { PROJECT_ACTIVITY_ID } from '@/lib/revisions';
+import { saveDocumentRevision } from '@/lib/revisions/saveRevision';
 import { CertificationMultiSelect } from '@/components/ui/CertificationMultiSelect';
 import type { ISOCertification } from '@/lib/documents/types';
 
@@ -118,17 +119,6 @@ export function ProjectForm() {
 
       const creatorName =
         formWithDocs.ingenior || profile?.full_name || user?.email || 'Bruker';
-      appendRevision({
-        projectId: localProjectId,
-        documentId: PROJECT_ACTIVITY_ID as DocumentId,
-        content: formWithDocs.prosjekt,
-        changeType: 'project_created',
-        changeNote: 'Prosjekt opprettet',
-        changedBy: user?.id ?? 'user',
-        changedByName: creatorName,
-        source: 'user_edited',
-      });
-
       if (result.failedLabels.length > 0) {
         console.warn('[samsiq] Delvis generering:', result.failedLabels);
         alert(
@@ -211,11 +201,6 @@ export function ProjectForm() {
         await persistLocal();
       } else {
         try {
-          const healthRes = await fetch('/api/health/supabase');
-          const health = await parseJsonResponse<{ ready?: boolean }>(healthRes);
-          if (!health.ready) {
-            await persistLocal({ health });
-          } else {
           const cloudPayload = {
             ...savePayload,
             zipBase64: '',
@@ -246,43 +231,49 @@ export function ProjectForm() {
               saveJson.setupRequired === true || saveRes.status === 503;
             throw err;
           }
+          if (!saveJson.projectId) {
+            throw new Error('Sky-lagring returnerte ikke projectId');
+          }
+          syncProjectId(saveJson.projectId);
+          const links = resolveArchiveLinksAfterSave(saveJson.projectId, saveJson);
+          saveProjectLocally({
+            ...savePayload,
+            localProjectId: saveJson.projectId,
+            archiveLinks: links,
+          });
+          setArchiveLinks(links);
           if (saveJson.partialDocumentSave && saveJson.skippedDocumentTypes?.length) {
             console.warn(
               '[samsiq] Delvis DB-lagring — full pakke i ZIP:',
               saveJson.skippedDocumentTypes
             );
           }
-          if (saveJson.projectId) {
-            syncProjectId(saveJson.projectId);
-            const links = resolveArchiveLinksAfterSave(
-              saveJson.projectId,
-              saveJson
-            );
-            saveProjectLocally({
-              ...savePayload,
-              localProjectId: saveJson.projectId,
-              archiveLinks: links,
+          try {
+            await saveDocumentRevision({
+              projectId: saveJson.projectId,
+              documentId: PROJECT_ACTIVITY_ID,
+              content: formWithDocs.prosjekt,
+              contentJson: '',
+              changeType: 'project_created',
+              changeNote: 'Prosjekt opprettet',
+              changedByName: creatorName,
+              source: 'user_edited',
+              changedBy: user?.id ?? 'user',
             });
-            setArchiveLinks(links);
+          } catch (revErr) {
+            console.warn('[samsiq] project_created revision:', revErr);
           }
           await refreshProjects();
-          }
         } catch (saveErr) {
           const errMsg = formatSupabaseError(saveErr);
           const setupFlag =
             (saveErr as { setupRequired?: boolean }).setupRequired === true;
           const errFields = supabaseErrorFields(saveErr);
-          const useFallback =
-            setupFlag || isSupabaseSetupError(errMsg) || !saveUser;
+          const useFallback = setupFlag || isSupabaseSetupError(errMsg);
           if (useFallback) {
             await persistLocal({ errMsg, ...errFields });
           } else {
-            console.error(
-              '[samsiq] Sky-lagring feilet (lagrer lokalt):',
-              errFields,
-              saveErr
-            );
-            await persistLocal({ errMsg, ...errFields });
+            throw saveErr;
           }
         }
       }
