@@ -33,21 +33,26 @@ export async function POST(request: Request) {
     return new NextResponse('Webhook signature verification failed', { status: 400 });
   }
 
-  switch (event.type) {
-    case 'checkout.session.completed':
-      await handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session);
-      break;
-    case 'customer.subscription.updated':
-      await handleSubscriptionUpdated(event.data.object as Stripe.Subscription);
-      break;
-    case 'customer.subscription.deleted':
-      await handleSubscriptionCancelled(event.data.object as Stripe.Subscription);
-      break;
-    case 'invoice.payment_failed':
-      await handlePaymentFailed(event.data.object as Stripe.Invoice);
-      break;
-    default:
-      break;
+  try {
+    switch (event.type) {
+      case 'checkout.session.completed':
+        await handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session);
+        break;
+      case 'customer.subscription.updated':
+        await handleSubscriptionUpdated(event.data.object as Stripe.Subscription);
+        break;
+      case 'customer.subscription.deleted':
+        await handleSubscriptionCancelled(event.data.object as Stripe.Subscription);
+        break;
+      case 'invoice.payment_failed':
+        await handlePaymentFailed(event.data.object as Stripe.Invoice);
+        break;
+      default:
+        break;
+    }
+  } catch (err) {
+    console.error('[stripe] Webhook handler failed', event.type, err);
+    return new NextResponse('Webhook handler failed', { status: 500 });
   }
 
   return new NextResponse('OK', { status: 200 });

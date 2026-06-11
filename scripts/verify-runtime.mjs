@@ -1,6 +1,12 @@
 const base = process.env.SAMSIQ_BASE_URL || 'http://localhost:3000';
 
-const routes = ['/app/new', '/app/dashboard', '/api/generate', '/api/health/supabase'];
+const routes = [
+  '/app/new',
+  '/app/dashboard',
+  '/api/generate',
+  '/api/health/supabase',
+  '/api/stripe/health',
+];
 
 let failed = 0;
 for (const path of routes) {

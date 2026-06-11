@@ -18,32 +18,54 @@ export async function handleCheckoutCompleted(
   const customerId = session.customer as string | null;
   const subscriptionId = session.subscription as string | null;
 
-  if (!userId || !customerId || !subscriptionId) return;
+  if (!userId || !customerId || !subscriptionId) {
+    console.error('[stripe] checkout.session.completed missing fields', {
+      userId: !!userId,
+      customerId: !!customerId,
+      subscriptionId: !!subscriptionId,
+    });
+    return;
+  }
 
   const stripe = getStripe();
   const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-  await persistUserSubscription(userId, subscriptionPatch(subscription));
+  const ok = await persistUserSubscription(userId, subscriptionPatch(subscription));
+  if (!ok) {
+    throw new Error('Failed to persist subscription after checkout');
+  }
 }
 
 export async function handleSubscriptionUpdated(
   sub: Stripe.Subscription
 ): Promise<void> {
   const userId = sub.metadata?.userId;
-  if (!userId) return;
-  await persistUserSubscription(userId, subscriptionPatch(sub));
+  if (!userId) {
+    console.warn('[stripe] subscription.updated without metadata.userId', sub.id);
+    return;
+  }
+  const ok = await persistUserSubscription(userId, subscriptionPatch(sub));
+  if (!ok) {
+    throw new Error('Failed to persist subscription update');
+  }
 }
 
 export async function handleSubscriptionCancelled(
   sub: Stripe.Subscription
 ): Promise<void> {
   const userId = sub.metadata?.userId;
-  if (!userId) return;
-  await persistUserSubscription(userId, {
+  if (!userId) {
+    console.warn('[stripe] subscription.deleted without metadata.userId', sub.id);
+    return;
+  }
+  const ok = await persistUserSubscription(userId, {
     subscription_status: 'canceled',
     subscription_plan: 'free',
     subscription_period_end: formatSubscriptionPeriodEnd(sub),
     trial_end: null,
   });
+  if (!ok) {
+    throw new Error('Failed to persist subscription cancellation');
+  }
 }
 
 export async function handlePaymentFailed(invoice: Stripe.Invoice): Promise<void> {
@@ -56,10 +78,13 @@ export async function handlePaymentFailed(invoice: Stripe.Invoice): Promise<void
   if (!userId) return;
 
   const plan = getPlanFromPriceId(sub.items.data[0]?.price?.id ?? '');
-  await persistUserSubscription(userId, {
+  const ok = await persistUserSubscription(userId, {
     subscription_status: 'past_due',
     subscription_plan: plan === 'free' ? 'free' : plan,
     subscription_period_end: formatSubscriptionPeriodEnd(sub),
     trial_end: formatSubscriptionTrialEnd(sub),
   });
+  if (!ok) {
+    throw new Error('Failed to persist payment_failed status');
+  }
 }
