@@ -6,7 +6,7 @@ import {
   sendCustomerReviewRequestEmail,
   sendRevisionOpenedEmail,
 } from '@/lib/customer-portal/email';
-import { getAppUrl } from '@/lib/stripe/client';
+import { getAppUrl } from '@/lib/appUrl';
 import { assertSupplierCanAccessProject } from '@/lib/customer-portal/supplierAccess';
 import { hasActiveCustomerAccess } from '@/lib/customer-portal/access';
 

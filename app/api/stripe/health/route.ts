@@ -6,7 +6,7 @@ import {
   getStripeSecretMode,
   isStripeLiveReady,
 } from '@/lib/stripe/config';
-import { getAppUrl } from '@/lib/stripe/client';
+import { getAppUrl } from '@/lib/appUrl';
 
 export async function GET() {
   const issues = getStripeConfigIssues();

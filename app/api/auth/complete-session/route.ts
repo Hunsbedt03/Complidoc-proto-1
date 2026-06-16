@@ -7,7 +7,7 @@ import {
 import type { ActiveUserContext } from '@/lib/user-context/types';
 import { formatSupabaseError } from '@/lib/supabaseError';
 import { createClient } from '@/lib/supabase/server';
-import { upsertUserProfileAdmin } from '@/lib/upsertUserProfileAdmin';
+import { syncUserProfileAfterAuthChange } from '@/lib/auth/syncProfile';
 import { bootstrapTeamForUser } from '@/lib/team/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 
@@ -42,12 +42,13 @@ export async function POST(request: Request) {
     });
 
     if (body.accountType === 'supplier') {
-      await upsertUserProfileAdmin(user).catch(() => {});
       const admin = createAdminClient();
       if (admin) {
         await bootstrapTeamForUser(admin, user.id).catch(() => {});
       }
     }
+
+    await syncUserProfileAfterAuthChange(user).catch(() => {});
 
     const contexts = await getUserContexts(user.id);
     const redirectTo = resolvePostAuthRedirect(contexts, {

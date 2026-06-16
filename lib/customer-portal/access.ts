@@ -4,7 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import type { CustomerProjectAccess } from '@/types/database';
 import { findOrganizationIdByEmailDomain } from '@/lib/customer-portal/org';
 import { sendCustomerProjectInviteEmail } from '@/lib/customer-portal/email';
-import { getAppUrl } from '@/lib/stripe/client';
+import { getAppUrl } from '@/lib/appUrl';
 import { assertSupplierCanAccessProject } from '@/lib/customer-portal/supplierAccess';
 
 export type CustomerAccessRow = CustomerProjectAccess & {

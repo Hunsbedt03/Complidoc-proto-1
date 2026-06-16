@@ -66,6 +66,9 @@ export function LoginForm({ redirectTo, embedded = false }: Props) {
             onChange={(e) => setPassword(e.target.value)}
             autoComplete="current-password"
           />
+          <p className="auth-forgot-link">
+            <Link href="/forgot-password">Glemt passord?</Link>
+          </p>
         </div>
         <div className="auth-error">{error}</div>
         <button type="submit" className="auth-submit" disabled={submitting}>

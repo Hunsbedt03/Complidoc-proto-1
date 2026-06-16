@@ -70,6 +70,9 @@ export function AppSidebar() {
             </div>
           </div>
         </div>
+        <Link href="/app/settings/account" className="account-sidebar-link">
+          Min konto
+        </Link>
         <button type="button" className="btn-logout" id="btn-logout" onClick={handleLogout}>
           Logg ut
         </button>

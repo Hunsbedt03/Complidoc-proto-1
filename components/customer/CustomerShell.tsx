@@ -42,14 +42,23 @@ export function CustomerShell({ children }: { children: React.ReactNode }) {
       </nav>
       <div className="app-wrap customer-wrap">
         <div className="app-sidebar customer-sidebar">
-          <Link
-            href="/app/customer/dashboard"
-            className={
-              'app-nav-item' + (pathname === '/app/customer/dashboard' ? ' active' : '')
-            }
-          >
-            Mine prosjekter
-          </Link>
+        <Link
+          href="/app/customer/dashboard"
+          className={
+            'app-nav-item' + (pathname === '/app/customer/dashboard' ? ' active' : '')
+          }
+        >
+          Mine prosjekter
+        </Link>
+        <Link
+          href="/app/customer/settings/account"
+          className={
+            'app-nav-item' +
+            (pathname?.startsWith('/app/customer/settings') ? ' active' : '')
+          }
+        >
+          Min konto
+        </Link>
           <div
             style={{
               marginTop: 'auto',

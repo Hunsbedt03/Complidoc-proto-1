@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { authCallbackUrl } from '@/lib/appUrl';
 import { listLocalProjects } from '@/lib/localProjects';
 import { formatSupabaseError } from '@/lib/supabaseError';
 import { getBedriftId, loadProjects } from '@/lib/projects';
@@ -35,6 +36,7 @@ type AuthContextValue = {
     options?: { accountType?: 'supplier' | 'customer' }
   ) => Promise<{ needsConfirmation: boolean }>;
   signOut: () => Promise<void>;
+  signOutGlobal: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -232,6 +234,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           body: JSON.stringify({}),
         }).catch(() => {});
       }
+      if (event === 'USER_UPDATED' && nextUser) {
+        fetch('/api/auth/sync-profile', { method: 'POST' }).catch(() => {});
+        void refreshProfile();
+      }
       const nextId = nextUser?.id ?? null;
       if (
         nextId &&
@@ -244,7 +250,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => subscription.unsubscribe();
-  }, [supabase, loadUserData]);
+  }, [supabase, loadUserData, refreshProfile]);
 
   const signIn = useCallback(
     async (email: string, password: string) => {
@@ -265,6 +271,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email,
         password,
         options: {
+          emailRedirectTo: authCallbackUrl('/login'),
           data: {
             full_name: fullName,
             account_type: options?.accountType ?? 'supplier',
@@ -281,6 +288,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
   }, [supabase]);
 
+  const signOutGlobal = useCallback(async () => {
+    await supabase.auth.signOut({ scope: 'global' });
+  }, [supabase]);
+
   const value = useMemo(
     () => ({
       user,
@@ -295,6 +306,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signIn,
       signUp,
       signOut,
+      signOutGlobal,
     }),
     [
       user,
@@ -309,6 +321,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signIn,
       signUp,
       signOut,
+      signOutGlobal,
     ]
   );
 

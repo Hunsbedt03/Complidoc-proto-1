@@ -18,16 +18,3 @@ export function getStripe(): Stripe {
   }
   return stripeClient;
 }
-
-export function getAppUrl(): string {
-  if (process.env.NEXT_PUBLIC_APP_URL?.trim()) {
-    return process.env.NEXT_PUBLIC_APP_URL.trim();
-  }
-  if (process.env.SAMSIQ_BASE_URL?.trim()) {
-    return process.env.SAMSIQ_BASE_URL.trim();
-  }
-  if (process.env.NODE_ENV === 'production') {
-    return 'https://samsiq.no';
-  }
-  return 'http://localhost:3000';
-}
