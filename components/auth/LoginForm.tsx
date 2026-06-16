@@ -4,21 +4,18 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
-
-type Mode = 'login' | 'signup';
+import { completeSessionAfterAuth } from '@/lib/auth/completeSessionClient';
 
 type Props = {
   redirectTo?: string;
   embedded?: boolean;
 };
 
-export function LoginForm({ redirectTo = '/app/new', embedded = false }: Props) {
+export function LoginForm({ redirectTo, embedded = false }: Props) {
   const router = useRouter();
-  const { signIn, signUp } = useAuth();
-  const [mode, setMode] = useState<Mode>('login');
+  const { signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -27,17 +24,9 @@ export function LoginForm({ redirectTo = '/app/new', embedded = false }: Props) 
     setError('');
     setSubmitting(true);
     try {
-      if (mode === 'signup') {
-        const { needsConfirmation } = await signUp(email, password, fullName);
-        if (needsConfirmation) {
-          setError('Konto opprettet. Sjekk e-post for bekreftelse, deretter logg inn.');
-          setMode('login');
-          return;
-        }
-      } else {
-        await signIn(email, password);
-      }
-      router.push(redirectTo);
+      await signIn(email, password);
+      const { redirectTo: resolved } = await completeSessionAfterAuth({});
+      router.push(redirectTo && redirectTo !== '/app/new' ? redirectTo : resolved);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Innlogging feilet');
@@ -53,20 +42,8 @@ export function LoginForm({ redirectTo = '/app/new', embedded = false }: Props) 
           ×
         </Link>
       )}
-      <h3>{mode === 'signup' ? 'Opprett konto' : 'Logg inn'}</h3>
+      <h3>Logg inn</h3>
       <form onSubmit={handleSubmit}>
-        {mode === 'signup' && (
-          <div className="auth-field">
-            <label htmlFor="auth-name">Fullt navn</label>
-            <input
-              id="auth-name"
-              type="text"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              autoComplete="name"
-            />
-          </div>
-        )}
         <div className="auth-field">
           <label htmlFor="auth-email">E-post</label>
           <input
@@ -87,32 +64,21 @@ export function LoginForm({ redirectTo = '/app/new', embedded = false }: Props) 
             minLength={6}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+            autoComplete="current-password"
           />
         </div>
         <div className="auth-error">{error}</div>
         <button type="submit" className="auth-submit" disabled={submitting}>
-          {submitting ? 'Venter...' : mode === 'signup' ? 'Registrer' : 'Logg inn'}
+          {submitting ? 'Venter...' : 'Logg inn'}
         </button>
       </form>
-      <button
-        type="button"
-        className="auth-toggle"
-        onClick={() => {
-          setMode(mode === 'signup' ? 'login' : 'signup');
-          setError('');
-        }}
-      >
-        {mode === 'signup' ? 'Har du konto? Logg inn' : 'Ny bruker? Opprett konto'}
-      </button>
+      <p className="auth-footer-link">
+        Ny bruker? <Link href="/app/register">Opprett konto</Link>
+      </p>
     </div>
   );
 
   if (embedded) return box;
 
-  return (
-    <div className="login-page">
-      {box}
-    </div>
-  );
+  return <div className="login-page">{box}</div>;
 }

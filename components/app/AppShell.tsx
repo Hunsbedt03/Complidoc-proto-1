@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Logo } from '@/components/ui/Logo';
+import { ContextSwitcher } from '@/components/ContextSwitcher';
 import { useAuth, useUserInitials } from '@/components/providers/AuthProvider';
 
 const NAV = [
@@ -41,7 +42,8 @@ export function AppSidebar() {
         </Link>
       ))}
       <div style={{ marginTop: 'auto', paddingTop: 16, borderTop: '0.5px solid rgba(255,255,255,0.06)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <ContextSwitcher className="context-switcher--sidebar" />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12 }}>
           <div
             id="user-avatar"
             style={{
@@ -94,7 +96,11 @@ export function AppTopbar({ title, subtitle }: { title: string; subtitle: string
 export function AppNav({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
-  if (pathname?.startsWith('/app/onboarding')) {
+  if (pathname?.startsWith('/app/customer')) {
+    return <>{children}</>;
+  }
+
+  if (pathname?.startsWith('/app/onboarding') || pathname === '/app/register') {
     return <>{children}</>;
   }
 

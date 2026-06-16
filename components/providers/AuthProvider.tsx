@@ -28,7 +28,12 @@ type AuthContextValue = {
   refreshProfile: () => Promise<void>;
   hydrateCloudProjects: (cloud: ProsjektSummary[]) => void;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, fullName: string) => Promise<{ needsConfirmation: boolean }>;
+  signUp: (
+    email: string,
+    password: string,
+    fullName: string,
+    options?: { accountType?: 'supplier' | 'customer' }
+  ) => Promise<{ needsConfirmation: boolean }>;
   signOut: () => Promise<void>;
 };
 
@@ -217,9 +222,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
       const nextUser = session?.user ?? null;
       setUser(nextUser);
+      if (event === 'SIGNED_IN' && nextUser?.email) {
+        fetch('/api/auth/complete-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({}),
+        }).catch(() => {});
+      }
       const nextId = nextUser?.id ?? null;
       if (
         nextId &&
@@ -243,11 +255,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const signUp = useCallback(
-    async (email: string, password: string, fullName: string) => {
+    async (
+      email: string,
+      password: string,
+      fullName: string,
+      options?: { accountType?: 'supplier' | 'customer' }
+    ) => {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { full_name: fullName } },
+        options: {
+          data: {
+            full_name: fullName,
+            account_type: options?.accountType ?? 'supplier',
+          },
+        },
       });
       if (error) throw new Error(formatSupabaseError(error));
       return { needsConfirmation: !data.session };

@@ -62,11 +62,14 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
   const isOnboardingRoute = pathname.startsWith('/app/onboarding');
+  const isRegisterRoute =
+    pathname === '/app/register' || pathname.startsWith('/app/register/');
+  const isPublicAppRoute = isRegisterRoute;
 
   if (user && pathname.startsWith('/app')) {
     const onboardingDone = await isOnboardingCompleted(supabase, user.id);
 
-    if (!onboardingDone && !isOnboardingRoute) {
+    if (!onboardingDone && !isOnboardingRoute && !isRegisterRoute) {
       const url = request.nextUrl.clone();
       url.pathname = '/app/onboarding/welcome';
       url.search = '';
@@ -81,18 +84,20 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  if (!user && pathname.startsWith('/app')) {
+  if (!user && pathname.startsWith('/app') && !isPublicAppRoute) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     url.searchParams.set('redirect', pathname);
     return NextResponse.redirect(url);
   }
 
-  if (user && pathname === '/login') {
+  if (user && (pathname === '/login' || isRegisterRoute)) {
     const redirect = request.nextUrl.searchParams.get('redirect') || '/app/new';
     const onboardingDone = await isOnboardingCompleted(supabase, user.id);
     const target = onboardingDone
-      ? redirect
+      ? redirect === '/app/register'
+        ? '/app/dashboard'
+        : redirect
       : '/app/onboarding/welcome';
     return NextResponse.redirect(new URL(target, request.url));
   }

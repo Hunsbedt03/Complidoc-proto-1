@@ -10,17 +10,17 @@
    - Pro årlig: **21900 NOK** / år
 3. Hent live API-nøkler: Developers → API keys (`sk_live_…`, `pk_live_…`).
 4. Opprett **live webhook**:
-   - URL: `https://complidoc-proto-1.vercel.app/api/stripe/webhook`
+   - URL: `https://samsiq.no/api/stripe/webhook`
    - Events: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_failed`
    - Noter `whsec_…` (live webhook secret — ikke test-secret).
 5. Aktiver **Customer portal**: Settings → Billing → Customer portal (endre plan, kansellere, fakturaer).
 
 ## Miljøvariabler
 
-Oppdater i **Vercel** (complidoc-proto-1 → Settings → Environment Variables) og **`.env.local`**:
+Oppdater i **Vercel** (Settings → Environment Variables) og **`.env.local`**:
 
 ```env
-NEXT_PUBLIC_APP_URL=https://complidoc-proto-1.vercel.app
+NEXT_PUBLIC_APP_URL=https://samsiq.no
 
 STRIPE_SECRET_KEY=sk_live_...
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...
@@ -44,7 +44,7 @@ Etter endring på Vercel: **Redeploy** (miljøvariabler lastes ikke på eksister
 ## Verifiser oppsett
 
 ```bash
-curl https://complidoc-proto-1.vercel.app/api/stripe/health
+curl https://samsiq.no/api/stripe/health
 ```
 
 Forventet når live er riktig konfigurert:

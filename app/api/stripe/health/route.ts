@@ -56,8 +56,9 @@ function issueHints(issues: ReturnType<typeof getStripeConfigIssues>): string[] 
     );
   }
   if (issues.includes('missing_webhook_secret')) {
+    const webhookUrl = `${getAppUrl().replace(/\/$/, '')}/api/stripe/webhook`;
     hints.push(
-      'Opprett live webhook på https://complidoc-proto-1.vercel.app/api/stripe/webhook og sett STRIPE_WEBHOOK_SECRET.'
+      `Opprett live webhook på ${webhookUrl} og sett STRIPE_WEBHOOK_SECRET.`
     );
   }
   return hints;

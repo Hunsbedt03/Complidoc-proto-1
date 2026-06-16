@@ -7,6 +7,8 @@ import { ArchiveSyncButton } from '@/components/archive/ArchiveSyncButton';
 import { LockProjectButton } from '@/components/LockProjectButton';
 import { usePermissions } from '@/hooks/usePermissions';
 import { ProjectActivityLog } from '@/components/ProjectActivityLog';
+import { ProjectCustomerAccess } from '@/components/project/ProjectCustomerAccess';
+import { ProjectRevisionPanel } from '@/components/project/ProjectRevisionPanel';
 import { ProjectDocuments } from '@/components/ProjectDocuments';
 import { ProjectPackageOverview } from '@/components/ProjectPackageOverview';
 import { useGeneration } from '@/components/providers/GenerationProvider';
@@ -75,6 +77,7 @@ export function OutputPanel() {
   } = useGeneration();
 
   const [restoring, setRestoring] = useState(false);
+  const [revisionLocked, setRevisionLocked] = useState(false);
 
   function setWorkflowStatus(status: ProjectStatus) {
     setProjectStatus(status);
@@ -234,6 +237,7 @@ export function OutputPanel() {
     ) : null;
   }
 
+  const effectiveLocked = projectStatus === 'locked' || revisionLocked;
   const documentLabels = Object.fromEntries(
     documents.map((d) => [
       d.documentId,
@@ -256,9 +260,9 @@ export function OutputPanel() {
           projectId={projectId}
           form={form}
           onLinksUpdated={setArchiveLinks}
-          disabled={projectStatus === 'locked'}
+          disabled={effectiveLocked}
         />
-        {projectStatus !== 'locked' && permissions.editProject ? (
+        {!effectiveLocked && permissions.editProject ? (
           <>
             {projectStatus === 'draft' ? (
               <button
@@ -289,13 +293,24 @@ export function OutputPanel() {
         ) : null}
       </div>
 
+      {projectId ? (
+        <div className="output-side-panels">
+          <ProjectCustomerAccess projectId={projectId} projectName={outputTitle} />
+          <ProjectRevisionPanel
+            projectId={projectId}
+            projectName={outputTitle}
+            onRevisionLockedChange={setRevisionLocked}
+          />
+        </div>
+      ) : null}
+
       <ProjectPackageOverview
         form={form}
         generatedDocuments={documents}
         uploads={uploads}
         archiveLinks={archiveLinks}
         projectId={projectId}
-        projectStatus={projectStatus}
+        projectStatus={effectiveLocked ? 'locked' : projectStatus}
         onUploadChange={setUpload}
         onAddDocument={addDocumentToProject}
         onArchiveLinksChange={setArchiveLinks}
@@ -306,7 +321,7 @@ export function OutputPanel() {
         documents={documents}
         form={form}
         uploads={uploads}
-        projectStatus={projectStatus}
+        projectStatus={effectiveLocked ? 'locked' : projectStatus}
       />
 
       {projectId ? (
