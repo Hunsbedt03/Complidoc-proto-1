@@ -2,8 +2,10 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { Suspense } from 'react';
 import { Logo } from '@/components/ui/Logo';
 import { ContextSwitcher } from '@/components/ContextSwitcher';
+import { GlobalSubscriptionBanner } from '@/components/app/GlobalSubscriptionBanner';
 import { useAuth, useUserInitials } from '@/components/providers/AuthProvider';
 
 const NAV = [
@@ -119,7 +121,12 @@ export function AppNav({ children }: { children: React.ReactNode }) {
       </nav>
       <div className="app-wrap">
         <AppSidebar />
-        <div className="app-main">{children}</div>
+        <div className="app-main">
+          <Suspense fallback={null}>
+            <GlobalSubscriptionBanner />
+          </Suspense>
+          {children}
+        </div>
       </div>
     </div>
   );

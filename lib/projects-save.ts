@@ -90,6 +90,7 @@ export async function ensureUserProfile(
   throwSaveError('H2-users-insert', insertErr, { userId });
 }
 
+/** Legacy bedrifter-modell — prosjekter.bedrift_id FK. Team/bruker bruker company_profiles. */
 export async function ensureBedrift(
   supabase: SupabaseClient,
   userId: string,
@@ -153,30 +154,43 @@ export async function saveGeneratedProject(
   const skippedTypes: string[] = [];
   let insertedCount = 0;
 
-  for (let i = 0; i < payload.documents.length; i++) {
-    const d = payload.documents[i];
-    const storedType = storageDocType(d);
+  const docRows = payload.documents.map((d) => ({
+    prosjekt_id: prosjekt.id,
+    user_id: userId,
+    doc_type: storageDocType(d),
+    filename: d.filename,
+    docx_base64: d.docx,
+  }));
 
-    const { error: dErr } = await supabase.from('dokumenter').insert({
-      prosjekt_id: prosjekt.id,
-      user_id: userId,
-      doc_type: storedType,
-      filename: d.filename,
-      docx_base64: d.docx,
-    });
-    if (dErr) {
-      const errCode = (dErr as { code?: string }).code;
-      if (errCode === '23514') {
-        skippedTypes.push(storedType);
-        continue;
-      }
-      throwSaveError('H4-dokumenter', dErr, {
-        rowIndex: i,
-        docType: storedType,
-        docxLen: d.docx?.length ?? 0,
+  const { error: batchErr } = await supabase.from('dokumenter').insert(docRows);
+  if (!batchErr) {
+    insertedCount = docRows.length;
+  } else {
+    for (let i = 0; i < payload.documents.length; i++) {
+      const d = payload.documents[i];
+      const storedType = storageDocType(d);
+
+      const { error: dErr } = await supabase.from('dokumenter').insert({
+        prosjekt_id: prosjekt.id,
+        user_id: userId,
+        doc_type: storedType,
+        filename: d.filename,
+        docx_base64: d.docx,
       });
+      if (dErr) {
+        const errCode = (dErr as { code?: string }).code;
+        if (errCode === '23514') {
+          skippedTypes.push(storedType);
+          continue;
+        }
+        throwSaveError('H4-dokumenter', dErr, {
+          rowIndex: i,
+          docType: storedType,
+          docxLen: d.docx?.length ?? 0,
+        });
+      }
+      insertedCount += 1;
     }
-    insertedCount += 1;
   }
 
   if (insertedCount === 0) {

@@ -6,6 +6,7 @@ import {
   sendCustomerReviewRequestEmail,
   sendRevisionOpenedEmail,
 } from '@/lib/customer-portal/email';
+import { snapshotAllProjectDocumentsForCycle } from '@/lib/customer-portal/documentSnapshots';
 import { getAppUrl } from '@/lib/appUrl';
 import { assertSupplierCanAccessProject } from '@/lib/customer-portal/supplierAccess';
 import { hasActiveCustomerAccess } from '@/lib/customer-portal/access';
@@ -22,19 +23,9 @@ export type SupplierRevisionState = {
   statusMessage: string;
 };
 
-export type CustomerRevisionBanner = {
-  kind:
-    | 'draft'
-    | 'awaiting_customer'
-    | 'under_revision'
-    | 'fully_signed'
-    | 'signed_receipt';
-  title: string;
-  detail?: string;
-  canSign: boolean;
-  viewingCycleNumber?: number;
-  signedAt?: string | null;
-};
+export type CustomerRevisionBanner = import('@/lib/customer-portal/projectStatus').CustomerRevisionBanner;
+
+export { buildCustomerRevisionBanner } from '@/lib/customer-portal/projectStatus';
 
 export async function fetchProjectRevisionCycles(
   projectId: string
@@ -97,69 +88,6 @@ export function buildSupplierRevisionState(
   };
 }
 
-export function buildCustomerRevisionBanner(
-  cycles: ProjectRevisionCycle[],
-  justSigned?: boolean
-): CustomerRevisionBanner {
-  if (justSigned) {
-    const signed = cycles.find((c) => c.status === 'fully_signed');
-    const date = signed?.customer_signed_at
-      ? new Date(signed.customer_signed_at).toLocaleDateString('nb-NO')
-      : 'nå';
-    return {
-      kind: 'signed_receipt',
-      title: `Du har signert akseptanseprotokollen ${date}.`,
-      detail: 'Dokumentasjonen er nå fullt godkjent av begge parter.',
-      canSign: false,
-    };
-  }
-
-  const openCycle = cycles.find((c) => c.status === 'open');
-  const lockedCycle = cycles.find((c) => c.status === 'locked');
-  const latestFullySigned = cycles
-    .filter((c) => c.status === 'fully_signed')
-    .sort((a, b) => b.cycle_number - a.cycle_number)[0];
-
-  if (lockedCycle) {
-    return {
-      kind: 'awaiting_customer',
-      title:
-        'Dokumentasjonen er signert av leverandøren og klar for din gjennomgang',
-      canSign: true,
-    };
-  }
-
-  if (openCycle && latestFullySigned) {
-    return {
-      kind: 'under_revision',
-      title: `Du ser godkjent versjon Rev. ${latestFullySigned.cycle_number}.`,
-      detail:
-        'Leverandøren arbeider med en revisjon — du varsles når den er signert og klar for gjennomgang.',
-      canSign: false,
-      viewingCycleNumber: latestFullySigned.cycle_number,
-    };
-  }
-
-  if (latestFullySigned && !openCycle) {
-    const date = latestFullySigned.customer_signed_at
-      ? new Date(latestFullySigned.customer_signed_at).toLocaleDateString('nb-NO')
-      : undefined;
-    return {
-      kind: 'fully_signed',
-      title: `✅ Signert — Rev. ${latestFullySigned.cycle_number}${date ? `, signert ${date}` : ''}`,
-      canSign: false,
-      signedAt: latestFullySigned.customer_signed_at,
-    };
-  }
-
-  return {
-    kind: 'draft',
-    title:
-      'Leverandøren arbeider med dokumentasjonen. Du blir varslet når den er signert og klar for gjennomgang.',
-    canSign: false,
-  };
-}
-
 async function getActiveCustomerEmailsByProject(
   projectId: string
 ): Promise<{ orgId: string; emails: string[] }[]> {
@@ -180,27 +108,30 @@ async function getActiveCustomerEmailsByProject(
     ),
   ];
 
-  const result: { orgId: string; emails: string[] }[] = [];
+  if (orgIds.length === 0) return [];
 
-  for (const orgId of orgIds) {
-    const { data: users } = await admin
-      .from('customer_users')
-      .select('email')
-      .eq('customer_organization_id', orgId);
+  const { data: allUsers } = await admin
+    .from('customer_users')
+    .select('email, customer_organization_id')
+    .in('customer_organization_id', orgIds);
 
-    const emails = new Set<string>();
-    for (const u of users ?? []) {
-      if (u.email) emails.add(u.email.toLowerCase());
-    }
+  const usersByOrg = new Map<string, Set<string>>();
+  for (const u of allUsers ?? []) {
+    if (!u.email || !u.customer_organization_id) continue;
+    const set = usersByOrg.get(u.customer_organization_id) ?? new Set<string>();
+    set.add(u.email.toLowerCase());
+    usersByOrg.set(u.customer_organization_id, set);
+  }
+
+  return orgIds.map((orgId) => {
+    const emails = usersByOrg.get(orgId) ?? new Set<string>();
     for (const row of accessRows ?? []) {
       if (row.customer_organization_id === orgId && row.invited_email) {
         emails.add(row.invited_email.toLowerCase());
       }
     }
-    result.push({ orgId, emails: [...emails] });
-  }
-
-  return result;
+    return { orgId, emails: [...emails] };
+  });
 }
 
 async function notifyCustomerOrganizations(input: {
@@ -212,6 +143,18 @@ async function notifyCustomerOrganizations(input: {
 }): Promise<void> {
   const admin = createAdminClient();
   if (!admin) return;
+
+  const { data: alreadySent } = await admin
+    .from('customer_notifications')
+    .select('id, email_sent_at')
+    .eq('revision_cycle_id', input.cycleId)
+    .eq('type', input.type)
+    .not('email_sent_at', 'is', null)
+    .limit(1);
+
+  if (alreadySent && alreadySent.length > 0) {
+    return;
+  }
 
   const orgGroups = await getActiveCustomerEmailsByProject(input.projectId);
   const projectUrl = `${getAppUrl().replace(/\/$/, '')}/app/customer/projects/${input.projectId}`;
@@ -274,6 +217,10 @@ export async function ensureOpenRevisionCycle(
   const existing = cycles.find((c) => c.status === 'open');
   if (existing) return existing;
 
+  if (cycles.some((c) => c.status === 'locked')) {
+    throw new Error('Prosjektet venter på kundesignering — kan ikke opprette ny åpen syklus');
+  }
+
   const maxNumber = cycles.reduce((max, c) => Math.max(max, c.cycle_number), 0);
 
   const { data, error } = await admin
@@ -305,6 +252,23 @@ export async function supplierSignAndSend(input: {
   const hasCustomers = await hasActiveCustomerAccess(input.projectId);
   if (!hasCustomers) throw new Error('Inviter minst én aktiv kunde før utsendelse');
 
+  const cycles = await fetchProjectRevisionCycles(input.projectId);
+  const lockedCycle = cycles.find((c) => c.status === 'locked');
+  if (lockedCycle) {
+    await snapshotAllProjectDocumentsForCycle(lockedCycle.id, input.projectId).catch((err) => {
+      console.warn('[samsiq] snapshotAllProjectDocumentsForCycle', err);
+    });
+    const notifType =
+      lockedCycle.cycle_number > 1 ? 'revision_ready_for_review' : 'package_ready_for_review';
+    await notifyCustomerOrganizations({
+      projectId: input.projectId,
+      cycleId: lockedCycle.id,
+      type: notifType,
+      projectName: input.projectName,
+    });
+    return lockedCycle;
+  }
+
   const openCycle = await ensureOpenRevisionCycle(input.projectId);
   if (openCycle.status !== 'open') {
     throw new Error('Prosjektet venter allerede på kundesignering');
@@ -324,10 +288,15 @@ export async function supplierSignAndSend(input: {
       updated_at: now,
     })
     .eq('id', openCycle.id)
+    .eq('status', 'open')
     .select('*')
     .single();
 
   if (error) throw error;
+
+  await snapshotAllProjectDocumentsForCycle(updated.id, input.projectId).catch((err) => {
+    console.warn('[samsiq] snapshotAllProjectDocumentsForCycle', err);
+  });
 
   const notifType =
     updated.cycle_number > 1 ? 'revision_ready_for_review' : 'package_ready_for_review';

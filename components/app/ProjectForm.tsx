@@ -77,6 +77,7 @@ export function ProjectForm() {
   }, [user, profile?.full_name]);
 
   const [loading, setLoading] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
   const [progress, setProgress] = useState({
     stepIndex: 0,
     label: '',
@@ -90,9 +91,10 @@ export function ProjectForm() {
 
   async function handleGenerate() {
     if (!permissions.createProject) {
-      alert('Du har ikke tilgang til å opprette nye prosjekter.');
+      setGenerateError('Du har ikke tilgang til å opprette nye prosjekter.');
       return;
     }
+    setGenerateError(null);
     setLoading(true);
     try {
       const formWithDocs: ProjectFormData = {
@@ -121,11 +123,11 @@ export function ProjectForm() {
         formWithDocs.ingenior || profile?.full_name || user?.email || 'Bruker';
       if (result.failedLabels.length > 0) {
         console.warn('[samsiq] Delvis generering:', result.failedLabels);
-        alert(
-          'Dokumentpakke delvis generert.\n\nFølgende feilet:\n' +
-            result.failedLabels.slice(0, 6).join('\n') +
+        setGenerateError(
+          'Dokumentpakke delvis generert. Følgende feilet: ' +
+            result.failedLabels.slice(0, 6).join(', ') +
             (result.failedLabels.length > 6
-              ? '\n… og ' + (result.failedLabels.length - 6) + ' til'
+              ? ` … og ${result.failedLabels.length - 6} til`
               : '')
         );
       }
@@ -280,7 +282,7 @@ export function ProjectForm() {
 
       router.push('/app/output');
     } catch (err) {
-      alert(
+      setGenerateError(
         err instanceof Error
           ? formatSupabaseError(err)
           : formatSupabaseError(err) || 'Generering feilet'
@@ -507,6 +509,7 @@ export function ProjectForm() {
       </div>
 
       <div className="form-bottom">
+        {generateError ? <p className="form-error">{generateError}</p> : null}
         <div>
           <Link href="/app/dashboard" className="btn-cancel">
             Avbryt

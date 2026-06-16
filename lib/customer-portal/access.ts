@@ -74,6 +74,39 @@ export async function inviteCustomerToProject(input: {
 
   const orgId = await findOrganizationIdByEmailDomain(normalizedEmail);
 
+  if (existing?.status === 'revoked') {
+    const { data: reactivated, error: reactivateErr } = await admin
+      .from('customer_project_access')
+      .update({
+        status: 'pending',
+        customer_organization_id: orgId,
+        customer_user_id: null,
+        invited_by: input.invitedBy,
+        invited_at: new Date().toISOString(),
+        activated_at: null,
+      })
+      .eq('id', existing.id)
+      .select(
+        'id, project_id, invited_email, customer_organization_id, customer_user_id, status, invited_by, invited_at, activated_at'
+      )
+      .single();
+
+    if (reactivateErr) throw reactivateErr;
+
+    const registerUrl = `${getAppUrl().replace(/\/$/, '')}/app/register`;
+    const emailResult = await sendCustomerProjectInviteEmail({
+      to: normalizedEmail,
+      supplierName: input.inviterName,
+      projectName: input.projectName,
+      registerUrl,
+    });
+
+    return {
+      access: { ...reactivated, organization_name: null },
+      emailSent: emailResult.sent,
+    };
+  }
+
   const { data: inserted, error } = await admin
     .from('customer_project_access')
     .insert({

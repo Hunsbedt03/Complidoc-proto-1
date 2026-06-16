@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { requireAdminClient } from '@/lib/supabase/requireAdmin';
 import { formatSupabaseError } from '@/lib/supabaseError';
 
 export async function POST(request: Request) {
@@ -21,8 +22,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Mangler token' }, { status: 400 });
     }
 
-    const admin = createAdminClient();
-    const db = admin ?? supabase;
+    const db = requireAdminClient();
 
     const { data: invitation, error: invErr } = await db
       .from('team_invitations')

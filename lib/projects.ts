@@ -14,12 +14,11 @@ function throwClientError(step: string, err: unknown, extra?: Record<string, unk
 
 export async function loadProjects(
   supabase: SupabaseClient,
-  userId: string
+  _userId: string
 ): Promise<ProsjektSummary[]> {
   const { data, error } = await supabase
     .from('prosjekter')
     .select('id, navn, produsent, status, created_at, zip_filename, workflow_status')
-    .eq('user_id', userId)
     .order('created_at', { ascending: false })
     .limit(20);
   if (error) {
@@ -28,13 +27,12 @@ export async function loadProjects(
       const { data: fallback, error: fbErr } = await supabase
         .from('prosjekter')
         .select('id, navn, produsent, status, created_at, zip_filename')
-        .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(20);
-      if (fbErr) throwClientError('loadProjects', fbErr, { userId });
+      if (fbErr) throwClientError('loadProjects', fbErr, { userId: _userId });
       return fallback || [];
     }
-    throwClientError('loadProjects', error, { userId });
+    throwClientError('loadProjects', error, { userId: _userId });
   }
   return (data || []).map((row) => ({
     ...row,
@@ -193,6 +191,7 @@ export async function getBedriftId(
   supabase: SupabaseClient,
   userId: string
 ): Promise<string | null> {
+  // Legacy: prosjekter.bedrift_id FK peker fortsatt på bedrifter — ikke company_profiles.
   const { data } = await supabase
     .from('brukere_bedrifter')
     .select('bedrift_id')

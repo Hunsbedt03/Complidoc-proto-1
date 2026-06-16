@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 
 export type SubscriptionBannerData = {
   enforced: boolean;
@@ -27,20 +28,21 @@ function daysUntil(iso: string | null): number | null {
   return Math.max(0, Math.ceil(ms / 86400000));
 }
 
-async function openPortal(): Promise<void> {
+async function openPortal(setError: (msg: string) => void): Promise<void> {
   const res = await fetch('/api/stripe/portal', { method: 'POST' });
   const json = (await res.json()) as { url?: string; error?: string };
   if (json.url) {
     window.location.href = json.url;
     return;
   }
-  alert(json.error ?? 'Kunne ikke åpne kundeportal');
+  setError(json.error ?? 'Kunne ikke åpne kundeportal');
 }
 
 const ACTIVE = new Set(['active', 'trialing']);
 
 export function SubscriptionBanner({ data, loading, pendingActivation }: Props) {
   const router = useRouter();
+  const [portalError, setPortalError] = useState<string | null>(null);
 
   if (pendingActivation) {
     return (
@@ -57,9 +59,10 @@ export function SubscriptionBanner({ data, loading, pendingActivation }: Props) 
     return (
       <div className="sub-banner sub-banner--trial">
         <span>Prøveperiode — {days ?? '?'} dager igjen</span>
-        <button type="button" className="btn-dl" onClick={() => void openPortal()}>
+        <button type="button" className="btn-dl" onClick={() => void openPortal(setPortalError)}>
           Legg til betalingskort
         </button>
+        {portalError ? <p className="form-error">{portalError}</p> : null}
       </div>
     );
   }
@@ -96,9 +99,10 @@ export function SubscriptionBanner({ data, loading, pendingActivation }: Props) 
         <span>
           Betaling mislyktes — oppdater betalingsinfo for å fortsette
         </span>
-        <button type="button" className="btn-dl" onClick={() => void openPortal()}>
+        <button type="button" className="btn-dl" onClick={() => void openPortal(setPortalError)}>
           Oppdater kort
         </button>
+        {portalError ? <p className="form-error">{portalError}</p> : null}
       </div>
     );
   }

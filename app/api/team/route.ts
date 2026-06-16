@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { requireAdminClient } from '@/lib/supabase/requireAdmin';
 import {
   bootstrapTeamForUser,
   getUserPermissions,
@@ -30,7 +31,7 @@ export async function GET() {
       await bootstrapTeamForUser(admin, user.id);
     }
 
-    const db = admin ?? supabase;
+    const db = requireAdminClient();
     const permissions =
       (await getUserPermissions(supabase, user.id)) ?? DEFAULT_OWNER_PERMISSIONS;
     const companyId =
@@ -62,11 +63,9 @@ export async function GET() {
     });
   } catch (err) {
     console.warn('[samsiq team] GET:', formatSupabaseError(err));
-    return NextResponse.json({
-      members: [],
-      invitations: [],
-      permissions: DEFAULT_OWNER_PERMISSIONS,
-      teamLimit: null,
-    });
+    return NextResponse.json(
+      { error: formatSupabaseError(err) },
+      { status: 500 }
+    );
   }
 }

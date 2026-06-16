@@ -7,13 +7,12 @@ export type LinkCustomerAccessResult = {
   customerUserId: string;
 };
 
-function orgNameFromDomain(emailDomain: string | undefined, email: string): string {
-  if (!emailDomain) return email;
-  const base = emailDomain.split('.')[0];
-  if (!base) return emailDomain;
-  return base.charAt(0).toUpperCase() + base.slice(1);
-}
-
+/**
+ * Kobler innlogget bruker til kundeorganisasjon og aktiverer pending invitasjoner.
+ *
+ * `force: true` — bruk ved eksplisitt kunderegistrering (`accountType: 'customer'`)
+ * eller når complete-session vet at brukeren skal inn i kundeportalen uten pending-rader.
+ */
 export async function linkCustomerAccessForUser(
   authUserId: string,
   email: string,
@@ -25,14 +24,59 @@ export async function linkCustomerAccessForUser(
   }
 
   const normalizedEmail = email.trim().toLowerCase();
-  const emailDomain = normalizedEmail.split('@')[1]?.toLowerCase();
 
-  const { data: existingCustomerMembership } = await admin
+  const { data: existingMembership } = await admin
     .from('customer_users')
     .select('id, customer_organization_id')
     .eq('auth_user_id', authUserId)
     .limit(1)
     .maybeSingle();
+
+  if (existingMembership?.customer_organization_id && !options?.force) {
+    return {
+      organizationId: existingMembership.customer_organization_id,
+      customerUserId: existingMembership.id,
+    };
+  }
+
+  const { data: rpcRows, error: rpcError } = await admin.rpc('link_customer_access_for_user', {
+    p_auth_user_id: authUserId,
+    p_email: normalizedEmail,
+    p_full_name: options?.fullName ?? null,
+    p_force: options?.force === true,
+  });
+
+  if (rpcError) {
+    const msg = rpcError.message ?? '';
+    if (
+      msg.includes('link_customer_access_for_user') ||
+      msg.includes('42883') ||
+      msg.includes('PGRST202')
+    ) {
+      return linkCustomerAccessLegacy(admin, authUserId, normalizedEmail, options);
+    }
+    throw rpcError;
+  }
+
+  const row = Array.isArray(rpcRows) ? rpcRows[0] : rpcRows;
+  if (!row?.organization_id || !row?.customer_user_id) {
+    return null;
+  }
+
+  return {
+    organizationId: row.organization_id as string,
+    customerUserId: row.customer_user_id as string,
+  };
+}
+
+/** Fallback før migrering 20260618 er kjørt. */
+async function linkCustomerAccessLegacy(
+  admin: NonNullable<ReturnType<typeof createAdminClient>>,
+  authUserId: string,
+  normalizedEmail: string,
+  options?: { force?: boolean; fullName?: string | null }
+): Promise<LinkCustomerAccessResult | null> {
+  const emailDomain = normalizedEmail.split('@')[1]?.toLowerCase();
 
   const { count: pendingEmailCount } = await admin
     .from('customer_project_access')
@@ -52,11 +96,21 @@ export async function linkCustomerAccessForUser(
 
   const hasPending = (pendingEmailCount ?? 0) > 0 || pendingDomainCount > 0;
 
+  const { data: existingCustomerMembership } = await admin
+    .from('customer_users')
+    .select('id, customer_organization_id')
+    .eq('auth_user_id', authUserId)
+    .limit(1)
+    .maybeSingle();
+
   if (!options?.force && !existingCustomerMembership && !hasPending) {
     return null;
   }
 
   let organizationId: string;
+  const orgNameFromDomain = emailDomain
+    ? emailDomain.split('.')[0].charAt(0).toUpperCase() + emailDomain.split('.')[0].slice(1)
+    : normalizedEmail;
 
   if (emailDomain) {
     const { data: existingOrg } = await admin
@@ -64,23 +118,9 @@ export async function linkCustomerAccessForUser(
       .select('id')
       .eq('email_domain', emailDomain)
       .maybeSingle();
-    if (existingOrg) {
-      organizationId = existingOrg.id;
-    } else {
-      organizationId = await resolveOrCreateOrganization(
-        admin,
-        normalizedEmail,
-        emailDomain,
-        orgNameFromDomain(emailDomain, normalizedEmail)
-      );
-    }
+    organizationId = existingOrg?.id ?? (await createOrgLegacy(admin, orgNameFromDomain, emailDomain, normalizedEmail));
   } else {
-    organizationId = await resolveOrCreateOrganization(
-      admin,
-      normalizedEmail,
-      emailDomain,
-      orgNameFromDomain(emailDomain, normalizedEmail)
-    );
+    organizationId = await createOrgLegacy(admin, orgNameFromDomain, emailDomain, normalizedEmail);
   }
 
   const { data: existingCustomerUser } = await admin
@@ -145,11 +185,11 @@ export async function linkCustomerAccessForUser(
   return { organizationId, customerUserId };
 }
 
-async function resolveOrCreateOrganization(
+async function createOrgLegacy(
   admin: NonNullable<ReturnType<typeof createAdminClient>>,
-  normalizedEmail: string,
+  defaultName: string,
   emailDomain: string | undefined,
-  defaultName: string
+  normalizedEmail: string
 ): Promise<string> {
   const { data: pendingWithOrg } = await admin
     .from('customer_project_access')

@@ -14,7 +14,7 @@ import { useGeneration } from '@/components/providers/GenerationProvider';
 import type { DocumentId } from '@/lib/documents/ids';
 import type { GeneratedDoc, ProjectFormData, UploadSlot, ZipData } from '@/lib/types';
 import type { ProjectStatus } from '@/lib/projectStatus';
-import { fetchDocumentRevisions } from '@/lib/revisions/saveRevision';
+import { fetchProjectRevisions } from '@/lib/revisions/saveRevision';
 
 const DOC_COLORS = [
   'rgba(226,75,74,0.15)',
@@ -73,27 +73,23 @@ export function ProjectDocuments({
       return;
     }
     let cancelled = false;
-    void Promise.all(
-      documents.map(async (doc) => {
-        try {
-          const rows = await fetchDocumentRevisions(projectId, doc.documentId);
-          return {
-            documentId: doc.documentId,
+    void fetchProjectRevisions(projectId)
+      .then((allRows) => {
+        if (cancelled) return;
+        const next: Record<string, { latest: number; count: number }> = {};
+        for (const doc of documents) {
+          const rows = allRows.filter((r) => r.documentId === doc.documentId);
+          next[doc.documentId] = {
             latest: rows[0]?.revision ?? 1,
             count: rows.length,
           };
-        } catch {
-          return { documentId: doc.documentId, latest: 1, count: 0 };
         }
+        setRevisionMeta(next);
       })
-    ).then((results) => {
-      if (cancelled) return;
-      const next: Record<string, { latest: number; count: number }> = {};
-      for (const r of results) {
-        next[r.documentId] = { latest: r.latest, count: r.count };
-      }
-      setRevisionMeta(next);
-    });
+      .catch(() => {
+        if (cancelled) return;
+        setRevisionMeta({});
+      });
     return () => {
       cancelled = true;
     };

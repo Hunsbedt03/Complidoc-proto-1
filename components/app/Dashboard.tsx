@@ -9,7 +9,6 @@ import { CertificationExpiryBanner } from '@/components/settings/CertificationEx
 import { getExpiringCertifications } from '@/lib/companyProfile/extended';
 import type { CompanyProfile } from '@/lib/types';
 import {
-  SubscriptionBanner,
   isSubscriptionActive,
   type SubscriptionBannerData,
 } from '@/components/SubscriptionBanner';
@@ -57,6 +56,7 @@ export function Dashboard() {
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile | null>(
     null
   );
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const expiringCerts = useMemo(
     () => getExpiringCertifications(companyProfile?.certifications ?? []),
@@ -211,7 +211,7 @@ export function Dashboard() {
 
     const loaded = await loadProjectSession(supabase, user.id, projectId);
     if (!loaded) {
-      alert('Fant ikke prosjektet.');
+      setActionError('Fant ikke prosjektet.');
       return;
     }
 
@@ -258,13 +258,9 @@ export function Dashboard() {
     <>
       <CertificationExpiryBanner expiringCerts={expiringCerts} />
 
-      <SubscriptionBanner
-        data={subscription}
-        loading={subscriptionLoading}
-        pendingActivation={pendingActivation}
-      />
-
       <ArchiveWarningBanner />
+
+      {actionError ? <p className="form-error">{actionError}</p> : null}
 
       {activationConfirmed && !pendingActivation ? (
         <p

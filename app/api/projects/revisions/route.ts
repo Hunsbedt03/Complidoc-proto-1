@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { requireAdminClient } from '@/lib/supabase/requireAdmin';
 import { formatSupabaseError } from '@/lib/supabaseError';
 import type {
   DocumentRevision,
@@ -45,14 +45,13 @@ function mapRow(row: DbRevision): DocumentRevision {
 
 async function assertProjectAccess(
   supabase: Awaited<ReturnType<typeof createClient>>,
-  userId: string,
+  _userId: string,
   projectId: string
 ): Promise<boolean> {
   const { data } = await supabase
     .from('prosjekter')
     .select('id')
     .eq('id', projectId)
-    .eq('user_id', userId)
     .maybeSingle();
   return !!data?.id;
 }
@@ -82,8 +81,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Ingen tilgang' }, { status: 403 });
     }
 
-    const admin = createAdminClient();
-    const db = admin ?? supabase;
+    const db = requireAdminClient();
 
     let query = db
       .from('document_revisions')
@@ -176,8 +174,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Ingen tilgang' }, { status: 403 });
     }
 
-    const admin = createAdminClient();
-    const db = admin ?? supabase;
+    const db = requireAdminClient();
 
     const { data: latest } = await db
       .from('document_revisions')

@@ -54,23 +54,26 @@ async function runHandler(method: string, body?: unknown, headers?: Record<strin
 }
 
 export async function GET() {
-  return runHandler('GET');
+  return NextResponse.json({ error: 'Ikke innlogget' }, { status: 401 });
 }
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
   const {
     data: { user },
+    error: authError,
   } = await supabase.auth.getUser();
 
-  if (user) {
-    const subCheck = await checkSubscriptionActive(user.id);
-    if (!subCheck.active) {
-      return NextResponse.json(
-        { error: subCheck.reason ?? 'Ingen aktivt abonnement' },
-        { status: 403 }
-      );
-    }
+  if (authError || !user) {
+    return NextResponse.json({ error: 'Ikke innlogget' }, { status: 401 });
+  }
+
+  const subCheck = await checkSubscriptionActive(user.id);
+  if (!subCheck.active) {
+    return NextResponse.json(
+      { error: subCheck.reason ?? 'Ingen aktivt abonnement' },
+      { status: 403 }
+    );
   }
 
   const body = await request.json();

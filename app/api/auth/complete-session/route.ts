@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { linkCustomerAccessForUser } from '@/lib/customer-portal/linkAccess';
+import { shouldLinkCustomerAccess } from '@/lib/customer-portal/shouldLinkAccess';
 import {
   getUserContexts,
   resolvePostAuthRedirect,
@@ -36,19 +37,34 @@ export async function POST(request: Request) {
         ? user.user_metadata.full_name
         : null);
 
-    await linkCustomerAccessForUser(user.id, user.email, {
-      force: body.forceCustomerLink === true || body.accountType === 'customer',
-      fullName,
+    const needsCustomerLink = await shouldLinkCustomerAccess(user.id, user.email, {
+      force: body.forceCustomerLink === true,
+      accountType: body.accountType,
     });
+
+    if (needsCustomerLink) {
+      await linkCustomerAccessForUser(user.id, user.email, {
+        force: body.forceCustomerLink === true || body.accountType === 'customer',
+        fullName,
+      });
+    }
 
     if (body.accountType === 'supplier') {
       const admin = createAdminClient();
       if (admin) {
-        await bootstrapTeamForUser(admin, user.id).catch(() => {});
+        try {
+          await bootstrapTeamForUser(admin, user.id);
+        } catch (err) {
+          console.warn('[samsiq] bootstrapTeamForUser:', formatSupabaseError(err));
+        }
       }
     }
 
-    await syncUserProfileAfterAuthChange(user).catch(() => {});
+    try {
+      await syncUserProfileAfterAuthChange(user);
+    } catch (err) {
+      console.warn('[samsiq] syncUserProfileAfterAuthChange:', formatSupabaseError(err));
+    }
 
     const contexts = await getUserContexts(user.id);
     const redirectTo = resolvePostAuthRedirect(contexts, {

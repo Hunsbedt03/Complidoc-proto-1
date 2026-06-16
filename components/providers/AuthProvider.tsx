@@ -149,7 +149,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
           );
 
-          fetch('/api/bootstrap-profile', { method: 'POST' }).catch(() => {});
+          fetch('/api/bootstrap-profile', { method: 'POST' }).catch((err) => {
+            console.warn('[samsiq] bootstrap-profile:', formatSupabaseError(err));
+          });
 
           const bId = await getBedriftId(supabase, currentUser.id);
           setBedriftId(bId);
@@ -232,10 +234,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({}),
-        }).catch(() => {});
+        }).catch((err) => {
+          console.warn('[samsiq] complete-session:', err);
+        });
       }
       if (event === 'USER_UPDATED' && nextUser) {
-        fetch('/api/auth/sync-profile', { method: 'POST' }).catch(() => {});
+        fetch('/api/auth/sync-profile', { method: 'POST' }).catch((err) => {
+          console.warn('[samsiq] sync-profile:', err);
+        });
         void refreshProfile();
       }
       const nextId = nextUser?.id ?? null;

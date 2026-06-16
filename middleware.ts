@@ -1,5 +1,54 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { rateLimit, rateLimitHeaders } from '@/lib/rateLimit';
+
+const AUTH_LIMIT = { windowMs: 15 * 60 * 1000, max: 10 };
+const GENERATE_LIMIT = { windowMs: 15 * 60 * 1000, max: 30 };
+const INVITE_LIMIT = { windowMs: 60 * 1000, max: 5 };
+
+function clientIp(request: NextRequest): string {
+  return (
+    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    request.headers.get('x-real-ip') ||
+    'unknown'
+  );
+}
+
+function checkRateLimit(request: NextRequest, pathname: string): NextResponse | null {
+  const ip = clientIp(request);
+
+  if (pathname.startsWith('/api/auth/')) {
+    if (!rateLimit(`auth:${ip}`, AUTH_LIMIT)) {
+      return NextResponse.json(
+        { error: 'For mange forsøk. Prøv igjen om litt.' },
+        { status: 429, headers: rateLimitHeaders(AUTH_LIMIT) }
+      );
+    }
+  }
+
+  if (pathname === '/api/generate') {
+    if (!rateLimit(`generate:${ip}`, GENERATE_LIMIT)) {
+      return NextResponse.json(
+        { error: 'For mange genereringsforespørsler. Prøv igjen om litt.' },
+        { status: 429, headers: rateLimitHeaders(GENERATE_LIMIT) }
+      );
+    }
+  }
+
+  if (
+    (pathname === '/api/team/invite' && request.method === 'POST') ||
+    (pathname.endsWith('/customer-access') && request.method === 'POST')
+  ) {
+    if (!rateLimit(`invite:${ip}:${pathname}`, INVITE_LIMIT)) {
+      return NextResponse.json(
+        { error: 'For mange invitasjoner. Prøv igjen om litt.' },
+        { status: 429, headers: rateLimitHeaders(INVITE_LIMIT) }
+      );
+    }
+  }
+
+  return null;
+}
 
 type MiddlewareSupabase = ReturnType<typeof createServerClient>;
 
@@ -35,6 +84,11 @@ async function isOnboardingCompleted(
 }
 
 export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  const rateLimited = checkRateLimit(request, pathname);
+  if (rateLimited) return rateLimited;
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -60,7 +114,6 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { pathname } = request.nextUrl;
   const isOnboardingRoute = pathname.startsWith('/app/onboarding');
   const isRegisterRoute =
     pathname === '/app/register' || pathname.startsWith('/app/register/');

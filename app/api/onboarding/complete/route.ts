@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { requireAdminClient } from '@/lib/supabase/requireAdmin';
 import { formatSupabaseError } from '@/lib/supabaseError';
 
 export async function POST() {
@@ -15,8 +15,7 @@ export async function POST() {
       return NextResponse.json({ error: 'Ikke innlogget' }, { status: 401 });
     }
 
-    const admin = createAdminClient();
-    const db = admin ?? supabase;
+    const db = requireAdminClient();
 
     const { error } = await db
       .from('users')

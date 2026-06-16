@@ -18,34 +18,33 @@ export async function seedCloudInitialRevisions(
   userId: string,
   changedByName: string
 ): Promise<number> {
-  let inserted = 0;
+  if (documentIds.length === 0) return 0;
 
-  for (const documentId of documentIds) {
-    const { data: existing } = await supabase
-      .from('document_revisions')
-      .select('id')
-      .eq('project_id', projectId)
-      .eq('document_id', documentId)
-      .limit(1)
-      .maybeSingle();
+  const { data: existingRows } = await supabase
+    .from('document_revisions')
+    .select('document_id')
+    .eq('project_id', projectId)
+    .in('document_id', documentIds);
 
-    if (existing?.id) continue;
+  const existingIds = new Set((existingRows ?? []).map((r) => r.document_id));
+  const toInsert = documentIds.filter((id) => !existingIds.has(id));
 
-    const { error } = await supabase.from('document_revisions').insert({
-      project_id: projectId,
-      document_id: documentId,
-      revision: 1,
-      content: defaultInitialHtml(documentId),
-      content_json: null,
-      change_type: 'initial_generation',
-      change_note: 'Automatisk generert ved prosjektopprettelse',
-      changed_by: userId,
-      changed_by_name: changedByName || 'Samsiq AI',
-      source: 'ai_generated',
-    });
+  if (toInsert.length === 0) return 0;
 
-    if (!error) inserted += 1;
-  }
+  const rows = toInsert.map((documentId) => ({
+    project_id: projectId,
+    document_id: documentId,
+    revision: 1,
+    content: defaultInitialHtml(documentId),
+    content_json: null,
+    change_type: 'initial_generation',
+    change_note: 'Automatisk generert ved prosjektopprettelse',
+    changed_by: userId,
+    changed_by_name: changedByName || 'Samsiq AI',
+    source: 'ai_generated',
+  }));
 
-  return inserted;
+  const { error } = await supabase.from('document_revisions').insert(rows);
+  if (error) return 0;
+  return rows.length;
 }

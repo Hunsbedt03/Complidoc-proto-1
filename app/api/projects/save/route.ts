@@ -13,6 +13,7 @@ import { getLocalCompanyId } from '@/lib/localArchive';
 import { seedCloudInitialRevisions } from '@/lib/revisions/server';
 import { saveGeneratedProject, ensureUserProfile } from '@/lib/projects-save';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { requireAdminClient } from '@/lib/supabase/requireAdmin';
 import { formatSupabaseError } from '@/lib/supabaseError';
 import { upsertUserProfileAdmin } from '@/lib/upsertUserProfileAdmin';
 import { createClient } from '@/lib/supabase/server';
@@ -40,7 +41,7 @@ export async function POST(request: Request) {
       await ensureUserProfile(supabase, user.id);
     }
 
-    const db = createAdminClient() ?? supabase;
+    const db = requireAdminClient();
 
     const saveResult = await saveGeneratedProject(
       db,

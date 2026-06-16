@@ -6,6 +6,8 @@ import {
   buildCustomerRevisionBanner,
   fetchProjectRevisionCycles,
 } from '@/lib/customer-portal/revisionCycles';
+import { resolveCustomerDocumentSnapshotCycleId } from '@/lib/customer-portal/projectStatus';
+import { loadSnapshotContentsForCycle } from '@/lib/customer-portal/documentSnapshots';
 import { markProjectNotificationsRead } from '@/lib/customer-portal/notifications';
 import { hydrateDocumentContents } from '@/lib/revisions/hydrateContents';
 import { getCatalogDocument } from '@/lib/documents/catalog';
@@ -149,25 +151,39 @@ export async function fetchCustomerProjectDetail(
   );
 
   const docIds = completeness.items.map((item) => item.documentId);
-  const contents = await hydrateDocumentContents(projectId, docIds);
+  const cycles = await fetchProjectRevisionCycles(projectId);
+  const snapshotCycleId = resolveCustomerDocumentSnapshotCycleId(cycles);
+  const snapshots = snapshotCycleId
+    ? await loadSnapshotContentsForCycle(snapshotCycleId)
+    : null;
+
+  const contents =
+    snapshots === null
+      ? await hydrateDocumentContents(projectId, docIds)
+      : {};
 
   const documents: CustomerProjectDocument[] = completeness.items.map((item) => {
+    const snapshot = snapshots?.[item.documentId];
     const isComplete =
+      snapshot?.status === 'complete' ||
       item.status === 'complete' ||
       item.status === 'uploaded' ||
       item.status === 'template_ready';
     return {
       documentId: item.documentId,
-      label: item.label,
+      label: snapshot?.label ?? item.label,
       filename:
+        snapshot?.filename ??
         generatedDocuments.find((d) => d.documentId === item.documentId)?.filename ??
         item.label,
       status: isComplete ? ('complete' as const) : ('missing' as const),
-      contentHtml: contents[item.documentId] ?? `<h2>${item.label}</h2>`,
+      contentHtml:
+        snapshot?.content_html ??
+        contents[item.documentId] ??
+        `<h2>${item.label}</h2>`,
     };
   });
 
-  const cycles = await fetchProjectRevisionCycles(projectId);
   const banner = buildCustomerRevisionBanner(cycles);
 
   return {

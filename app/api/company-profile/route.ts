@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { requireAdminClient } from '@/lib/supabase/requireAdmin';
 import {
   mapCompanyProfileToDb,
   mapDbToCompanyProfile,
@@ -103,7 +104,7 @@ export async function POST(request: Request) {
     };
 
     const admin = createAdminClient();
-    const db = admin ?? supabase;
+    const db = requireAdminClient();
 
     let data;
     let error;
