@@ -75,6 +75,7 @@ export type CatalogDocument = {
   retentionYears?: number;
   zipOrder: number;
   outputFormat: 'docx';
+  criticality?: 'critical' | 'important';
   showWhen?: (input: ProjectContext) => boolean;
 };
 

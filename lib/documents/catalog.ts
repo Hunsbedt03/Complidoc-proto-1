@@ -72,6 +72,7 @@ const BASE_DOCUMENTS: CatalogDocument[] = [
     reason: 'Supplerer risikovurderingen med strukturert fareoversikt',
     zipOrder: 12,
     outputFormat: 'docx',
+    criticality: 'critical',
   },
   {
     id: 'harmonized_standards_matrix',
@@ -95,6 +96,7 @@ const BASE_DOCUMENTS: CatalogDocument[] = [
     reason: 'Påkrevd brukerdokumentasjon på nasjonalt språk',
     zipOrder: 20,
     outputFormat: 'docx',
+    criticality: 'important',
   },
   {
     id: 'user_manual_en',
@@ -106,6 +108,7 @@ const BASE_DOCUMENTS: CatalogDocument[] = [
     reason: 'Anbefalt for eksport og internasjonale markeder',
     zipOrder: 21,
     outputFormat: 'docx',
+    criticality: 'important',
   },
   {
     id: 'maintenance_manual',
@@ -117,6 +120,7 @@ const BASE_DOCUMENTS: CatalogDocument[] = [
     reason: 'Sikrer trygg og korrekt vedlikehold gjennom maskinens levetid',
     zipOrder: 23,
     outputFormat: 'docx',
+    criticality: 'important',
   },
   {
     id: 'installation_manual',
@@ -128,6 +132,7 @@ const BASE_DOCUMENTS: CatalogDocument[] = [
     reason: 'Korrekt installasjon er forutsetning for sikker drift',
     zipOrder: 22,
     outputFormat: 'docx',
+    criticality: 'important',
   },
   {
     id: 'fmea',
@@ -139,6 +144,7 @@ const BASE_DOCUMENTS: CatalogDocument[] = [
     reason: 'Anbefalt for systematisk analyse av feilmodus',
     zipOrder: 10,
     outputFormat: 'docx',
+    criticality: 'critical',
   },
   {
     id: 'warning_signs_spec',
@@ -174,6 +180,7 @@ const BASE_DOCUMENTS: CatalogDocument[] = [
     outputFormat: 'docx',
     description: 'Sikkerhetsfunksjoner etter EN ISO 13849 / IEC 62061',
     reason: 'Kreves når maskinen har sikkerhetsrelaterte styresystemer',
+    criticality: 'critical',
   },
   {
     id: 'emergency_stop_analysis',

@@ -37,8 +37,11 @@ type Props = {
   onChange: (ids: DocumentId[]) => void;
 };
 
+type ManualLanguageChoice = 'no' | 'en' | 'both';
+
 export function DocumentChecklist({ form, selected, onChange }: Props) {
   const [userTouched, setUserTouched] = useState(false);
+  const [manualLanguage, setManualLanguage] = useState<ManualLanguageChoice>('no');
 
   const projectInput = useMemo(
     () => ({
@@ -49,6 +52,21 @@ export function DocumentChecklist({ form, selected, onChange }: Props) {
     }),
     [form.drivsystem, form.installasjonsmiljo, form.marked, form.styring]
   );
+
+  function applyManualLanguage(choice: ManualLanguageChoice, base: DocumentId[]): DocumentId[] {
+    const set = new Set<DocumentId>(base);
+    set.delete('user_manual_no');
+    set.delete('user_manual_en');
+    if (choice === 'no' || choice === 'both') set.add('user_manual_no');
+    if (choice === 'en' || choice === 'both') set.add('user_manual_en');
+    return mergeWithCore(set);
+  }
+
+  function setManualLanguageChoice(choice: ManualLanguageChoice) {
+    setManualLanguage(choice);
+    setUserTouched(true);
+    onChange(applyManualLanguage(choice, selected));
+  }
 
   useEffect(() => {
     if (userTouched) return;
@@ -120,6 +138,31 @@ export function DocumentChecklist({ form, selected, onChange }: Props) {
         </button>
       </div>
 
+      <div className="doc-manual-language" style={{ marginBottom: 16 }}>
+        <p className="section-label" style={{ marginBottom: 8 }}>
+          Brukerhåndbok — språk
+        </p>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          {(
+            [
+              ['no', 'Norsk'],
+              ['en', 'Engelsk'],
+              ['both', 'Begge'],
+            ] as const
+          ).map(([value, label]) => (
+            <label key={value} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <input
+                type="radio"
+                name="manualLanguage"
+                checked={manualLanguage === value}
+                onChange={() => setManualLanguageChoice(value)}
+              />
+              {label}
+            </label>
+          ))}
+        </div>
+      </div>
+
       {SOURCE_ORDER.filter((s) => s !== 'user_upload').map((sourceType) => {
         const cfg = SOURCE_CONFIG[sourceType];
         const docs = getDocumentsBySource(sourceType, projectInput);
@@ -155,6 +198,11 @@ export function DocumentChecklist({ form, selected, onChange }: Props) {
                     <CheckMark checked={checked} />
                     <span>
                       <span className="doc-check-label">{doc.label}</span>
+                      {doc.criticality ? (
+                        <span className="doc-check-directive">
+                          {doc.criticality === 'critical' ? 'Kritisk' : 'Viktig'}
+                        </span>
+                      ) : null}
                       {doc.directive ? (
                         <span className="doc-check-directive">{doc.directive}</span>
                       ) : null}

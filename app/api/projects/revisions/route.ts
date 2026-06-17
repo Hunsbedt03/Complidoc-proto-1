@@ -17,6 +17,8 @@ type DbRevision = {
   revision: number;
   content: string;
   content_json: unknown;
+  language?: string | null;
+  structured_data?: unknown;
   change_type: RevisionChangeType;
   change_note: string;
   changed_by: string | null;
@@ -34,6 +36,12 @@ function mapRow(row: DbRevision): DocumentRevision {
     content: row.content,
     contentJson:
       row.content_json != null ? JSON.stringify(row.content_json) : undefined,
+    language:
+      row.language === 'en' || row.language === 'no' ? row.language : undefined,
+    structuredData:
+      row.structured_data != null
+        ? JSON.stringify(row.structured_data)
+        : undefined,
     changeType: row.change_type,
     changeNote: row.change_note,
     changedBy: row.changed_by ?? 'unknown',
@@ -135,6 +143,8 @@ export async function POST(request: Request) {
       changeType?: RevisionChangeType;
       changedByName?: string;
       source?: RevisionSource;
+      language?: 'no' | 'en';
+      structuredData?: string;
     };
 
     const {
@@ -146,6 +156,8 @@ export async function POST(request: Request) {
       changeType,
       changedByName,
       source,
+      language,
+      structuredData,
     } = body;
 
     if (
@@ -203,6 +215,22 @@ export async function POST(request: Request) {
       user.email ||
       'Ukjent';
 
+    let parsedStructured: unknown = null;
+    if (structuredData) {
+      try {
+        parsedStructured = JSON.parse(structuredData);
+      } catch {
+        parsedStructured = null;
+      }
+    }
+
+    const resolvedLanguage =
+      language === 'en' || language === 'no'
+        ? language
+        : documentId === 'user_manual_en'
+          ? 'en'
+          : 'no';
+
     const { data: inserted, error: insertError } = await db
       .from('document_revisions')
       .insert({
@@ -211,6 +239,8 @@ export async function POST(request: Request) {
         revision: nextRevision,
         content,
         content_json: parsedJson,
+        language: resolvedLanguage,
+        structured_data: parsedStructured,
         change_type: changeType,
         change_note: changeNote.trim(),
         changed_by: user.id,

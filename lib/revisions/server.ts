@@ -14,11 +14,19 @@ function defaultInitialHtml(documentId: string): string {
 export async function seedCloudInitialRevisions(
   supabase: SupabaseClient,
   projectId: string,
-  documentIds: string[],
+  documents: Array<{
+    documentId: string;
+    contentHtml?: string;
+    contentJson?: string;
+    language?: 'no' | 'en';
+    structuredData?: string;
+  }>,
   userId: string,
   changedByName: string
 ): Promise<number> {
-  if (documentIds.length === 0) return 0;
+  if (documents.length === 0) return 0;
+
+  const documentIds = documents.map((d) => d.documentId);
 
   const { data: existingRows } = await supabase
     .from('document_revisions')
@@ -27,22 +35,48 @@ export async function seedCloudInitialRevisions(
     .in('document_id', documentIds);
 
   const existingIds = new Set((existingRows ?? []).map((r) => r.document_id));
-  const toInsert = documentIds.filter((id) => !existingIds.has(id));
+  const toInsert = documents.filter((d) => !existingIds.has(d.documentId));
 
   if (toInsert.length === 0) return 0;
 
-  const rows = toInsert.map((documentId) => ({
-    project_id: projectId,
-    document_id: documentId,
-    revision: 1,
-    content: defaultInitialHtml(documentId),
-    content_json: null,
-    change_type: 'initial_generation',
-    change_note: 'Automatisk generert ved prosjektopprettelse',
-    changed_by: userId,
-    changed_by_name: changedByName || 'Samsiq AI',
-    source: 'ai_generated',
-  }));
+  const rows = toInsert.map((doc) => {
+    let parsedJson: unknown = null;
+    if (doc.contentJson) {
+      try {
+        parsedJson = JSON.parse(doc.contentJson);
+      } catch {
+        parsedJson = null;
+      }
+    }
+    let parsedStructured: unknown = null;
+    if (doc.structuredData) {
+      try {
+        parsedStructured = JSON.parse(doc.structuredData);
+      } catch {
+        parsedStructured = null;
+      }
+    }
+    const content =
+      doc.contentHtml ?? defaultInitialHtml(doc.documentId);
+    const language =
+      doc.language ??
+      (doc.documentId === 'user_manual_en' ? 'en' : 'no');
+
+    return {
+      project_id: projectId,
+      document_id: doc.documentId,
+      revision: 1,
+      content,
+      content_json: parsedJson,
+      language,
+      structured_data: parsedStructured,
+      change_type: 'initial_generation',
+      change_note: 'Automatisk generert ved prosjektopprettelse',
+      changed_by: userId,
+      changed_by_name: changedByName || 'Samsiq AI',
+      source: 'ai_generated',
+    };
+  });
 
   const { error } = await supabase.from('document_revisions').insert(rows);
   if (error) return 0;

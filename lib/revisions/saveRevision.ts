@@ -14,6 +14,8 @@ export type SaveRevisionInput = {
   changedByName: string;
   source: RevisionSource;
   changedBy?: string;
+  language?: 'no' | 'en';
+  structuredData?: string;
 };
 
 export type SaveRevisionResult = {

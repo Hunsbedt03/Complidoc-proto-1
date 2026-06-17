@@ -23,6 +23,8 @@ export type DocumentRevision = {
   revision: number;
   content: string;
   contentJson?: string;
+  language?: 'no' | 'en';
+  structuredData?: string;
   changeType: RevisionChangeType;
   changeNote: string;
   changedBy: string;

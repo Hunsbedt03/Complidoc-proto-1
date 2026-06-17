@@ -68,14 +68,15 @@ function normalizeSelectedDocuments(form: ProjectFormData): DocumentId[] {
 
 async function postGenerate(
   machineData: string,
-  documentId: DocumentId
+  documentId: DocumentId,
+  projectId?: string | null
 ): Promise<Response> {
   let lastRes: Response | null = null;
   for (let attempt = 0; attempt < 2; attempt++) {
     lastRes = await fetch('/api/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ machineData, docType: documentId }),
+      body: JSON.stringify({ machineData, docType: documentId, projectId }),
     });
     if (lastRes.ok || (lastRes.status !== 500 && lastRes.status !== 529) || attempt === 1) {
       return lastRes;
@@ -87,10 +88,11 @@ async function postGenerate(
 
 export async function generateSingleDocument(
   machineData: string,
-  documentId: DocumentId
+  documentId: DocumentId,
+  projectId?: string | null
 ): Promise<GeneratedDoc> {
   const def = getDocumentDefinition(documentId);
-  const res = await postGenerate(machineData, documentId);
+  const res = await postGenerate(machineData, documentId, projectId);
 
   if (!res.ok) {
     const txt = await res.text();
@@ -115,6 +117,10 @@ export async function generateSingleDocument(
     docx?: string;
     filename?: string;
     docType?: string;
+    contentHtml?: string;
+    contentJson?: string;
+    structuredData?: unknown;
+    language?: 'no' | 'en';
   } = {};
   if (text.trim()) {
     try {
@@ -136,6 +142,12 @@ export async function generateSingleDocument(
     filename: data.filename,
     docx: data.docx,
     label: def?.label,
+    contentHtml: data.contentHtml,
+    contentJson: data.contentJson,
+    structuredData: data.structuredData
+      ? JSON.stringify(data.structuredData)
+      : undefined,
+    language: data.language,
   };
 }
 

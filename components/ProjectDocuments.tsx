@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { DocumentEditor } from '@/components/DocumentEditor';
+import { PlSilVerificationBanner } from '@/components/PlSilVerificationBanner';
 import { DocumentRevisionHistory } from '@/components/DocumentRevisionHistory';
 import { getDocumentDefinition } from '@/lib/documents/registry';
 import { getCatalogDocument } from '@/lib/documents/catalog';
@@ -126,6 +127,30 @@ export function ProjectDocuments({
     }
   }
 
+  async function handleDocExport(doc: GeneratedDoc, format: 'docx' | 'pdf') {
+    if (!projectId) {
+      await handleDocDownload(doc);
+      return;
+    }
+    const path = `/api/projects/${projectId}/documents/${doc.documentId}/export-${format}`;
+    try {
+      const res = await fetch(path, { method: 'POST' });
+      if (!res.ok) {
+        const json = (await res.json()) as { error?: string };
+        throw new Error(json.error ?? 'Eksport feilet');
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${doc.documentId}_export.${format}`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Eksport feilet');
+    }
+  }
+
   const editable = projectStatus !== 'locked';
 
   return (
@@ -186,6 +211,9 @@ export function ProjectDocuments({
                   <p className="doc-card-preview">{preview}</p>
                 </div>
               </div>
+              {doc.documentId === 'safety_function_analysis' ? (
+                <PlSilVerificationBanner compact />
+              ) : null}
               <div className="doc-btns">
                 {canEdit ? (
                   <button
@@ -202,9 +230,24 @@ export function ProjectDocuments({
                 <button
                   type="button"
                   className="btn-dl"
-                  onClick={() => handleDocDownload(doc)}
+                  onClick={() => void handleDocExport(doc, 'docx')}
                 >
-                  Last ned
+                  Last ned DOCX
+                </button>
+                <button
+                  type="button"
+                  className="btn-dl"
+                  onClick={() => void handleDocExport(doc, 'pdf')}
+                >
+                  Last ned PDF
+                </button>
+                <button
+                  type="button"
+                  className="btn-cancel"
+                  onClick={() => handleDocDownload(doc)}
+                  title="Original AI-DOCX fra ZIP"
+                >
+                  ZIP-kopi
                 </button>
                 {canEdit ? (
                   <button
@@ -272,6 +315,7 @@ export function ProjectDocuments({
                   {docTab === 'content' ? (
                     <DocumentEditor
                       documentLabel={name}
+                      documentId={doc.documentId}
                       initialContent={
                         documentContents[doc.documentId] ??
                         `<p>${name}</p>`

@@ -47,10 +47,23 @@ export async function snapshotDocumentsForCycle(input: {
 
   const contents = await hydrateDocumentContents(input.projectId, input.documentIds);
 
+  const structuredByDoc: Record<string, unknown> = {};
+  const { data: revRows } = await admin
+    .from('document_revisions')
+    .select('document_id, structured_data, revision')
+    .eq('project_id', input.projectId)
+    .in('document_id', input.documentIds)
+    .order('revision', { ascending: false });
+  for (const row of revRows ?? []) {
+    if (!structuredByDoc[row.document_id] && row.structured_data != null) {
+      structuredByDoc[row.document_id] = row.structured_data;
+    }
+  }
+
   const rows = input.documentIds.map((documentId) => {
     const label =
       input.labelsByDocumentId[documentId] ??
-      getCatalogDocument(documentId)?.label ??
+      getCatalogDocument(documentId as import('@/lib/documents/ids').DocumentId)?.label ??
       documentId;
     const contentHtml = contents[documentId] ?? `<h2>${label}</h2>`;
     return {
@@ -62,6 +75,7 @@ export async function snapshotDocumentsForCycle(input: {
       content_html: contentHtml,
       content_hash: hashContent(contentHtml),
       status: input.statusByDocumentId[documentId] ?? 'complete',
+      structured_data: structuredByDoc[documentId] ?? null,
     };
   });
 

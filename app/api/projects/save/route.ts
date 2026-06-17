@@ -53,11 +53,16 @@ export async function POST(request: Request) {
 
     const { projectId, skippedDocumentTypes } = saveResult;
 
-    const documentIds = body.payload.documents.map((d) => d.documentId);
     void seedCloudInitialRevisions(
       db,
       projectId,
-      documentIds,
+      body.payload.documents.map((d) => ({
+        documentId: d.documentId,
+        contentHtml: d.contentHtml,
+        contentJson: d.contentJson,
+        language: d.language,
+        structuredData: d.structuredData,
+      })),
       user.id,
       body.payload.ingenior || 'Samsiq'
     ).catch((err) => {

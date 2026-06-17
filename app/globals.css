@@ -437,6 +437,13 @@ footer{padding:32px 40px;border-top:0.5px solid rgba(255,255,255,0.07);display:f
 .doc-card-badge{font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(97,153,34,0.2);color:#9FD66A;}
 .doc-card-rev{font-size:11px;color:var(--text3);margin-left:auto;}
 .doc-card-preview{font-size:12px;color:var(--text3);margin:4px 0 0;line-height:1.4;}
+.pl-sil-banner{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;margin-bottom:12px;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.45);border-radius:10px;box-shadow:0 0 0 1px rgba(239,68,68,0.08);}
+.pl-sil-banner--compact{padding:10px 12px;margin-bottom:8px;}
+.pl-sil-banner-icon{font-size:20px;line-height:1;color:#FCA5A5;flex-shrink:0;margin-top:1px;}
+.pl-sil-banner-title{font-size:14px;font-weight:600;color:#FECACA;margin:0 0 6px;line-height:1.35;}
+.pl-sil-banner-text{font-size:13px;color:#FCA5A5;margin:0;line-height:1.45;}
+.pl-sil-banner--compact .pl-sil-banner-title{font-size:13px;margin-bottom:4px;}
+.pl-sil-banner--compact .pl-sil-banner-text{font-size:12px;}
 .btn-xs{font-size:11px;padding:2px 8px;}
 .revision-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:0;}
 .revision-row{padding:12px 0;border-bottom:0.5px solid rgba(255,255,255,0.08);}

@@ -4,14 +4,20 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import Placeholder from '@tiptap/extension-placeholder';
+import { Table } from '@tiptap/extension-table';
+import { TableRow } from '@tiptap/extension-table-row';
+import { TableCell } from '@tiptap/extension-table-cell';
+import { TableHeader } from '@tiptap/extension-table-header';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { EditorToolbar } from '@/components/EditorToolbar';
 import { SaveRevisionDialog } from '@/components/SaveRevisionDialog';
+import { PlSilVerificationBanner } from '@/components/PlSilVerificationBanner';
 import type { ProjectStatus } from '@/lib/projectStatus';
 
 type Props = {
   documentLabel: string;
   initialContent: string;
+  documentId?: string;
   projectStatus: ProjectStatus;
   onSave: (
     content: string,
@@ -25,6 +31,7 @@ type Props = {
 export function DocumentEditor({
   documentLabel,
   initialContent,
+  documentId,
   projectStatus,
   onSave,
   onCancel,
@@ -46,6 +53,10 @@ export function DocumentEditor({
       Placeholder.configure({
         placeholder: 'Rediger dokumentinnhold her...',
       }),
+      Table.configure({ resizable: true }),
+      TableRow,
+      TableHeader,
+      TableCell,
     ],
     content: initialContent || '<p></p>',
     editable: mode === 'edit' && !locked,
@@ -112,6 +123,9 @@ export function DocumentEditor({
   if (locked) {
     return (
       <div className="doc-editor doc-editor--locked">
+        {documentId === 'safety_function_analysis' ? (
+          <PlSilVerificationBanner />
+        ) : null}
         <EditorContent editor={editor} className="doc-editor-body" />
         <p className="form-info">Prosjektet er låst — redigering er ikke tillatt.</p>
       </div>
@@ -120,6 +134,9 @@ export function DocumentEditor({
 
   return (
     <div className="doc-editor">
+      {documentId === 'safety_function_analysis' ? (
+        <PlSilVerificationBanner />
+      ) : null}
       <div className="doc-editor-header">
         <p className="doc-editor-title">{documentLabel}</p>
         {mode === 'view' ? (

@@ -47,6 +47,10 @@ export type GeneratedDoc = {
   filename: string;
   docx: string;
   label?: string;
+  contentHtml?: string;
+  contentJson?: string;
+  structuredData?: string;
+  language?: 'no' | 'en';
 };
 
 export type GeneratedDocumentStatus = {

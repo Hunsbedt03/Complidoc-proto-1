@@ -4,6 +4,8 @@ import { RISK_ASSESSMENT_PROMPT } from './risk_assessment';
 import { FMEA_PROMPT } from './fmea';
 import { USER_MANUAL_PROMPT_NO } from './user_manual_no';
 import { USER_MANUAL_PROMPT_EN } from './user_manual_en';
+import { INSTALLATION_MANUAL_PROMPT } from './installation_manual';
+import { MAINTENANCE_MANUAL_PROMPT } from './maintenance_manual';
 import { getGenericPrompt } from './generic';
 import { withContext } from './base';
 
@@ -12,9 +14,11 @@ const SPECIFIC: Partial<Record<DocumentId, string>> = {
   fmea: FMEA_PROMPT,
   user_manual_no: USER_MANUAL_PROMPT_NO,
   user_manual_en: USER_MANUAL_PROMPT_EN,
+  installation_manual: INSTALLATION_MANUAL_PROMPT,
+  maintenance_manual: MAINTENANCE_MANUAL_PROMPT,
 };
 
-/** Legacy inline prompts remain in api until synced; server uses document-prompts.js */
+/** Prompts served directly from TS — used by app/api/generate/route.ts */
 export function getPromptTemplate(id: DocumentId): string {
   return SPECIFIC[id] ?? getGenericPrompt(id);
 }

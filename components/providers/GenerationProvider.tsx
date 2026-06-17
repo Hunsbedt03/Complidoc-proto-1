@@ -18,6 +18,8 @@ import type { DocumentId } from '@/lib/documents/ids';
 import { normalizeGeneratedDocs } from '@/lib/documents/ids';
 import { getCatalogDocument } from '@/lib/documents/catalog';
 import { buildMachineDataForGeneration, generateSingleDocument } from '@/lib/generate';
+import { revisionPayloadFromGeneratedDoc } from '@/lib/revisions/seedFromGeneration';
+import { tiptapJsonToStructuredData } from '@/lib/document-model/tiptapToStructured';
 import {
   updateLocalProjectPayload,
   updateLocalProjectWorkflow,
@@ -212,26 +214,27 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
     async (documentId: DocumentId) => {
       if (!projectId || !lastForm || !zipData || projectStatus === 'locked') return;
       const machineData = await buildMachineDataForGeneration(lastForm);
-      const doc = await generateSingleDocument(machineData, documentId);
-      const def = getCatalogDocument(documentId);
+      const doc = await generateSingleDocument(machineData, documentId, projectId);
       const nextDocs = generatedDocuments.map((d) =>
         d.documentId === documentId ? doc : d
       );
       const newZip = await rebuildZipFromDocs(nextDocs, zipData.filename);
       setGeneratedDocuments(normalizeGeneratedDocs(nextDocs));
       setZipData(newZip);
-      const html = `<h2>${def?.label ?? documentId}</h2><p>AI-regenerert ${new Date().toLocaleDateString('no-NO')}. Rediger for å tilpasse før endelig låsing.</p>`;
-      setDocumentContents((prev) => ({ ...prev, [documentId]: html }));
+      const payload = revisionPayloadFromGeneratedDoc(doc);
+      setDocumentContents((prev) => ({ ...prev, [documentId]: payload.content }));
       await saveDocumentRevision({
         projectId,
         documentId,
-        content: html,
-        contentJson: JSON.stringify({ type: 'doc', content: [] }),
+        content: payload.content,
+        contentJson: payload.contentJson,
         changeType: 'ai',
         changeNote: `Regenerert med AI ${new Date().toLocaleDateString('no-NO')}`,
         changedByName: lastForm.ingenior || 'Samsiq AI',
         source: 'ai_regenerated',
         changedBy: 'samsiq-ai',
+        language: payload.language,
+        structuredData: payload.structuredData,
       });
     },
     [
@@ -265,6 +268,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
     ) => {
       if (!projectId || projectStatus === 'locked') return;
       setDocumentContents((prev) => ({ ...prev, [documentId]: content }));
+      const structured = tiptapJsonToStructuredData(documentId, contentJson);
       await saveDocumentRevision({
         projectId,
         documentId,
@@ -275,6 +279,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
         changedByName: editorName || 'Ingeniør',
         source: 'user_edited',
         changedBy: 'user',
+        structuredData: structured ? JSON.stringify(structured) : undefined,
       });
     },
     [projectId, projectStatus]
@@ -290,6 +295,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
     ) => {
       if (!projectId || projectStatus === 'locked') return;
       setDocumentContents((prev) => ({ ...prev, [documentId]: content }));
+      const structured = tiptapJsonToStructuredData(documentId, contentJson);
       await saveDocumentRevision({
         projectId,
         documentId,
@@ -300,6 +306,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
         changedByName: editorName || 'Ingeniør',
         source: 'user_edited',
         changedBy: 'user',
+        structuredData: structured ? JSON.stringify(structured) : undefined,
       });
     },
     [projectId, projectStatus]
@@ -335,9 +342,8 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
         setArchiveLinksState([]);
         const contents: Record<string, string> = {};
         for (const doc of documents) {
-          const def = getCatalogDocument(doc.documentId);
-          contents[doc.documentId] =
-            `<h2>${def?.label ?? doc.documentId}</h2><p>AI-generert dokument. Rediger for å tilpasse før endelig låsing.</p>`;
+          const payload = revisionPayloadFromGeneratedDoc(doc);
+          contents[doc.documentId] = payload.content;
         }
         setDocumentContents(contents);
         return id;
