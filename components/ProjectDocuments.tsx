@@ -55,6 +55,7 @@ export function ProjectDocuments({
   const {
     projectId,
     documentContents,
+    documentContentJson,
     saveDocumentEdit,
     restoreDocumentRevision,
     setDocumentContent,
@@ -320,6 +321,19 @@ export function ProjectDocuments({
                         documentContents[doc.documentId] ??
                         `<p>${name}</p>`
                       }
+                      initialContentJson={documentContentJson[doc.documentId]}
+                      paperMeta={{
+                        title: name,
+                        project: form.prosjekt || '—',
+                        machine: form.maskin || form.prosjekt || '—',
+                        revision: revisionMeta[doc.documentId]?.latest ?? rev,
+                        date: new Date().toLocaleDateString('no-NO'),
+                        produsent: form.produsent,
+                        serienr: form.serienr,
+                        kunde: form.kunde,
+                        ingenior: form.ingenior,
+                        documentId: doc.documentId,
+                      }}
                       projectStatus={projectStatus}
                       onSave={async (content, json, note) => {
                         await saveDocumentEdit(
@@ -346,7 +360,8 @@ export function ProjectDocuments({
                             doc.documentId,
                             r.content.startsWith('<')
                               ? r.content
-                              : `<p>${r.content}</p>`
+                              : `<p>${r.content}</p>`,
+                            r.contentJson ?? ''
                           );
                           setDocTab('content');
                         }

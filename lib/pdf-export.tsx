@@ -8,51 +8,71 @@ import {
   renderToBuffer,
 } from '@react-pdf/renderer';
 import type { DocumentBlock } from '@/lib/document-model/types';
+import { paragraphPlainText } from '@/lib/document-model/types';
+import { buildExportInfoRows, type DocumentExportMeta } from '@/lib/document-model/exportMeta';
+import {
+  isLandscapeDocument,
+  tableColumnFlex,
+} from '@/lib/document-model/tableLayout';
 
-export type PdfExportMeta = {
-  title: string;
-  project: string;
-  machine: string;
-  revision: number;
-  date: string;
+export type PdfExportMeta = DocumentExportMeta;
+
+const basePage = {
+  paddingTop: 36,
+  paddingBottom: 48,
+  paddingHorizontal: 40,
+  fontSize: 10,
+  fontFamily: 'Helvetica',
 };
 
 const styles = StyleSheet.create({
-  page: {
-    padding: 40,
-    fontSize: 10,
-    fontFamily: 'Helvetica',
+  pagePortrait: { ...basePage },
+  pageLandscape: { ...basePage },
+  infoTable: {
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#ccc',
   },
-  header: {
-    marginBottom: 16,
+  infoRow: { flexDirection: 'row' },
+  infoLabel: {
+    width: '36%',
+    padding: 5,
+    backgroundColor: '#f2f4f7',
+    fontWeight: 'bold',
+    fontSize: 8,
+    borderRightWidth: 1,
     borderBottomWidth: 1,
-    borderBottomColor: '#ccc',
-    paddingBottom: 8,
+    borderColor: '#ccc',
   },
-  title: { fontSize: 16, fontWeight: 'bold', marginBottom: 4 },
-  meta: { fontSize: 9, color: '#555' },
+  infoValue: {
+    width: '64%',
+    padding: 5,
+    fontSize: 8,
+    borderBottomWidth: 1,
+    borderColor: '#ccc',
+  },
   h1: { fontSize: 14, fontWeight: 'bold', marginTop: 12, marginBottom: 6 },
   h2: { fontSize: 12, fontWeight: 'bold', marginTop: 10, marginBottom: 4 },
   h3: { fontSize: 11, fontWeight: 'bold', marginTop: 8, marginBottom: 4 },
   p: { marginBottom: 6, lineHeight: 1.4 },
   li: { marginBottom: 3, paddingLeft: 8 },
-  table: { marginTop: 8, marginBottom: 8, borderWidth: 1, borderColor: '#ccc' },
-  tableRow: { flexDirection: 'row' },
+  table: { marginTop: 8, marginBottom: 8, borderWidth: 1, borderColor: '#ccc', width: '100%' },
+  tableRow: { flexDirection: 'row', width: '100%' },
   tableHeader: {
-    flex: 1,
     padding: 4,
     backgroundColor: '#f2f4f7',
     fontWeight: 'bold',
     borderRightWidth: 1,
-    borderRightColor: '#ccc',
-    fontSize: 8,
+    borderBottomWidth: 1,
+    borderColor: '#ccc',
+    fontSize: 7,
   },
   tableCell: {
-    flex: 1,
     padding: 4,
     borderRightWidth: 1,
-    borderRightColor: '#ccc',
-    fontSize: 8,
+    borderBottomWidth: 1,
+    borderColor: '#ccc',
+    fontSize: 7,
   },
   footer: {
     position: 'absolute',
@@ -66,7 +86,34 @@ const styles = StyleSheet.create({
   },
 });
 
-function BlockView({ block }: { block: DocumentBlock }) {
+function ParagraphText({ block }: { block: Extract<DocumentBlock, { type: 'paragraph' }> }) {
+  if (block.spans?.length) {
+    return (
+      <Text style={styles.p}>
+        {block.spans.map((s, i) => (
+          <Text
+            key={i}
+            style={{
+              fontWeight: s.bold ? 'bold' : 'normal',
+              fontStyle: s.italic ? 'italic' : 'normal',
+            }}
+          >
+            {s.text}
+          </Text>
+        ))}
+      </Text>
+    );
+  }
+  return <Text style={styles.p}>{paragraphPlainText(block)}</Text>;
+}
+
+function BlockView({
+  block,
+  documentId,
+}: {
+  block: DocumentBlock;
+  documentId?: string;
+}) {
   switch (block.type) {
     case 'heading':
       return (
@@ -75,7 +122,7 @@ function BlockView({ block }: { block: DocumentBlock }) {
         </Text>
       );
     case 'paragraph':
-      return <Text style={styles.p}>{block.text}</Text>;
+      return <ParagraphText block={block} />;
     case 'list':
       return (
         <View>
@@ -87,12 +134,13 @@ function BlockView({ block }: { block: DocumentBlock }) {
           ))}
         </View>
       );
-    case 'table':
+    case 'table': {
+      const flex = tableColumnFlex(block.headers, documentId);
       return (
         <View style={styles.table}>
           <View style={styles.tableRow}>
             {block.headers.map((h, i) => (
-              <Text key={`h-${i}`} style={styles.tableHeader}>
+              <Text key={`h-${i}`} style={[styles.tableHeader, { flex: flex[i] ?? 1 }]}>
                 {h}
               </Text>
             ))}
@@ -100,7 +148,10 @@ function BlockView({ block }: { block: DocumentBlock }) {
           {block.rows.map((row, ri) => (
             <View key={`r-${ri}`} style={styles.tableRow}>
               {row.map((cell, ci) => (
-                <Text key={`c-${ri}-${ci}`} style={styles.tableCell}>
+                <Text
+                  key={`c-${ri}-${ci}`}
+                  style={[styles.tableCell, { flex: flex[ci] ?? 1 }]}
+                >
                   {cell}
                 </Text>
               ))}
@@ -108,23 +159,44 @@ function BlockView({ block }: { block: DocumentBlock }) {
           ))}
         </View>
       );
+    }
     default:
       return null;
   }
 }
 
-function ExportDocument({ blocks, meta }: { blocks: DocumentBlock[]; meta: PdfExportMeta }) {
+function InfoTable({ meta }: { meta: PdfExportMeta }) {
+  const rows = buildExportInfoRows(meta);
+  return (
+    <View style={styles.infoTable}>
+      {rows.map(([label, value]) => (
+        <View key={label} style={styles.infoRow}>
+          <Text style={styles.infoLabel}>{label}</Text>
+          <Text style={styles.infoValue}>{value}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function ExportDocument({
+  blocks,
+  meta,
+}: {
+  blocks: DocumentBlock[];
+  meta: PdfExportMeta;
+}) {
+  const landscape = isLandscapeDocument(meta.documentId);
   return (
     <Document>
-      <Page size="A4" style={styles.page}>
-        <View style={styles.header} fixed>
-          <Text style={styles.title}>{meta.title}</Text>
-          <Text style={styles.meta}>
-            {meta.machine} · {meta.project} · Rev. {meta.revision} · {meta.date}
-          </Text>
-        </View>
+      <Page
+        size="A4"
+        orientation={landscape ? 'landscape' : 'portrait'}
+        style={landscape ? styles.pageLandscape : styles.pagePortrait}
+      >
+        <InfoTable meta={meta} />
         {blocks.map((block, i) => (
-          <BlockView key={i} block={block} />
+          <BlockView key={i} block={block} documentId={meta.documentId} />
         ))}
         <View style={styles.footer} fixed>
           <Text>Samsiq — {meta.title}</Text>

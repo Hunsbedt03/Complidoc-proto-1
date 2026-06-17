@@ -56,15 +56,12 @@ export async function loadRevisionForExport(
   }
 
   const structuredData = row.structured_data as StructuredDocumentData | null;
-  let blocks = revisionToBlocks({
+  const blocks = revisionToBlocks({
     contentJson: row.content_json,
     structuredData,
     documentId,
+    contentHtml: row.content,
   });
-
-  if (blocks.length === 0 && row.content) {
-    blocks.push({ type: 'paragraph', text: row.content.replace(/<[^>]+>/g, ' ').trim() });
-  }
 
   const label = getCatalogDocument(documentId)?.label ?? documentId;
   const date = new Date(row.changed_at).toLocaleDateString('no-NO');

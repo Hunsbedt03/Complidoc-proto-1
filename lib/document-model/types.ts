@@ -1,9 +1,18 @@
+/** Inline tekst inni avsnitt (f.eks. fet fra Markdown). */
+export type InlineSpan = { text: string; bold?: boolean; italic?: boolean };
+
 /** Format-uavhengig innholdsmodell for DOCX/PDF-eksport. */
 export type DocumentBlock =
   | { type: 'heading'; level: 1 | 2 | 3; text: string }
-  | { type: 'paragraph'; text: string }
+  | { type: 'paragraph'; text: string; spans?: InlineSpan[] }
   | { type: 'list'; ordered: boolean; items: string[] }
   | { type: 'table'; headers: string[]; rows: string[][] };
+
+/** Plain text fra paragraph-blokk (inkl. spans). */
+export function paragraphPlainText(block: Extract<DocumentBlock, { type: 'paragraph' }>): string {
+  if (block.spans?.length) return block.spans.map((s) => s.text).join('');
+  return block.text;
+}
 
 export type ManglerValue = number | string;
 

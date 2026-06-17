@@ -428,6 +428,30 @@ footer{padding:32px 40px;border-top:0.5px solid rgba(255,255,255,0.07);display:f
 .doc-editor-body .ProseMirror p.is-editor-empty:first-child::before{color:var(--text3);content:attr(data-placeholder);float:left;height:0;pointer-events:none;}
 .doc-editor--locked .doc-editor-body{opacity:0.85;}
 .doc-editor-regen,.doc-editor-close{margin-top:8px;}
+.doc-paper-shell{background:#1a1d22;padding:12px 8px 20px;border-radius:8px;overflow-x:hidden;overflow-y:auto;}
+.doc-paper-toolbar{display:flex;align-items:center;justify-content:flex-end;gap:6px;margin-bottom:10px;padding:0 4px;}
+.doc-paper-toolbar-btn{font-size:11px;padding:4px 10px;border-radius:5px;border:0.5px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.04);color:var(--text2);cursor:pointer;line-height:1.2;}
+.doc-paper-toolbar-btn:hover{background:rgba(255,255,255,0.08);color:var(--text1);}
+.doc-paper-toolbar-btn--active{background:rgba(26,111,212,0.22);color:#85B7EB;border-color:rgba(26,111,212,0.4);}
+.doc-paper-toolbar-zoom{font-size:11px;color:var(--text3);min-width:2.5rem;text-align:center;}
+.doc-paper-scale-wrap{margin:0 auto;overflow:visible;}
+.doc-paper{background:#fff;color:#111827;font-family:Arial,Helvetica,sans-serif;font-size:11pt;line-height:1.45;padding:18mm 15mm;box-shadow:0 4px 24px rgba(0,0,0,0.45);box-sizing:border-box;}
+.doc-paper-info-table{width:100%;table-layout:fixed;border-collapse:collapse;margin:0 0 16px;font-size:9pt;}
+.doc-paper-info-table th,.doc-paper-info-table td{border:1px solid #ccc;padding:5px 8px;text-align:left;vertical-align:top;word-wrap:break-word;}
+.doc-paper-info-table th{width:36%;background:#f2f4f7;font-weight:700;}
+.doc-paper-body{color:#111827;}
+.doc-paper-prose,.doc-editor-body--paper .ProseMirror{color:#111827;font-family:Arial,Helvetica,sans-serif;font-size:11pt;line-height:1.45;outline:none;min-height:12rem;}
+.doc-paper-prose h1,.doc-editor-body--paper .ProseMirror h1{font-size:16pt;font-weight:700;color:#1a3a5c;margin:0.9em 0 0.4em;}
+.doc-paper-prose h2,.doc-editor-body--paper .ProseMirror h2{font-size:13pt;font-weight:700;color:#2b4c7e;margin:0.8em 0 0.35em;}
+.doc-paper-prose h3,.doc-editor-body--paper .ProseMirror h3{font-size:11pt;font-weight:700;margin:0.7em 0 0.3em;}
+.doc-paper-prose p,.doc-editor-body--paper .ProseMirror p{margin:0.45em 0;}
+.doc-paper-prose ul,.doc-paper-prose ol,.doc-editor-body--paper .ProseMirror ul,.doc-editor-body--paper .ProseMirror ol{margin:0.45em 0;padding-left:1.4em;}
+.doc-paper-prose strong,.doc-editor-body--paper .ProseMirror strong{font-weight:700;}
+.doc-paper-table,.doc-editor-body--paper .ProseMirror table{width:100%;table-layout:fixed;border-collapse:collapse;margin:10px 0;font-size:8.5pt;}
+.doc-paper-table th,.doc-paper-table td,.doc-editor-body--paper .ProseMirror th,.doc-editor-body--paper .ProseMirror td{border:1px solid #ccc;padding:4px 6px;word-wrap:break-word;overflow-wrap:break-word;vertical-align:top;}
+.doc-paper-table th,.doc-editor-body--paper .ProseMirror th{background:#f2f4f7;font-weight:700;}
+.doc-editor-body--paper{background:transparent;min-height:0;}
+.doc-editor--locked .doc-paper-shell{opacity:0.92;}
 .editor-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin-bottom:8px;padding:6px;background:rgba(255,255,255,0.03);border-radius:6px;}
 .editor-toolbar-btn{font-size:12px;min-width:28px;height:28px;padding:0 8px;border-radius:4px;border:0.5px solid rgba(255,255,255,0.1);background:transparent;color:var(--text2);cursor:pointer;}
 .editor-toolbar-btn--active{background:rgba(255,255,255,0.12);color:var(--text1);}

@@ -7,7 +7,7 @@ import { computePackageCompleteness } from '@/lib/documents/completeness';
 import { normalizeDocumentId, CORE_DOCUMENT_IDS } from '@/lib/documents/ids';
 import { projectFormFromMachineData } from '@/lib/parseMachineData';
 import { projectInputFromForm } from '@/lib/projectInput';
-import { hydrateDocumentContents } from '@/lib/revisions/hydrateContents';
+import { hydrateDocumentContentsHtml } from '@/lib/revisions/hydrateContents';
 import type { GeneratedDoc, UploadSlot } from '@/lib/types';
 
 export type DocumentSnapshotRow = {
@@ -45,7 +45,7 @@ export async function snapshotDocumentsForCycle(input: {
     return;
   }
 
-  const contents = await hydrateDocumentContents(input.projectId, input.documentIds);
+  const contents = await hydrateDocumentContentsHtml(input.projectId, input.documentIds);
 
   const structuredByDoc: Record<string, unknown> = {};
   const { data: revRows } = await admin

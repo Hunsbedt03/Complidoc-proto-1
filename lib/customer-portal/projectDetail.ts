@@ -9,7 +9,7 @@ import {
 import { resolveCustomerDocumentSnapshotCycleId } from '@/lib/customer-portal/projectStatus';
 import { loadSnapshotContentsForCycle } from '@/lib/customer-portal/documentSnapshots';
 import { markProjectNotificationsRead } from '@/lib/customer-portal/notifications';
-import { hydrateDocumentContents } from '@/lib/revisions/hydrateContents';
+import { hydrateDocumentContentsHtml } from '@/lib/revisions/hydrateContents';
 import { getCatalogDocument } from '@/lib/documents/catalog';
 import { normalizeDocumentId, CORE_DOCUMENT_IDS } from '@/lib/documents/ids';
 import { projectFormFromMachineData } from '@/lib/parseMachineData';
@@ -159,7 +159,7 @@ export async function fetchCustomerProjectDetail(
 
   const contents =
     snapshots === null
-      ? await hydrateDocumentContents(projectId, docIds)
+      ? await hydrateDocumentContentsHtml(projectId, docIds)
       : {};
 
   const documents: CustomerProjectDocument[] = completeness.items.map((item) => {

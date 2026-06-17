@@ -28,6 +28,7 @@ import {
   parseStructuredResponse,
 } from '@/lib/generators/parseStructuredResponse';
 import { getCatalogDocument } from '@/lib/documents/catalog';
+import { markdownToBlocks } from '@/lib/document-model/markdownToBlocks';
 
 export type GenerateRequestBody = {
   machineData?: string;
@@ -90,26 +91,9 @@ function buildEditorContent(
   const html = `<h2>${label}</h2>\n${markdownToHtml(aiText)}`;
   const tiptap = blocksToTiptap([
     { type: 'heading', level: 2, text: label },
-    ...markdownToBlocksSimple(aiText),
+    ...markdownToBlocks(aiText),
   ]);
   return { contentHtml: html, contentJson: JSON.stringify(tiptap) };
-}
-
-function markdownToBlocksSimple(text: string): import('@/lib/document-model/types').DocumentBlock[] {
-  const lines = text.split('\n');
-  const blocks: import('@/lib/document-model/types').DocumentBlock[] = [];
-  for (const line of lines) {
-    const t = line.trim();
-    if (!t) continue;
-    if (t.startsWith('## ')) blocks.push({ type: 'heading', level: 2, text: t.slice(3) });
-    else if (t.startsWith('# ')) blocks.push({ type: 'heading', level: 1, text: t.slice(2) });
-    else if (t.startsWith('- ')) {
-      const last = blocks[blocks.length - 1];
-      if (last?.type === 'list' && !last.ordered) last.items.push(t.slice(2));
-      else blocks.push({ type: 'list', ordered: false, items: [t.slice(2)] });
-    } else blocks.push({ type: 'paragraph', text: t });
-  }
-  return blocks;
 }
 
 export async function handleGenerate(body: GenerateRequestBody): Promise<GenerateResponse> {

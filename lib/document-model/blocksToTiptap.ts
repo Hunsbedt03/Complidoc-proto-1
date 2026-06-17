@@ -1,21 +1,39 @@
-import type { DocumentBlock } from '@/lib/document-model/types';
+import type { DocumentBlock, InlineSpan } from '@/lib/document-model/types';
+
+export { blocksToHtml } from '@/lib/document-model/renderBlocksHtml';
 
 type TiptapNode = {
   type: string;
   attrs?: Record<string, unknown>;
   text?: string;
+  marks?: { type: string }[];
   content?: TiptapNode[];
 };
 
-function textNode(text: string): TiptapNode {
-  return { type: 'text', text };
+function textNode(text: string, marks?: { type: string }[]): TiptapNode {
+  const node: TiptapNode = { type: 'text', text };
+  if (marks?.length) node.marks = marks;
+  return node;
 }
 
-function paragraph(text: string): TiptapNode {
-  return {
-    type: 'paragraph',
-    content: text ? [textNode(text)] : [],
-  };
+function spansToTiptapContent(spans: InlineSpan[]): TiptapNode[] {
+  return spans
+    .filter((s) => s.text)
+    .map((s) => {
+      const marks: { type: string }[] = [];
+      if (s.bold) marks.push({ type: 'bold' });
+      if (s.italic) marks.push({ type: 'italic' });
+      return textNode(s.text, marks.length ? marks : undefined);
+    });
+}
+
+function paragraphFromBlock(block: Extract<DocumentBlock, { type: 'paragraph' }>): TiptapNode {
+  const content = block.spans?.length
+    ? spansToTiptapContent(block.spans)
+    : block.text
+      ? [textNode(block.text)]
+      : [];
+  return { type: 'paragraph', content };
 }
 
 function tableNode(headers: string[], rows: string[][]): TiptapNode {
@@ -23,7 +41,7 @@ function tableNode(headers: string[], rows: string[][]): TiptapNode {
     type: 'tableRow',
     content: headers.map((h) => ({
       type: 'tableHeader',
-      content: [paragraph(h)],
+      content: [paragraphFromBlock({ type: 'paragraph', text: h })],
     })),
   };
 
@@ -31,7 +49,7 @@ function tableNode(headers: string[], rows: string[][]): TiptapNode {
     type: 'tableRow',
     content: row.map((cell) => ({
       type: 'tableCell',
-      content: [paragraph(cell)],
+      content: [paragraphFromBlock({ type: 'paragraph', text: cell })],
     })),
   }));
 
@@ -58,14 +76,14 @@ export function blocksToTiptap(blocks: DocumentBlock[]): {
         });
         break;
       case 'paragraph':
-        content.push(paragraph(block.text));
+        content.push(paragraphFromBlock(block));
         break;
       case 'list':
         content.push({
           type: block.ordered ? 'orderedList' : 'bulletList',
           content: block.items.map((item) => ({
             type: 'listItem',
-            content: [paragraph(item)],
+            content: [paragraphFromBlock({ type: 'paragraph', text: item })],
           })),
         });
         break;
@@ -78,47 +96,4 @@ export function blocksToTiptap(blocks: DocumentBlock[]): {
   }
 
   return { type: 'doc', content };
-}
-
-/** Enkel HTML-representasjon for revisjons-lagring uten editor. */
-export function blocksToHtml(blocks: DocumentBlock[]): string {
-  const parts: string[] = [];
-  for (const block of blocks) {
-    switch (block.type) {
-      case 'heading':
-        parts.push(`<h${block.level}>${escapeHtml(block.text)}</h${block.level}>`);
-        break;
-      case 'paragraph':
-        parts.push(`<p>${escapeHtml(block.text)}</p>`);
-        break;
-      case 'list': {
-        const tag = block.ordered ? 'ol' : 'ul';
-        const items = block.items.map((i) => `<li>${escapeHtml(i)}</li>`).join('');
-        parts.push(`<${tag}>${items}</${tag}>`);
-        break;
-      }
-      case 'table': {
-        const head = `<tr>${block.headers.map((h) => `<th>${escapeHtml(h)}</th>`).join('')}</tr>`;
-        const body = block.rows
-          .map(
-            (row) =>
-              `<tr>${row.map((c) => `<td>${escapeHtml(c)}</td>`).join('')}</tr>`
-          )
-          .join('');
-        parts.push(`<table><thead>${head}</thead><tbody>${body}</tbody></table>`);
-        break;
-      }
-      default:
-        break;
-    }
-  }
-  return parts.join('\n');
-}
-
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
 }

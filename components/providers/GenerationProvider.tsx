@@ -45,6 +45,7 @@ type GenerationContextValue = {
   lastForm: ProjectFormData | null;
   generatedDocuments: GeneratedDoc[];
   documentContents: Record<string, string>;
+  documentContentJson: Record<string, string>;
   uploads: UploadSlot[];
   archiveLinks: ProjectArchiveLink[];
   setArchiveLinks: (links: ProjectArchiveLink[]) => void;
@@ -72,7 +73,11 @@ type GenerationContextValue = {
     changeNote: string,
     editorName: string
   ) => Promise<void>;
-  setDocumentContent: (documentId: DocumentId, content: string) => void;
+  setDocumentContent: (
+    documentId: DocumentId,
+    content: string,
+    contentJson?: string
+  ) => void;
   regenerateDocument: (documentId: DocumentId) => Promise<void>;
   setZipFromProject: (
     zip: ZipData,
@@ -106,6 +111,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
   const [lastForm, setLastForm] = useState<ProjectFormData | null>(null);
   const [generatedDocuments, setGeneratedDocuments] = useState<GeneratedDoc[]>([]);
   const [documentContents, setDocumentContents] = useState<Record<string, string>>({});
+  const [documentContentJson, setDocumentContentJson] = useState<Record<string, string>>({});
   const [uploads, setUploads] = useState<UploadSlot[]>([]);
   const [archiveLinks, setArchiveLinksState] = useState<ProjectArchiveLink[]>([]);
   const hydratedForProjectRef = useRef<string | null>(null);
@@ -146,7 +152,14 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
     void hydrateDocumentContents(projectId, docIds).then((contents) => {
       if (cancelled) return;
       hydratedForProjectRef.current = projectId;
-      setDocumentContents((prev) => ({ ...contents, ...prev }));
+      const html: Record<string, string> = {};
+      const json: Record<string, string> = {};
+      for (const [id, v] of Object.entries(contents)) {
+        html[id] = v.html;
+        json[id] = v.contentJson;
+      }
+      setDocumentContents((prev) => ({ ...html, ...prev }));
+      setDocumentContentJson((prev) => ({ ...json, ...prev }));
     });
 
     return () => {
@@ -206,9 +219,15 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
     [projectId, uploads]
   );
 
-  const setDocumentContent = useCallback((documentId: DocumentId, content: string) => {
-    setDocumentContents((prev) => ({ ...prev, [documentId]: content }));
-  }, []);
+  const setDocumentContent = useCallback(
+    (documentId: DocumentId, content: string, contentJson?: string) => {
+      setDocumentContents((prev) => ({ ...prev, [documentId]: content }));
+      if (contentJson !== undefined) {
+        setDocumentContentJson((prev) => ({ ...prev, [documentId]: contentJson }));
+      }
+    },
+    []
+  );
 
   const regenerateDocument = useCallback(
     async (documentId: DocumentId) => {
@@ -223,6 +242,10 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
       setZipData(newZip);
       const payload = revisionPayloadFromGeneratedDoc(doc);
       setDocumentContents((prev) => ({ ...prev, [documentId]: payload.content }));
+      setDocumentContentJson((prev) => ({
+        ...prev,
+        [documentId]: payload.contentJson,
+      }));
       await saveDocumentRevision({
         projectId,
         documentId,
@@ -268,6 +291,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
     ) => {
       if (!projectId || projectStatus === 'locked') return;
       setDocumentContents((prev) => ({ ...prev, [documentId]: content }));
+      setDocumentContentJson((prev) => ({ ...prev, [documentId]: contentJson }));
       const structured = tiptapJsonToStructuredData(documentId, contentJson);
       await saveDocumentRevision({
         projectId,
@@ -295,6 +319,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
     ) => {
       if (!projectId || projectStatus === 'locked') return;
       setDocumentContents((prev) => ({ ...prev, [documentId]: content }));
+      setDocumentContentJson((prev) => ({ ...prev, [documentId]: contentJson }));
       const structured = tiptapJsonToStructuredData(documentId, contentJson);
       await saveDocumentRevision({
         projectId,
@@ -321,6 +346,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
       lastForm,
       generatedDocuments,
       documentContents,
+      documentContentJson,
       uploads,
       archiveLinks,
       setArchiveLinks,
@@ -341,11 +367,14 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
         setUploads([]);
         setArchiveLinksState([]);
         const contents: Record<string, string> = {};
+        const jsonMap: Record<string, string> = {};
         for (const doc of documents) {
           const payload = revisionPayloadFromGeneratedDoc(doc);
           contents[doc.documentId] = payload.content;
+          jsonMap[doc.documentId] = payload.contentJson;
         }
         setDocumentContents(contents);
+        setDocumentContentJson(jsonMap);
         return id;
       },
       setUpload,
@@ -399,6 +428,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
         setLastForm(null);
         setGeneratedDocuments([]);
         setDocumentContents({});
+        setDocumentContentJson({});
         setUploads([]);
         setArchiveLinksState([]);
       },
@@ -411,6 +441,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
       lastForm,
       generatedDocuments,
       documentContents,
+      documentContentJson,
       uploads,
       archiveLinks,
       setArchiveLinks,

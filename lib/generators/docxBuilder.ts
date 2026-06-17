@@ -11,27 +11,45 @@ import {
   WidthType,
   BorderStyle,
   ShadingType,
+  PageOrientation,
+  TableLayoutType,
 } from 'docx';
 import type { MachineFields } from '@/lib/generators/machineFields';
 import type { DocumentBlock } from '@/lib/document-model/types';
+import { paragraphPlainText } from '@/lib/document-model/types';
 import { structuredDataToBlocks } from '@/lib/document-model/structuredToBlocks';
 import type { StructuredDocumentData } from '@/lib/document-model/types';
 import { getDocTitle } from '@/lib/generators/constants';
+import {
+  contentWidthForDocument,
+  isLandscapeDocument,
+  tableColumnWidthsDxa,
+} from '@/lib/document-model/tableLayout';
+import { buildExportInfoRows } from '@/lib/document-model/exportMeta';
 
 const BORDER = { style: BorderStyle.SINGLE, size: 1, color: 'CCCCCC' };
 const BORDERS = { top: BORDER, bottom: BORDER, left: BORDER, right: BORDER };
 const CELL_M = { top: 80, bottom: 80, left: 120, right: 120 };
 const PAGE_W = 11906;
+const PAGE_H = 16838;
 const MARGIN = 1134;
-const CONTENT_W = PAGE_W - MARGIN * 2;
 
-function pageProps() {
+function pageProps(documentId?: string) {
+  const landscape = isLandscapeDocument(documentId);
   return {
     page: {
-      size: { width: PAGE_W, height: 16838 },
+      size: {
+        width: PAGE_W,
+        height: PAGE_H,
+        ...(landscape ? { orientation: PageOrientation.LANDSCAPE } : {}),
+      },
       margin: { top: MARGIN, right: MARGIN, bottom: MARGIN, left: MARGIN },
     },
   };
+}
+
+function contentWidth(documentId?: string) {
+  return contentWidthForDocument(documentId);
 }
 
 function sanitizeText(text: unknown): string {
@@ -110,11 +128,12 @@ function cover(title: string, sub: string, meta: string) {
   ];
 }
 
-function infoTable(rows: [string, string][]) {
-  const c1 = Math.round(CONTENT_W * 0.36);
-  const c2 = CONTENT_W - c1;
+function infoTable(rows: [string, string][], documentId?: string) {
+  const cw = contentWidth(documentId);
+  const c1 = Math.round(cw * 0.36);
+  const c2 = cw - c1;
   return new Table({
-    width: { size: CONTENT_W, type: WidthType.DXA },
+    width: { size: cw, type: WidthType.DXA },
     columnWidths: [c1, c2],
     rows: rows.map(
       ([label, value]) =>
@@ -156,9 +175,10 @@ function infoTable(rows: [string, string][]) {
 }
 
 function signatureTable(d: MachineFields, dato: string) {
-  const c = Math.round(CONTENT_W / 2);
+  const cw = contentWidth();
+  const c = Math.round(cw / 2);
   return new Table({
-    width: { size: CONTENT_W, type: WidthType.DXA },
+    width: { size: cw, type: WidthType.DXA },
     columnWidths: [c, c],
     rows: [
       new TableRow({
@@ -225,7 +245,40 @@ function signatureTable(d: MachineFields, dato: string) {
   });
 }
 
-function makeDoc(children: (Paragraph | Table)[]) {
+function paragraphFromBlock(block: Extract<DocumentBlock, { type: 'paragraph' }>) {
+  if (block.spans?.length) {
+    return new Paragraph({
+      spacing: { after: 120 },
+      children: block.spans.map(
+        (s) =>
+          new TextRun({
+            text: sanitizeText(s.text),
+            bold: s.bold,
+            italics: s.italic,
+            size: 22,
+            font: 'Arial',
+          })
+      ),
+    });
+  }
+  return body(paragraphPlainText(block));
+}
+
+function h3(text: string) {
+  return new Paragraph({
+    spacing: { after: 100 },
+    children: [
+      new TextRun({
+        text: sanitizeText(text),
+        bold: true,
+        size: 22,
+        font: 'Arial',
+      }),
+    ],
+  });
+}
+
+function makeDoc(children: (Paragraph | Table)[], documentId?: string) {
   return new Document({
     styles: {
       default: { document: { run: { font: 'Arial', size: 22 } } },
@@ -248,8 +301,95 @@ function makeDoc(children: (Paragraph | Table)[]) {
         },
       ],
     },
-    sections: [{ properties: pageProps(), children }],
+    sections: [{ properties: pageProps(documentId), children }],
   });
+}
+
+function blocksToDocxNodes(blocks: DocumentBlock[], documentId?: string): (Paragraph | Table)[] {
+  const cw = contentWidth(documentId);
+  const nodes: (Paragraph | Table)[] = [];
+  for (const block of blocks) {
+    switch (block.type) {
+      case 'heading':
+        if (block.level === 1) nodes.push(h1(block.text));
+        else if (block.level === 2) nodes.push(h2(block.text));
+        else nodes.push(h3(block.text));
+        break;
+      case 'paragraph':
+        nodes.push(paragraphFromBlock(block));
+        break;
+      case 'list':
+        for (const item of block.items) {
+          nodes.push(
+            new Paragraph({
+              bullet: { level: 0 },
+              spacing: { after: 60 },
+              children: [
+                new TextRun({ text: sanitizeText(item), size: 22, font: 'Arial' }),
+              ],
+            })
+          );
+        }
+        break;
+      case 'table': {
+        const widths = tableColumnWidthsDxa(block.headers, documentId, cw);
+        const headerRow = new TableRow({
+          children: block.headers.map(
+            (h, i) =>
+              new TableCell({
+                borders: BORDERS,
+                width: { size: widths[i] ?? Math.round(cw / block.headers.length), type: WidthType.DXA },
+                margins: CELL_M,
+                shading: { fill: 'F2F4F7', type: ShadingType.CLEAR },
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({ text: sanitizeText(h), bold: true, size: 18, font: 'Arial' }),
+                    ],
+                  }),
+                ],
+              })
+          ),
+        });
+        const bodyRows = block.rows.map(
+          (row) =>
+            new TableRow({
+              children: row.map(
+                (cell, i) =>
+                  new TableCell({
+                    borders: BORDERS,
+                    width: { size: widths[i] ?? Math.round(cw / block.headers.length), type: WidthType.DXA },
+                    margins: CELL_M,
+                    children: [
+                      new Paragraph({
+                        children: [
+                          new TextRun({
+                            text: sanitizeText(cell),
+                            size: 18,
+                            font: 'Arial',
+                          }),
+                        ],
+                      }),
+                    ],
+                  })
+              ),
+            })
+        );
+        nodes.push(
+          new Table({
+            layout: TableLayoutType.FIXED,
+            width: { size: cw, type: WidthType.DXA },
+            columnWidths: widths,
+            rows: [headerRow, ...bodyRows],
+          })
+        );
+        break;
+      }
+      default:
+        break;
+    }
+  }
+  return nodes;
 }
 
 function parseMarkdown(text: string): (Paragraph | Table)[] {
@@ -292,92 +432,6 @@ function parseMarkdown(text: string): (Paragraph | Table)[] {
       return body(t);
     });
   return nodes.filter((x): x is Paragraph | Table => x != null);
-}
-
-function blocksToDocxNodes(blocks: DocumentBlock[]): (Paragraph | Table)[] {
-  const nodes: (Paragraph | Table)[] = [];
-  for (const block of blocks) {
-    switch (block.type) {
-      case 'heading':
-        if (block.level === 1) nodes.push(h1(block.text));
-        else nodes.push(h2(block.text));
-        break;
-      case 'paragraph':
-        nodes.push(body(block.text));
-        break;
-      case 'list':
-        for (const item of block.items) {
-          nodes.push(
-            new Paragraph({
-              bullet: { level: 0 },
-              spacing: { after: 60 },
-              children: [
-                new TextRun({ text: sanitizeText(item), size: 22, font: 'Arial' }),
-              ],
-            })
-          );
-        }
-        break;
-      case 'table': {
-        const colCount = Math.max(block.headers.length, 1);
-        const colW = Math.round(CONTENT_W / colCount);
-        const widths = Array(colCount).fill(colW);
-        const headerRow = new TableRow({
-          children: block.headers.map(
-            (h) =>
-              new TableCell({
-                borders: BORDERS,
-                width: { size: colW, type: WidthType.DXA },
-                margins: CELL_M,
-                shading: { fill: 'F2F4F7', type: ShadingType.CLEAR },
-                children: [
-                  new Paragraph({
-                    children: [
-                      new TextRun({ text: sanitizeText(h), bold: true, size: 18, font: 'Arial' }),
-                    ],
-                  }),
-                ],
-              })
-          ),
-        });
-        const bodyRows = block.rows.map(
-          (row) =>
-            new TableRow({
-              children: row.map(
-                (cell) =>
-                  new TableCell({
-                    borders: BORDERS,
-                    width: { size: colW, type: WidthType.DXA },
-                    margins: CELL_M,
-                    children: [
-                      new Paragraph({
-                        children: [
-                          new TextRun({
-                            text: sanitizeText(cell),
-                            size: 18,
-                            font: 'Arial',
-                          }),
-                        ],
-                      }),
-                    ],
-                  })
-              ),
-            })
-        );
-        nodes.push(
-          new Table({
-            width: { size: CONTENT_W, type: WidthType.DXA },
-            columnWidths: widths,
-            rows: [headerRow, ...bodyRows],
-          })
-        );
-        break;
-      }
-      default:
-        break;
-    }
-  }
-  return nodes;
 }
 
 function defaultInfoRows(d: MachineFields, docNr: string, dato: string): [string, string][] {
@@ -469,15 +523,18 @@ export async function buildDocxBuffer(
     const prefix = resolvedType.slice(0, 12).toUpperCase().replace(/[^A-Z0-9]/g, '') || 'DOC';
     const docNr = `FS-${prefix}-${safeSerial}-Rev01`;
     const contentNodes = structured
-      ? blocksToDocxNodes(structuredDataToBlocks(structured))
+      ? blocksToDocxNodes(structuredDataToBlocks(structured), resolvedType)
       : parseMarkdown(aiText);
-    doc = makeDoc([
-      ...cover(title, `${d.maskin} · ${d.prosjekt}`, `${d.produsent} · ${dato}`),
-      blank(),
-      infoTable(defaultInfoRows(d, docNr, dato)),
-      blank(),
-      ...contentNodes,
-    ]);
+    doc = makeDoc(
+      [
+        ...cover(title, `${d.maskin} · ${d.prosjekt}`, `${d.produsent} · ${dato}`),
+        blank(),
+        infoTable(defaultInfoRows(d, docNr, dato)),
+        blank(),
+        ...contentNodes,
+      ],
+      resolvedType
+    );
   }
 
   return Packer.toBuffer(doc);
@@ -499,32 +556,29 @@ export async function buildDocxFromBlocks(
   blocks: DocumentBlock[]
 ): Promise<Buffer> {
   const dato = meta.date;
-  const safeSerial = (meta.serienr ?? '000').replace(/\s/g, '');
-  const prefix =
-    (meta.documentId ?? title)
-      .slice(0, 12)
-      .toUpperCase()
-      .replace(/[^A-Z0-9]/g, '') || 'DOC';
-  const docNr = `FS-${prefix}-${safeSerial}-Rev${String(meta.revision).padStart(2, '0')}`;
   const produsent = meta.produsent ?? '—';
-  const infoRows: [string, string][] = [
-    ['Dokumentnummer', docNr],
-    ['Maskin', meta.machine],
-    ['Serienummer', meta.serienr ?? '—'],
-    ['Prosjekt', meta.project],
-    ['Produsent', produsent],
-    ['Kunde', meta.kunde ?? '—'],
-    ['Ansvarlig', meta.ingenior ?? '—'],
-    ['Revisjon', String(meta.revision)],
-    ['Dato', dato],
-  ];
+  const infoRows = buildExportInfoRows({
+    title,
+    project: meta.project,
+    machine: meta.machine,
+    revision: meta.revision,
+    date: dato,
+    produsent,
+    serienr: meta.serienr,
+    kunde: meta.kunde,
+    ingenior: meta.ingenior,
+    documentId: meta.documentId,
+  });
 
-  const doc = makeDoc([
-    ...cover(title, `${meta.machine} · ${meta.project}`, `${produsent} · ${dato}`),
-    blank(),
-    infoTable(infoRows),
-    blank(),
-    ...blocksToDocxNodes(blocks),
-  ]);
+  const doc = makeDoc(
+    [
+      ...cover(title, `${meta.machine} · ${meta.project}`, `${produsent} · ${dato}`),
+      blank(),
+      infoTable(infoRows, meta.documentId),
+      blank(),
+      ...blocksToDocxNodes(blocks, meta.documentId),
+    ],
+    meta.documentId
+  );
   return Packer.toBuffer(doc);
 }
