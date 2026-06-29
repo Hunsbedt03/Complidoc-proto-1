@@ -452,6 +452,32 @@ footer{padding:32px 40px;border-top:0.5px solid rgba(255,255,255,0.07);display:f
 .doc-paper-table th,.doc-editor-body--paper .ProseMirror th{background:#f2f4f7;font-weight:700;}
 .doc-editor-body--paper{background:transparent;min-height:0;}
 .doc-editor--locked .doc-paper-shell{opacity:0.92;}
+.project-attachments{margin:20px 0 28px;padding:16px;border:0.5px solid rgba(255,255,255,0.1);border-radius:10px;background:rgba(255,255,255,0.02);}
+.project-attachments-title{font-size:15px;font-weight:600;margin:0 0 6px;color:var(--text1);}
+.project-attachments-lead{font-size:12px;color:var(--text3);margin:0 0 14px;line-height:1.45;}
+.project-attachments-drop{border:1px dashed rgba(255,255,255,0.18);border-radius:8px;padding:14px;margin-bottom:16px;background:rgba(255,255,255,0.02);}
+.project-attachments-drop--active{border-color:rgba(26,111,212,0.55);background:rgba(26,111,212,0.08);}
+.project-attachments-file-input{display:none;}
+.project-attachments-drop-hint{font-size:11px;color:var(--text3);margin-left:8px;}
+.project-attachments-pending{font-size:12px;color:var(--text2);margin:10px 0 0;}
+.project-attachments-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0;}
+.project-attachments-form-grid label{display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--text3);}
+.project-attachments-form-grid input,.project-attachments-form-grid select{font-size:13px;padding:6px 8px;border-radius:6px;border:0.5px solid rgba(255,255,255,0.12);background:#0D0F12;color:var(--text2);}
+.project-attachments-form-span{grid-column:1/-1;}
+.project-attachments-checkbox{display:flex;flex-direction:row;align-items:center;gap:8px;font-size:12px;color:var(--text2);}
+.project-attachments-checkbox--inline{margin:0;}
+.project-attachments-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px;}
+.project-attachments-item{padding:12px;border-radius:8px;border:0.5px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.02);}
+.project-attachments-item-main{display:flex;gap:10px;align-items:flex-start;}
+.project-attachments-icon{font-size:22px;line-height:1;flex-shrink:0;}
+.project-attachments-item-text{flex:1;min-width:0;}
+.project-attachments-item-text strong{font-size:13px;color:var(--text1);}
+.project-attachments-desc{font-size:12px;color:var(--text2);margin:4px 0 0;}
+.project-attachments-meta{font-size:11px;color:var(--text3);margin:4px 0 0;line-height:1.4;}
+.project-attachments-thumb{width:56px;height:56px;object-fit:cover;border-radius:4px;border:0.5px solid rgba(255,255,255,0.12);flex-shrink:0;}
+.project-attachments-item-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px;}
+.project-attachments-link-select{font-size:11px;padding:4px 8px;border-radius:6px;border:0.5px solid rgba(255,255,255,0.12);background:#0D0F12;color:var(--text2);max-width:200px;}
+.customer-project-view .project-attachments{border-color:rgba(255,255,255,0.12);}
 .editor-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin-bottom:8px;padding:6px;background:rgba(255,255,255,0.03);border-radius:6px;}
 .editor-toolbar-btn{font-size:12px;min-width:28px;height:28px;padding:0 8px;border-radius:4px;border:0.5px solid rgba(255,255,255,0.1);background:transparent;color:var(--text2);cursor:pointer;}
 .editor-toolbar-btn--active{background:rgba(255,255,255,0.12);color:var(--text1);}

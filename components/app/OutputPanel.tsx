@@ -9,6 +9,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { ProjectActivityLog } from '@/components/ProjectActivityLog';
 import { ProjectCustomerAccess } from '@/components/project/ProjectCustomerAccess';
 import { ProjectRevisionPanel } from '@/components/project/ProjectRevisionPanel';
+import { ProjectAttachmentsSection } from '@/components/project/ProjectAttachmentsSection';
 import { ProjectDocuments } from '@/components/ProjectDocuments';
 import { ProjectPackageOverview } from '@/components/ProjectPackageOverview';
 import { useGeneration } from '@/components/providers/GenerationProvider';
@@ -323,6 +324,18 @@ export function OutputPanel() {
         uploads={uploads}
         projectStatus={effectiveLocked ? 'locked' : projectStatus}
       />
+
+      {projectId ? (
+        <ProjectAttachmentsSection
+          projectId={projectId}
+          role="supplier"
+          readOnly={effectiveLocked}
+          documentOptions={documents.map((d) => ({
+            id: d.documentId,
+            label: d.label ?? getDocumentDefinition(d.documentId)?.label ?? d.documentId,
+          }))}
+        />
+      ) : null}
 
       {projectId ? (
         <ProjectActivityLog

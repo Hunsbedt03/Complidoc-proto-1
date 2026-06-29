@@ -10,6 +10,11 @@ import { generateManglerTxt } from '@/lib/documents/manglerTxt';
 import { DOC_PREFIX_MAP } from '@/lib/constants';
 import { downloadDocFromZip } from '@/lib/download';
 import { downloadZipWithExtras } from '@/lib/downloadPackage';
+import { fetchProjectAttachments } from '@/lib/attachments/client';
+import {
+  loadLinkedAttachmentsForZip,
+  mergeAttachmentsIntoZipBase64,
+} from '@/lib/attachments/zipExtras';
 import { usePackageCompleteness } from '@/lib/usePackageCompleteness';
 import { useGeneration } from '@/components/providers/GenerationProvider';
 import type { DocumentId } from '@/lib/documents/ids';
@@ -106,10 +111,27 @@ export function ProjectDocuments({
       form.prosjekt || form.maskin,
       projectId
     );
-    await downloadZipWithExtras(zipData, {
-      manglerTxt: isComplete ? undefined : manglerTxt,
-      utkast: !isComplete,
-    });
+
+    let zipBase64 = zipData.zip;
+    if (projectId) {
+      try {
+        const { attachments } = await fetchProjectAttachments(projectId);
+        const entries = await loadLinkedAttachmentsForZip(projectId, attachments);
+        if (entries.length) {
+          zipBase64 = await mergeAttachmentsIntoZipBase64(zipBase64, entries);
+        }
+      } catch (err) {
+        console.warn('[samsiq] zip attachments:', err);
+      }
+    }
+
+    await downloadZipWithExtras(
+      { ...zipData, zip: zipBase64 },
+      {
+        manglerTxt: isComplete ? undefined : manglerTxt,
+        utkast: !isComplete,
+      }
+    );
   }
 
   async function handleDocDownload(doc: GeneratedDoc) {

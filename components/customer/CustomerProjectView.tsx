@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { DocumentReadOnly } from '@/components/customer/DocumentReadOnly';
+import { ProjectAttachmentsSection } from '@/components/project/ProjectAttachmentsSection';
 
 type Banner = {
   kind: string;
@@ -190,6 +191,8 @@ export function CustomerProjectView({ projectId }: Props) {
           </ul>
         )}
       </section>
+
+      <ProjectAttachmentsSection projectId={projectId} role="customer" />
     </div>
   );
 }
