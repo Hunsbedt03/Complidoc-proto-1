@@ -2,17 +2,75 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Suspense } from 'react';
+import { Suspense, type ReactNode } from 'react';
 import { Logo } from '@/components/ui/Logo';
 import { ContextSwitcher } from '@/components/ContextSwitcher';
 import { GlobalSubscriptionBanner } from '@/components/app/GlobalSubscriptionBanner';
 import { useAuth, useUserInitials } from '@/components/providers/AuthProvider';
 
+function NavIcon({ children }: { children: ReactNode }) {
+  return (
+    <span className="app-nav-icon" aria-hidden>
+      {children}
+    </span>
+  );
+}
+
 const NAV = [
-  { href: '/app/dashboard', label: 'Oversikt', id: 'dashboard' },
-  { href: '/app/archive', label: 'Arkiv', id: 'archive' },
-  { href: '/app/new', label: 'Nytt prosjekt', id: 'new' },
-  { href: '/app/settings', label: 'Innstillinger', id: 'settings' },
+  {
+    href: '/app/dashboard',
+    label: 'Oversikt',
+    id: 'dashboard',
+    icon: (
+      <NavIcon>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+          <rect x="3" y="3" width="7" height="9" rx="1.5" />
+          <rect x="14" y="3" width="7" height="5" rx="1.5" />
+          <rect x="14" y="12" width="7" height="9" rx="1.5" />
+          <rect x="3" y="16" width="7" height="5" rx="1.5" />
+        </svg>
+      </NavIcon>
+    ),
+  },
+  {
+    href: '/app/archive',
+    label: 'Arkiv',
+    id: 'archive',
+    icon: (
+      <NavIcon>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+          <path d="M4 8h16v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8z" />
+          <path d="M3 5h18v3H3z" />
+          <path d="M10 12h4" />
+        </svg>
+      </NavIcon>
+    ),
+  },
+  {
+    href: '/app/new',
+    label: 'Nytt prosjekt',
+    id: 'new',
+    icon: (
+      <NavIcon>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+          <path d="M12 5v14M5 12h14" />
+        </svg>
+      </NavIcon>
+    ),
+  },
+  {
+    href: '/app/settings',
+    label: 'Innstillinger',
+    id: 'settings',
+    icon: (
+      <NavIcon>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+          <circle cx="12" cy="12" r="3" />
+          <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9c.2.6.7 1 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
+        </svg>
+      </NavIcon>
+    ),
+  },
 ];
 
 export function AppSidebar() {
@@ -40,34 +98,21 @@ export function AppSidebar() {
               : '')
           }
         >
+          {item.icon}
           {item.label}
         </Link>
       ))}
-      <div style={{ marginTop: 'auto', paddingTop: 16, borderTop: '0.5px solid rgba(255,255,255,0.06)' }}>
+      <div className="sidebar-user">
         <ContextSwitcher className="context-switcher--sidebar" />
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12 }}>
-          <div
-            id="user-avatar"
-            style={{
-              width: 26,
-              height: 26,
-              borderRadius: '50%',
-              background: 'rgba(26,111,212,0.2)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 10,
-              fontWeight: 500,
-              color: '#85B7EB',
-            }}
-          >
+        <div className="sidebar-user-row">
+          <div id="user-avatar" className="sidebar-avatar">
             {initials}
           </div>
           <div>
-            <div id="user-name" style={{ fontSize: 12, color: '#D1D5DB', fontWeight: 500 }}>
+            <div id="user-name" className="sidebar-user-name">
               {profile?.full_name || user?.email?.split('@')[0] || 'Bruker'}
             </div>
-            <div id="user-sub" style={{ fontSize: 11, color: '#4B5563' }}>
+            <div id="user-sub" className="sidebar-user-email">
               {user?.email}
             </div>
           </div>

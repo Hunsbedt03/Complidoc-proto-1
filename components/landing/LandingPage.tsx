@@ -1,212 +1,209 @@
-'use client';
-
+import Image from 'next/image';
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 import { Logo } from '@/components/ui/Logo';
-import { PLANS, formatNok } from '@/lib/plans';
 
-function CheckIcon() {
+const SCOPE_ITEMS: { label: string; muted?: boolean }[] = [
+  { label: 'Risikovurdering' },
+  { label: 'Samsvarserklæring' },
+  { label: 'Teknisk fil' },
+  { label: 'FMEA' },
+  { label: 'Bruksanvisning' },
+  { label: 'Sikkerhetsfunksjoner' },
+  { label: 'Fareregister' },
+  { label: 'Vedlikeholdsmanual' },
+  { label: '+ det maskinen ellers utløser', muted: true },
+];
+
+function IconBox({ children }: { children: ReactNode }) {
   return (
-    <svg width="8" height="6" viewBox="0 0 8 6" fill="none">
-      <path
-        d="M1 3l2 2 4-4"
-        stroke="#1A6FD4"
-        strokeWidth="1.2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
+    <div className="lp-platform-icon" aria-hidden>
+      {children}
+    </div>
   );
 }
+
+const PLATFORM: { title: string; desc: string; icon: ReactNode }[] = [
+  {
+    title: 'Revisjonshistorikk',
+    desc: 'Hver endring spores. Signerte dokumenter fryses som uforanderlige versjoner.',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+        <path d="M12 8v4l3 2" />
+        <circle cx="12" cy="12" r="9" />
+        <path d="M3 12a9 9 0 0 1 9-9" />
+      </svg>
+    ),
+  },
+  {
+    title: 'Kundeportal',
+    desc: 'Kunden får innsyn i valgte dokumenter og signerer digitalt.',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+      </svg>
+    ),
+  },
+  {
+    title: 'Bedriftsarkiv',
+    desc: 'Prosedyrer og sertifikater gjenbrukes på tvers av prosjekter.',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+        <path d="M4 8h16v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8z" />
+        <path d="M3 5h18v3H3z" />
+        <path d="M10 12h4" />
+      </svg>
+    ),
+  },
+  {
+    title: 'Vedlegg',
+    desc: 'Tegninger, bilder og underlag knyttes til prosjekt og dokument.',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+        <path d="M21.4 11.6l-8.5 8.5a5 5 0 0 1-7.1-7.1l8.5-8.5a3.5 3.5 0 0 1 5 5L10.2 18.6a2 2 0 1 1-2.8-2.8l7.8-7.8" />
+      </svg>
+    ),
+  },
+];
 
 export function LandingPage() {
   return (
     <div id="landing-page">
       <nav>
-        <Link href="/" className="logo">
+        <Link href="/">
           <Logo showTag />
         </Link>
         <div className="nav-links">
-          <span
-            className="nav-link"
-            onClick={() => document.getElementById('how')?.scrollIntoView({ behavior: 'smooth' })}
-          >
+          <a href="#produkt" className="nav-link">
             Produkt
-          </span>
-          <span
-            className="nav-link"
-            onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })}
-          >
+          </a>
+          <Link href="/priser" className="nav-link">
             Priser
-          </span>
-          <span className="nav-link">Om oss</span>
+          </Link>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <Link href="/login" className="nav-cta btn-ghost" style={{ padding: '8px 18px' }}>
+        <div className="lp-nav-actions">
+          <Link href="/login" className="btn-ghost lp-nav-btn">
             Logg inn
           </Link>
-          <Link href="/login?redirect=/app/new" className="nav-cta">
+          <Link href="/login?redirect=/app/new" className="btn-ghost lp-nav-btn">
             Åpne app
           </Link>
         </div>
       </nav>
 
-      <div className="hero">
-        <div className="hero-badge">
-          <div className="badge-dot" />
-          AI-drevet teknisk dokumentasjon
-        </div>
-        <h1>
-          Fra maskindata til<br />
-          <span>ferdig dokumentpakke</span>
-          <br />
-          på under fem minutter
-        </h1>
-        <p className="hero-sub">
-          Samsiq genererer risikovurderinger, samsvarserklæringer, tekniske filer og QC-sjekklister
-          automatisk — for alle maskintyper, skreddersydd til ditt prosjekt.
+      <header className="lp-hero">
+        <h1 className="lp-hero-title">Teknisk dokumentasjon for maskiner og industriutstyr</h1>
+        <p className="lp-hero-lead">
+          Samsiq genererer dokumentasjonsgrunnlaget fra prosjektdata. Dokumentene redigeres, revideres
+          og signeres i plattformen, med full historikk.
         </p>
-        <div className="hero-actions">
+        <div className="lp-hero-actions">
           <Link href="/login?redirect=/app/new" className="btn-hero">
-            Prøv gratis nå
+            Prøv gratis
           </Link>
-          <button
-            className="btn-ghost"
-            type="button"
-            onClick={() => document.getElementById('how')?.scrollIntoView({ behavior: 'smooth' })}
-          >
-            Se hvordan det fungerer
-          </button>
+          <a href="#produkt" className="btn-ghost">
+            Se produktet
+          </a>
         </div>
-        <div className="proof">
-          <div className="proof-item">Ingen kredittkort kreves</div>
-          <div className="proof-item">Alle maskintyper</div>
-          <div className="proof-item">Norsk og engelsk</div>
+      </header>
+
+      <section className="lp-product" id="produkt" aria-label="Produktbilde">
+        <div className="lp-product-frame">
+          <Image
+            src="/images/produkt-skjermbilde.png"
+            alt="Skjermbilde av Samsiq-plattformen med prosjekt- og dokumentoversikt"
+            width={1200}
+            height={675}
+            className="lp-product-img"
+            priority
+          />
         </div>
-      </div>
+      </section>
 
-      <div className="divider" />
-
-      <div className="section" id="how">
-        <div className="eyebrow">Slik fungerer det</div>
-        <h2>
-          Fire steg fra data til
-          <br />
-          godkjent dokumentpakke
-        </h2>
-        <p className="section-sub">
-          Samsiq guider deg gjennom hele prosessen. Fungerer for alle maskintyper — fra pumper og
-          transportbånd til spesialmaskiner.
+      <section className="lp-section" id="omfang">
+        <div className="eyebrow">Omfang</div>
+        <h2 className="lp-section-title">Dokumentomfanget bestemmes av maskinen</h2>
+        <p className="lp-section-body">
+          Samsiq vurderer hvilke dokumenter prosjektet krever ut fra maskintype, drivsystem og
+          bruksområde. En enkel transportør og en trykksatt offshore-enhet får ikke samme omfang.
         </p>
-        <div className="flow-grid">
-          {[
-            ['01', 'Beskriv maskinen', 'Skriv fritt om maskintype, drivsystem og bruksområde.'],
-            ['02', 'Fyll inn prosjektdata', 'Kunde, serienummer, produsent og ansvarlig ingeniør.'],
-            ['03', 'AI genererer', 'Risikovurdering, teknisk fil, samsvarserklæring og QC-sjekkliste.'],
-            ['04', 'Last ned og fullfør', 'Ferdig formatert i Word. Fyll inn [MANGLER]-feltene og signer.'],
-          ].map(([num, title, desc]) => (
-            <div key={num} className="flow-step">
-              <div className="flow-num">{num}</div>
-              <div className="flow-title">{title}</div>
-              <div className="flow-desc">{desc}</div>
+        <div className="lp-scope-grid">
+          {SCOPE_ITEMS.map((item) => (
+            <div
+              key={item.label}
+              className={'lp-scope-card' + (item.muted ? ' lp-scope-card--muted' : '')}
+            >
+              {item.label}
             </div>
           ))}
         </div>
-      </div>
+      </section>
 
-      <div className="divider" />
-
-      <div className="section">
-        <div className="eyebrow">Funksjoner</div>
-        <h2>
-          Alt du trenger for
-          <br />
-          CE-merking og compliance
-        </h2>
-        <div className="features-grid">
-          {[
-            ['Automatisk risikovurdering', 'Komplett risikovurdering etter EN ISO 12100 med RPN-matrise.'],
-            ['EF-samsvarserklæring', 'Riktige direktiver identifiseres basert på maskinens drivsystem.'],
-            ['QC-sjekklister', 'Tilpassede kontrollpunkter basert på oppgitt maskintype.'],
-            ['[MANGLER]-prinsippet', 'AI gjetter aldri. Manglende info merkes eksplisitt.'],
-            ['Teknisk fil', 'Komplett teknisk dokumentasjon etter Maskindirektivet 2006/42/EC.'],
-            ['Norsk og engelsk', 'Samsvarserklæring genereres simultant på begge språk.'],
-          ].map(([title, desc]) => (
-            <div key={title} className="feature">
-              <div className="feature-icon" style={{ background: 'rgba(26,111,212,0.15)' }} />
-              <div className="feature-title">{title}</div>
-              <div className="feature-desc">{desc}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="divider" />
-
-      <div className="section" id="pricing">
-        <div className="eyebrow">Priser</div>
-        <h2>Enkel, forutsigbar prising</h2>
-        <p className="section-sub">Velg planen som passer din bedrift. Ingen skjulte kostnader.</p>
-        <div className="pricing-grid">
-          {(['starter', 'pro'] as const).map((planId) => {
-            const plan = PLANS[planId];
-            const featured = planId === 'pro';
-            return (
-              <div key={planId} className={'price-card' + (featured ? ' featured' : '')}>
-                {featured ? <div className="price-badge">Mest populær</div> : null}
-                <div className="price-name">{plan.name}</div>
-                <div className="price-desc">
-                  {planId === 'starter' ? 'For små bedrifter' : 'For voksende bedrifter'}
-                </div>
-                <div>
-                  <span className="price-amount">
-                    {formatNok(plan.monthlyPrice).replace(' kr', '')}
-                  </span>
-                  <span className="price-period"> kr/mnd</span>
-                </div>
-                <div className="price-divider" />
-                {planId === 'starter' ? (
-                  <div className="price-feature">
-                    <div className="pf-check">
-                      <CheckIcon />
-                    </div>
-                    5 dokumentpakker/mnd
-                  </div>
-                ) : null}
-                <Link
-                  href="/priser"
-                  className={'price-btn ' + (featured ? 'btn-filled' : 'btn-outline')}
-                >
-                  {featured ? 'Start gratis prøveperiode' : 'Kom i gang'}
-                </Link>
-              </div>
-            );
-          })}
-          <div className="price-card">
-            <div className="price-name">Enterprise</div>
-            <div className="price-desc">For store organisasjoner</div>
-            <div>
-              <span className="price-amount" style={{ fontSize: 22 }}>
-                Kontakt oss
-              </span>
-            </div>
-            <div className="price-divider" />
-            <button type="button" className="price-btn btn-outline">
-              Ta kontakt
-            </button>
+      <section className="lp-mangler" id="mangler" aria-labelledby="mangler-title">
+        <div className="lp-mangler-inner">
+          <div className="lp-mangler-copy">
+            <h2 id="mangler-title" className="lp-section-title">
+              Manglende grunnlag merkes, ikke gjettes
+            </h2>
+            <p className="lp-section-body">
+              Der prosjektdata ikke gir grunnlag for et tall eller en vurdering, markeres feltet
+              eksplisitt med hva som mangler. Faglige vurderinger verifiseres av kvalifisert
+              personell før bruk.
+            </p>
+          </div>
+          <div className="lp-mangler-code" role="note">
+            [MANGLER: oppgi MTTFd eller historisk feilrate for hydraulikkpumpe]
           </div>
         </div>
-      </div>
+      </section>
 
-      <div className="cta-section">
-        <div className="cta-title">Klar til å spare tid på dokumentasjon?</div>
-        <div className="cta-sub">Prøv Samsiq gratis. Ingen binding, ingen kredittkort.</div>
+      <section className="lp-section" id="plattform">
+        <div className="eyebrow">Plattform</div>
+        <div className="lp-platform-grid">
+          {PLATFORM.map((item) => (
+            <div key={item.title} className="lp-platform-card">
+              <IconBox>{item.icon}</IconBox>
+              <h3 className="lp-platform-title">{item.title}</h3>
+              <p className="lp-platform-desc">{item.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="lp-section lp-section--tight" id="regelverk">
+        <div className="lp-regulation-card">
+          <div className="lp-regulation-icon" aria-hidden>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+              <rect x="3" y="5" width="18" height="16" rx="2" />
+              <path d="M16 3v4M8 3v4M3 11h18" />
+            </svg>
+          </div>
+          <div>
+            <h2 className="lp-regulation-title">
+              Maskinforordningen (EU) 2023/1230 fra januar 2027
+            </h2>
+            <p className="lp-regulation-body">
+              Forordningen erstatter Maskindirektivet 2006/42/EF og stiller nye krav til teknisk
+              dokumentasjon.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="lp-closing" id="cta">
+        <div className="lp-closing-copy">
+          <h2 className="lp-closing-title">Prøv på ditt neste prosjekt</h2>
+          <p className="lp-closing-sub">Ingen kredittkort. Norsk og engelsk.</p>
+        </div>
         <Link href="/login?redirect=/app/new" className="btn-hero">
-          Start nå
+          Prøv gratis
         </Link>
-      </div>
+      </section>
 
       <footer>
-        <div className="footer-left">© 2025 Samsiq · Hultech ENK · Kristiansand, Norge</div>
+        <div className="footer-left">© 2026 Samsiq · Hultech ENK · Kristiansand, Norge</div>
         <div className="footer-links">
           <span className="footer-link">Personvern</span>
           <span className="footer-link">Vilkår</span>

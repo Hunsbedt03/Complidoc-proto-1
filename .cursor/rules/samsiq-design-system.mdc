@@ -1,0 +1,42 @@
+---
+description: Samsiq premium dark design system — tokens and visual rules
+alwaysApply: true
+---
+
+# Samsiq design system (premium mørkt)
+
+Uttrykk: seriøst verktøy — profesjonelt, moderne, solid. **Kun visuelt lag** ved restyling; ikke endre funksjonalitet eller flyt.
+
+## Tokens (defineres i `app/globals.css` `:root`)
+
+Bruk alltid CSS-variabler. Hardkod aldri farger i komponenter.
+
+| Rolle | Token | Hex |
+|-------|-------|-----|
+| Side | `--surface-0` | `#0E1116` |
+| Kort/panel | `--surface-1` | `#161A22` |
+| Forhøyet | `--surface-2` | `#1E232D` |
+| Kant | `--border` / `--border-strong` | `#252B36` / `#323A47` |
+| Accent | `--accent` / `--accent-hover` | `#3B82F6` / `#2E6FD6` |
+| Accent soft | `--bg-accent` / `--text-accent` | `#16233A` / `#7CB0F5` |
+| Tekst | `--text-primary` / `--secondary` / `--muted` | `#F2F4F8` / `#A8B0BD` / `#6B7280` |
+| Status | `--bg-*` + `--text-*` for success/warning/danger | se globals |
+
+Alias: `--text1/2/3` → primary/secondary/muted; `--surface2` → `--surface-2`.
+
+## Regler
+
+1. **Tre nivåer av mørke** — aldri rent svart. Element = ett hakk lysere enn flaten under.
+2. **Disiplinert blått** — kun primærhandling, aktiv nav, fokus. Ikke tall, stats eller pynt. Tall = `--text-primary`.
+3. **Tekst** — vekt kun 400/500 (overskrifter 500). Seksjonsetiketter: 12px, muted, uppercase, `letter-spacing: 0.04em`.
+4. **Status-pills** — svak bg + matchende tekst; advarselsbanner bruker `--bg-warning` + `--border-warning`.
+5. **Knapper** — maks én primær (blå) per skjerm; sekundær = transparent + `--border-strong`.
+6. **Spacing** — seksjoner 24px, kort-padding 16px, grid-gap 12px, liste-gap 8px, sidepadding 24px.
+7. **Kort** — `--surface-1`, radius 12px; hårlinje-kant kun på klikkbare/forhøyede.
+8. **Unntak** — `.doc-paper*` (A4-papirvisning) beholder print-styling (hvitt papir, tyngre vekter).
+
+## Layout
+
+- Topplinje / sidemeny: `--surface-1` + hårlinje.
+- Aktivt menyvalg: `--bg-accent` + `--text-accent` (+ ikon).
+- Landing: saklig B2B-forside; én primær CTA i hero og én i avsluttende CTA; produktbilde + omfang / [MANGLER] / plattform / regelverk.

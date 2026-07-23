@@ -234,7 +234,7 @@ export function OutputPanel() {
 
   if (!zipData) {
     return restoring ? (
-      <p style={{ color: '#9CA3AF', fontSize: 14 }}>Gjenoppretter prosjekt…</p>
+      <p className="text-muted-inline">Gjenoppretter prosjekt…</p>
     ) : null;
   }
 

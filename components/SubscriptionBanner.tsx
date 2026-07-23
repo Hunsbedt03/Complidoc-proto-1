@@ -46,7 +46,7 @@ export function SubscriptionBanner({ data, loading, pendingActivation }: Props) 
 
   if (pendingActivation) {
     return (
-      <div className="sub-banner sub-banner--trial">
+      <div className="sub-banner sub-banner--warning">
         <span>Aktiverer abonnement…</span>
       </div>
     );
@@ -56,8 +56,9 @@ export function SubscriptionBanner({ data, loading, pendingActivation }: Props) 
 
   if (data.status === 'trialing') {
     const days = daysUntil(data.trialEnd);
+    const expired = days === 0;
     return (
-      <div className="sub-banner sub-banner--trial">
+      <div className={'sub-banner ' + (expired ? 'sub-banner--error' : 'sub-banner--warning')}>
         <span>Prøveperiode — {days ?? '?'} dager igjen</span>
         <button type="button" className="btn-dl" onClick={() => void openPortal(setPortalError)}>
           Legg til betalingskort

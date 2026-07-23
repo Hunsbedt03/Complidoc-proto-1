@@ -48,6 +48,14 @@ export function CustomerShell({ children }: { children: React.ReactNode }) {
             'app-nav-item' + (pathname === '/app/customer/dashboard' ? ' active' : '')
           }
         >
+          <span className="app-nav-icon" aria-hidden>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+              <rect x="3" y="3" width="7" height="9" rx="1.5" />
+              <rect x="14" y="3" width="7" height="5" rx="1.5" />
+              <rect x="14" y="12" width="7" height="9" rx="1.5" />
+              <rect x="3" y="16" width="7" height="5" rx="1.5" />
+            </svg>
+          </span>
           Mine prosjekter
         </Link>
         <Link
@@ -57,37 +65,22 @@ export function CustomerShell({ children }: { children: React.ReactNode }) {
             (pathname?.startsWith('/app/customer/settings') ? ' active' : '')
           }
         >
+          <span className="app-nav-icon" aria-hidden>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9c.2.6.7 1 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
+            </svg>
+          </span>
           Min konto
         </Link>
-          <div
-            style={{
-              marginTop: 'auto',
-              paddingTop: 16,
-              borderTop: '0.5px solid rgba(255,255,255,0.06)',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div
-                style={{
-                  width: 26,
-                  height: 26,
-                  borderRadius: '50%',
-                  background: 'rgba(26,111,212,0.2)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 10,
-                  fontWeight: 500,
-                  color: '#85B7EB',
-                }}
-              >
-                {initials}
-              </div>
+          <div className="sidebar-user">
+            <div className="sidebar-user-row" style={{ marginTop: 0 }}>
+              <div className="sidebar-avatar">{initials}</div>
               <div>
-                <div style={{ fontSize: 12, color: '#D1D5DB', fontWeight: 500 }}>
+                <div className="sidebar-user-name">
                   {profile?.full_name || user?.email?.split('@')[0] || 'Bruker'}
                 </div>
-                <div style={{ fontSize: 11, color: '#4B5563' }}>{user?.email}</div>
+                <div className="sidebar-user-email">{user?.email}</div>
               </div>
             </div>
             <button type="button" className="btn-logout" onClick={() => void handleLogout()}>

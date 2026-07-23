@@ -10,7 +10,7 @@ export default function DashboardPage() {
     <>
       <AppTopbar title={title} subtitle={subtitle} />
       <div className="app-content">
-        <Suspense fallback={<p style={{ color: '#9CA3AF', fontSize: 14 }}>Laster…</p>}>
+        <Suspense fallback={<p className="text-muted-inline">Laster…</p>}>
           <Dashboard />
         </Suspense>
       </div>

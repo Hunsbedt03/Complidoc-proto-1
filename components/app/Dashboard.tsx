@@ -249,9 +249,7 @@ export function Dashboard() {
   const count = displayProjects.length;
 
   if (loading && !displayProjects.length) {
-    return (
-      <p style={{ color: '#9CA3AF', fontSize: 14 }}>Laster prosjekter…</p>
-    );
+    return <p className="text-muted-inline">Laster prosjekter…</p>;
   }
 
   return (
@@ -263,24 +261,14 @@ export function Dashboard() {
       {actionError ? <p className="form-error">{actionError}</p> : null}
 
       {activationConfirmed && !pendingActivation ? (
-        <p
-          style={{
-            color: '#9FD66A',
-            fontSize: 13,
-            marginBottom: 16,
-            padding: '10px 12px',
-            background: 'rgba(97,153,34,0.1)',
-            borderRadius: 8,
-            border: '0.5px solid rgba(97,153,34,0.25)',
-          }}
-        >
+        <p className="alert-banner alert-banner--success">
           Abonnement aktivert — velkommen til Samsiq!
         </p>
       ) : null}
 
       {!user && !displayProjects.length && (
-        <p style={{ color: '#9CA3AF', fontSize: 14, marginBottom: 16 }}>
-          <Link href="/login?redirect=/app/dashboard" style={{ color: '#85B7EB' }}>
+        <p className="text-muted-inline" style={{ marginBottom: 16 }}>
+          <Link href="/login?redirect=/app/dashboard" className="link-accent">
             Logg inn
           </Link>{' '}
           for å se prosjekter lagret i skyen. Lokale prosjekter vises under.
@@ -288,17 +276,7 @@ export function Dashboard() {
       )}
 
       {showLoadError && (
-        <p
-          style={{
-            color: '#FCA5A5',
-            fontSize: 13,
-            marginBottom: 16,
-            padding: '10px 12px',
-            background: 'rgba(239,68,68,0.08)',
-            borderRadius: 8,
-            border: '0.5px solid rgba(239,68,68,0.25)',
-          }}
-        >
+        <p className="alert-banner alert-banner--danger">
           Kunne ikke hente prosjekter fra Supabase: {showLoadError}
         </p>
       )}
@@ -338,16 +316,7 @@ export function Dashboard() {
         {!displayProjects.length && (
           <>
             {user && !showLoadError && (
-              <p
-                style={{
-                  color: '#9CA3AF',
-                  fontSize: 13,
-                  marginBottom: 12,
-                  padding: '10px 12px',
-                  background: 'rgba(255,255,255,0.04)',
-                  borderRadius: 8,
-                }}
-              >
+              <p className="alert-banner alert-banner--muted" style={{ marginBottom: 12 }}>
                 Ingen prosjekter funnet for innlogget bruker ({user.email}). Opprett et
                 nytt prosjekt eller sjekk at du er logget inn med riktig konto.
               </p>

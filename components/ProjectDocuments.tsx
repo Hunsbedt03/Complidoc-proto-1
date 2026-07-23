@@ -23,12 +23,12 @@ import type { ProjectStatus } from '@/lib/projectStatus';
 import { fetchProjectRevisions } from '@/lib/revisions/saveRevision';
 
 const DOC_COLORS = [
-  'rgba(226,75,74,0.15)',
-  'rgba(26,111,212,0.15)',
-  'rgba(97,153,34,0.15)',
-  'rgba(239,159,39,0.15)',
-  'rgba(120,80,200,0.15)',
-  'rgba(60,180,180,0.15)',
+  'var(--bg-danger)',
+  'var(--bg-accent)',
+  'var(--bg-success)',
+  'var(--bg-warning)',
+  'var(--surface-2)',
+  'var(--bg-accent)',
 ];
 
 function contentPreview(html: string | undefined, fallback: string): string {
