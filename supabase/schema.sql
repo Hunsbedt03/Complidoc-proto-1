@@ -1,5 +1,10 @@
--- Samsiq database schema
+-- Samsiq database schema (kjernemodell)
 -- Kjør i Supabase SQL Editor (https://supabase.com/dashboard/project/_/sql)
+-- Utvidelser (company_profiles, kundeportal, revisjoner, kravmal, …) ligger i
+-- supabase/migrations/ og supabase/patch-*.sql.
+--
+-- S3 (2026-07-24): legacy bedrifter / brukere_bedrifter er fjernet.
+-- Org-/team-modell: public.company_profiles (+ team_members).
 
 -- ─── Profiler (koblet til Supabase Auth) ───────────────────────────────────
 create table if not exists public.users (
@@ -9,29 +14,10 @@ create table if not exists public.users (
   created_at timestamptz not null default now()
 );
 
--- ─── Bedrifter ─────────────────────────────────────────────────────────────
-create table if not exists public.bedrifter (
-  id uuid primary key default gen_random_uuid(),
-  navn text not null,
-  org_nr text,
-  created_at timestamptz not null default now()
-);
-
--- ─── Bruker ↔ bedrift ──────────────────────────────────────────────────────
-create table if not exists public.brukere_bedrifter (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references public.users(id) on delete cascade,
-  bedrift_id uuid not null references public.bedrifter(id) on delete cascade,
-  rolle text not null default 'admin' check (rolle in ('admin', 'medlem')),
-  created_at timestamptz not null default now(),
-  unique (user_id, bedrift_id)
-);
-
--- ─── Maskiner ──────────────────────────────────────────────────────────────
+-- ─── Maskiner (legacy/tom i prod — beholdt for mulig fremtidig bruk) ───────
 create table if not exists public.maskiner (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.users(id) on delete cascade,
-  bedrift_id uuid references public.bedrifter(id) on delete set null,
   navn text not null,
   serienummer text,
   beskrivelse text,
@@ -45,10 +31,12 @@ create table if not exists public.maskiner (
 );
 
 -- ─── Prosjekter ────────────────────────────────────────────────────────────
+-- company_profile_id er NOT NULL i prod (FK til company_profiles via migrering).
+-- Her uten FK slik at denne filen kan kjøres før company_profiles-patch.
 create table if not exists public.prosjekter (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.users(id) on delete cascade,
-  bedrift_id uuid references public.bedrifter(id) on delete set null,
+  company_profile_id uuid not null,
   maskin_id uuid references public.maskiner(id) on delete set null,
   navn text not null,
   kunde text,
@@ -74,6 +62,7 @@ create table if not exists public.dokumenter (
 );
 
 create index if not exists idx_prosjekter_user on public.prosjekter(user_id, created_at desc);
+create index if not exists idx_prosjekter_company_profile on public.prosjekter(company_profile_id);
 create index if not exists idx_dokumenter_prosjekt on public.dokumenter(prosjekt_id);
 create index if not exists idx_maskiner_user on public.maskiner(user_id);
 
@@ -131,8 +120,6 @@ grant execute on function public.ensure_user_profile() to authenticated;
 
 -- ─── Row Level Security ────────────────────────────────────────────────────
 alter table public.users enable row level security;
-alter table public.bedrifter enable row level security;
-alter table public.brukere_bedrifter enable row level security;
 alter table public.maskiner enable row level security;
 alter table public.prosjekter enable row level security;
 alter table public.dokumenter enable row level security;
@@ -141,25 +128,6 @@ alter table public.dokumenter enable row level security;
 create policy "users_select_own" on public.users for select using (auth.uid() = id);
 create policy "users_insert_own" on public.users for insert with check (auth.uid() = id);
 create policy "users_update_own" on public.users for update using (auth.uid() = id);
-
--- bedrifter (via medlemskap)
-create policy "bedrifter_select_member" on public.bedrifter for select using (
-  exists (
-    select 1 from public.brukere_bedrifter bb
-    where bb.bedrift_id = bedrifter.id and bb.user_id = auth.uid()
-  )
-);
-create policy "bedrifter_insert_auth" on public.bedrifter for insert with check (auth.uid() is not null);
-create policy "bedrifter_update_admin" on public.bedrifter for update using (
-  exists (
-    select 1 from public.brukere_bedrifter bb
-    where bb.bedrift_id = bedrifter.id and bb.user_id = auth.uid() and bb.rolle = 'admin'
-  )
-);
-
--- brukere_bedrifter
-create policy "bb_select_own" on public.brukere_bedrifter for select using (user_id = auth.uid());
-create policy "bb_insert_own" on public.brukere_bedrifter for insert with check (user_id = auth.uid());
 
 -- maskiner
 create policy "maskiner_all_own" on public.maskiner for all using (user_id = auth.uid()) with check (user_id = auth.uid());

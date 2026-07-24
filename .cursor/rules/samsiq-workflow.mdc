@@ -19,9 +19,10 @@ alwaysApply: true
   customer_project_access: verifiser selv (via Supabase MCP) at leverandør-
   dashboardets prosjektspørring fortsatt fungerer som forventet.
 - Vis diffs i tekst når du foreslår kodeendringer, ikke bare beskriv dem med ord.
-- Ikke rør bedrift_id, ensureBedrift eller den gamle bedrifter/brukere_bedrifter-
-  modellen uten eksplisitt beskjed fra Nicolas — det er egen opprydningsfase
-  (S3) senere.
+- Org-/team-modell er `company_profiles` (+ `team_members`). Legacy
+  `bedrifter` / `brukere_bedrifter` / `bedrift_id` / `ensureBedrift` er fjernet
+  (S3, 2026-07-24) — ikke gjeninnfør dem. `maskiner` finnes fortsatt (tom) som
+  egen mulig opprydning senere.
 - Norsk i all kommunikasjon, Cursor-prompter og UI-tekst.
 - Ingenting som ikke stemmer 100 %. Ikke finn på standardreferanser, tall eller
   påstander du ikke kan verifisere — marker dem tydelig som noe Nicolas må
