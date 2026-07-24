@@ -32,7 +32,6 @@ export async function POST(request: Request) {
     }
 
     const body = (await request.json()) as {
-      bedriftId: string | null;
       payload: SaveProjectPayload;
     };
 
@@ -46,7 +45,6 @@ export async function POST(request: Request) {
     const saveResult = await saveGeneratedProject(
       db,
       user.id,
-      body.bedriftId,
       body.payload,
       { skipProfileEnsure: true }
     );

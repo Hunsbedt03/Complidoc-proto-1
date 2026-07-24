@@ -186,16 +186,3 @@ export function formatDate(iso: string): string {
     return '';
   }
 }
-
-export async function getBedriftId(
-  supabase: SupabaseClient,
-  userId: string
-): Promise<string | null> {
-  // Legacy: prosjekter.bedrift_id FK peker fortsatt på bedrifter — ikke company_profiles.
-  const { data } = await supabase
-    .from('brukere_bedrifter')
-    .select('bedrift_id')
-    .eq('user_id', userId)
-    .limit(1);
-  return data?.[0]?.bedrift_id ?? null;
-}

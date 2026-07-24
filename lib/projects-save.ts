@@ -90,37 +90,9 @@ export async function ensureUserProfile(
   throwSaveError('H2-users-insert', insertErr, { userId });
 }
 
-/** Legacy bedrifter-modell — prosjekter.bedrift_id FK. Team/bruker bruker company_profiles. */
-export async function ensureBedrift(
-  supabase: SupabaseClient,
-  userId: string,
-  existingBedriftId: string | null,
-  produsentNavn: string
-): Promise<string> {
-  if (existingBedriftId) return existingBedriftId;
-
-  const navn = (produsentNavn || 'Min bedrift').trim() || 'Min bedrift';
-  const { data: bedrift, error: bErr } = await supabase
-    .from('bedrifter')
-    .insert({ navn })
-    .select('id')
-    .single();
-  if (bErr) throwSaveError('H5-bedrifter', bErr);
-
-  const { error: linkErr } = await supabase.from('brukere_bedrifter').insert({
-    user_id: userId,
-    bedrift_id: bedrift.id,
-    rolle: 'admin',
-  });
-  if (linkErr) throwSaveError('H5-brukere_bedrifter', linkErr);
-
-  return bedrift.id;
-}
-
 export async function saveGeneratedProject(
   supabase: SupabaseClient,
   userId: string,
-  bedriftId: string | null,
   payload: SaveProjectPayload,
   options?: { skipProfileEnsure?: boolean }
 ): Promise<{
@@ -149,7 +121,6 @@ export async function saveGeneratedProject(
     .from('prosjekter')
     .insert({
       user_id: userId,
-      bedrift_id: bedriftId,
       company_profile_id: companyProfile.id,
       maskin_id: null,
       navn: payload.prosjekt,

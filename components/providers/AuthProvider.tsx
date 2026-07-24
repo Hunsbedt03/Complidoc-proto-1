@@ -14,14 +14,13 @@ import { createClient } from '@/lib/supabase/client';
 import { authCallbackUrl } from '@/lib/appUrl';
 import { listLocalProjects } from '@/lib/localProjects';
 import { formatSupabaseError } from '@/lib/supabaseError';
-import { getBedriftId, loadProjects } from '@/lib/projects';
+import { loadProjects } from '@/lib/projects';
 import type { ProsjektSummary, UserProfile } from '@/lib/types';
 import type { User } from '@supabase/supabase-js';
 
 type AuthContextValue = {
   user: User | null;
   profile: UserProfile | null;
-  bedriftId: string | null;
   projects: ProsjektSummary[];
   projectsError: string | null;
   loading: boolean;
@@ -64,7 +63,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const supabase = useMemo(() => createClient(), []);
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [bedriftId, setBedriftId] = useState<string | null>(null);
   const [projects, setProjects] = useState<ProsjektSummary[]>([]);
   const [projectsError, setProjectsError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -101,7 +99,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         lastLoadedUserIdRef.current = null;
         projectsLoadedForUserRef.current = null;
         setProfile(null);
-        setBedriftId(null);
         setProjectsError(null);
         setProjects(listLocalProjects());
         return;
@@ -152,11 +149,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           fetch('/api/bootstrap-profile', { method: 'POST' }).catch((err) => {
             console.warn('[samsiq] bootstrap-profile:', formatSupabaseError(err));
           });
-
-          const bId = await getBedriftId(supabase, currentUser.id);
-          setBedriftId(bId);
         } catch (err) {
-          console.warn('[samsiq] Profil/bedrift (ikke kritisk):', formatSupabaseError(err));
+          console.warn('[samsiq] Profil (ikke kritisk):', formatSupabaseError(err));
         }
       } finally {
         loadInFlightRef.current = false;
@@ -302,7 +296,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       user,
       profile,
-      bedriftId,
       projects,
       projectsError,
       loading,
@@ -317,7 +310,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [
       user,
       profile,
-      bedriftId,
       projects,
       projectsError,
       loading,

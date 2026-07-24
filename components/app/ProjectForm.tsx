@@ -36,7 +36,7 @@ import type { ISOCertification } from '@/lib/documents/types';
 
 export function ProjectForm() {
   const router = useRouter();
-  const { user, profile, bedriftId, refreshProjects } = useAuth();
+  const { user, profile, refreshProjects } = useAuth();
   const permissions = usePermissions();
   const { setResult, syncProjectId, setArchiveLinks } = useGeneration();
 
@@ -208,7 +208,6 @@ export function ProjectForm() {
             zipBase64: '',
           };
           const saveBody = JSON.stringify({
-            bedriftId,
             payload: cloudPayload,
           });
           const saveRes = await fetch('/api/projects/save', {
