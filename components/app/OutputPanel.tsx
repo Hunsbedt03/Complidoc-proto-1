@@ -8,6 +8,7 @@ import { LockProjectButton } from '@/components/LockProjectButton';
 import { usePermissions } from '@/hooks/usePermissions';
 import { ProjectActivityLog } from '@/components/ProjectActivityLog';
 import { ProjectCustomerAccess } from '@/components/project/ProjectCustomerAccess';
+import { ProjectRequirementsPanel } from '@/components/project/ProjectRequirementsPanel';
 import { ProjectRevisionPanel } from '@/components/project/ProjectRevisionPanel';
 import { ProjectAttachmentsSection } from '@/components/project/ProjectAttachmentsSection';
 import { ProjectDocuments } from '@/components/ProjectDocuments';
@@ -324,6 +325,8 @@ export function OutputPanel() {
         uploads={uploads}
         projectStatus={effectiveLocked ? 'locked' : projectStatus}
       />
+
+      {projectId ? <ProjectRequirementsPanel projectId={projectId} /> : null}
 
       {projectId ? (
         <ProjectAttachmentsSection
