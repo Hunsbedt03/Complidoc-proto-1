@@ -344,7 +344,7 @@ export function ProjectForm() {
               className="form-input"
               value={form.prosjekt}
               onChange={(e) => update('prosjekt', e.target.value)}
-              placeholder="f.eks. Strandafjorden kraftverk"
+              placeholder="f.eks. Prosjektnavn eller anleggssted"
             />
           </div>
           <div className="form-group">
@@ -353,7 +353,7 @@ export function ProjectForm() {
               className="form-input"
               value={form.kunde}
               onChange={(e) => update('kunde', e.target.value)}
-              placeholder="f.eks. Statkraft AS"
+              placeholder="f.eks. Kundens firmanavn"
             />
           </div>
         </div>
@@ -386,7 +386,7 @@ export function ProjectForm() {
               className="form-input"
               value={form.serienr}
               onChange={(e) => update('serienr', e.target.value)}
-              placeholder="f.eks. GEH2000-1158-26"
+              placeholder="f.eks. Serienummer fra typeskilt"
             />
           </div>
           <div className="form-group">
@@ -397,7 +397,7 @@ export function ProjectForm() {
               className="form-input"
               value={form.maskin}
               onChange={(e) => update('maskin', e.target.value)}
-              placeholder="f.eks. GEH 2000 Grindrenser"
+              placeholder="f.eks. Modellnavn/type"
             />
           </div>
         </div>

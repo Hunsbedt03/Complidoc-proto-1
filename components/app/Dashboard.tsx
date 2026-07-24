@@ -295,13 +295,6 @@ export function Dashboard() {
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-label">Timer spart (est.)</div>
-          <div className="stat-val" id="stat-hours">
-            {count * 4}t
-          </div>
-          <div className="stat-sub">4t per pakke</div>
-        </div>
-        <div className="stat-card">
           <div className="stat-label">Aktive prosjekter</div>
           <div className="stat-val" id="stat-projects">
             {count}
