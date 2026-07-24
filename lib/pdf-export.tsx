@@ -18,7 +18,7 @@ import {
 export type PdfExportMeta = DocumentExportMeta;
 
 const basePage = {
-  paddingTop: 36,
+  paddingTop: 56,
   paddingBottom: 48,
   paddingHorizontal: 40,
   fontSize: 10,
@@ -74,6 +74,69 @@ const styles = StyleSheet.create({
     borderColor: '#ccc',
     fontSize: 7,
   },
+  header: {
+    position: 'absolute',
+    top: 18,
+    left: 40,
+    right: 40,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderBottomWidth: 0.75,
+    borderBottomColor: '#ccc',
+    paddingBottom: 6,
+  },
+  headerBrand: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '22%',
+  },
+  logoMark: {
+    width: 12,
+    height: 12,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginRight: 5,
+  },
+  logoCell: {
+    width: 5,
+    height: 5,
+    margin: 0.5,
+    borderRadius: 0.75,
+    backgroundColor: '#1E232D',
+  },
+  logoCellMuted: {
+    width: 5,
+    height: 5,
+    margin: 0.5,
+    borderRadius: 0.75,
+    backgroundColor: '#6B7280',
+  },
+  logoCellFaint: {
+    width: 5,
+    height: 5,
+    margin: 0.5,
+    borderRadius: 0.75,
+    backgroundColor: '#A8B0BD',
+  },
+  logoName: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#1E232D',
+  },
+  headerCenter: {
+    flex: 1,
+    fontSize: 8,
+    color: '#555',
+    textAlign: 'center',
+    paddingHorizontal: 8,
+  },
+  headerRevision: {
+    width: '18%',
+    fontSize: 8,
+    color: '#555',
+    textAlign: 'right',
+  },
   footer: {
     position: 'absolute',
     bottom: 24,
@@ -86,6 +149,36 @@ const styles = StyleSheet.create({
   },
 });
 
+function SamsiqLogoMark() {
+  return (
+    <View style={styles.headerBrand}>
+      <View style={styles.logoMark}>
+        <View style={styles.logoCell} />
+        <View style={styles.logoCellMuted} />
+        <View style={styles.logoCellMuted} />
+        <View style={styles.logoCellFaint} />
+      </View>
+      <Text style={styles.logoName}>Samsiq</Text>
+    </View>
+  );
+}
+
+function PageHeader({ meta }: { meta: PdfExportMeta }) {
+  const machine = meta.machine?.trim();
+  const center =
+    machine && machine !== '—' && machine !== meta.title
+      ? `${meta.title} — ${machine}`
+      : meta.title;
+  const rev = `Rev. ${meta.revision}`;
+
+  return (
+    <View style={styles.header} fixed>
+      <SamsiqLogoMark />
+      <Text style={styles.headerCenter}>{center}</Text>
+      <Text style={styles.headerRevision}>{rev}</Text>
+    </View>
+  );
+}
 function ParagraphText({ block }: { block: Extract<DocumentBlock, { type: 'paragraph' }> }) {
   if (block.spans?.length) {
     return (
@@ -194,6 +287,7 @@ function ExportDocument({
         orientation={landscape ? 'landscape' : 'portrait'}
         style={landscape ? styles.pageLandscape : styles.pagePortrait}
       >
+        <PageHeader meta={meta} />
         <InfoTable meta={meta} />
         {blocks.map((block, i) => (
           <BlockView key={i} block={block} documentId={meta.documentId} />

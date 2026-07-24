@@ -1,0 +1,28 @@
+---
+description: Arbeidsflyt og selvstendighet for Samsiq-utvikling
+alwaysApply: true
+---
+
+# Samsiq — arbeidsflyt og selvstendighet
+
+- Jobb selvstendig så langt som mulig. Ikke spør om bekreftelse for hvert lite steg.
+- Bruk Supabase MCP til å verifisere skjema/data selv før du spør Nicolas om noe
+  du kan sjekke selv.
+- For lavrisiko-endringer (nye kolonner, ikke-RLS-endringer, kodeendringer):
+  gjør hele jobben selvstendig og rapporter resultatet samlet til slutt, ikke
+  steg for steg.
+- For RLS-endringer på customer_users, customer_project_access eller prosjekter:
+  vær ekstra forsiktig. Still ett tydelig spørsmål om bekreftelse før du kjører
+  noe som endrer RLS-policyer på disse tabellene, siden dette har forårsaket
+  alvorlige feil tidligere (infinite recursion, 42P17).
+- Etter enhver endring som rører prosjekter, customer_users eller
+  customer_project_access: verifiser selv (via Supabase MCP) at leverandør-
+  dashboardets prosjektspørring fortsatt fungerer som forventet.
+- Vis diffs i tekst når du foreslår kodeendringer, ikke bare beskriv dem med ord.
+- Ikke rør bedrift_id, ensureBedrift eller den gamle bedrifter/brukere_bedrifter-
+  modellen uten eksplisitt beskjed fra Nicolas — det er egen opprydningsfase
+  (S3) senere.
+- Norsk i all kommunikasjon, Cursor-prompter og UI-tekst.
+- Ingenting som ikke stemmer 100 %. Ikke finn på standardreferanser, tall eller
+  påstander du ikke kan verifisere — marker dem tydelig som noe Nicolas må
+  bekrefte.

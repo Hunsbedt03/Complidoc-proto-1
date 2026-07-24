@@ -132,11 +132,25 @@ export async function saveGeneratedProject(
     await ensureUserProfile(supabase, userId);
   }
 
+  // Samme bro som backfill: company_profiles.user_id = prosjekter.user_id
+  const { data: companyProfile, error: cpErr } = await supabase
+    .from('company_profiles')
+    .select('id')
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (cpErr) throwSaveError('H3-company_profiles', cpErr, { userId });
+  if (!companyProfile?.id) {
+    throw new Error(
+      'Mangler bedriftsprofil (company_profiles). Fullfør onboarding før prosjekt lagres.'
+    );
+  }
+
   const { data: prosjekt, error: pErr } = await supabase
     .from('prosjekter')
     .insert({
       user_id: userId,
       bedrift_id: bedriftId,
+      company_profile_id: companyProfile.id,
       maskin_id: null,
       navn: payload.prosjekt,
       kunde: payload.kunde,

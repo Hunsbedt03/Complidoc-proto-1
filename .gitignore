@@ -21,3 +21,5 @@ next-env.d.ts
 
 # legacy build
 /public/index.html
+
+scripts/.verify-session.json

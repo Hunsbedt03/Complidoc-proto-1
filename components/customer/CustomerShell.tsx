@@ -56,7 +56,7 @@ export function CustomerShell({ children }: { children: React.ReactNode }) {
               <rect x="3" y="16" width="7" height="5" rx="1.5" />
             </svg>
           </span>
-          Mine prosjekter
+          Oversikt
         </Link>
         <Link
           href="/app/customer/settings/account"

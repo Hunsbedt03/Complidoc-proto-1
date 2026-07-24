@@ -106,7 +106,11 @@ export async function POST(request: Request) {
       localCompanyId: getLocalCompanyId(user.id),
     });
   } catch (err) {
-    const message = formatSupabaseError(err);
+    const message =
+      err instanceof Error ? err.message : formatSupabaseError(err);
+    if (message.includes('Mangler bedriftsprofil')) {
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
     const needsSetup =
       message.includes('patch-ensure-user-profile') ||
       message.includes('42501') ||
